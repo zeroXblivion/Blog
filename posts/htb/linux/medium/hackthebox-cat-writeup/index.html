@@ -30,8 +30,6 @@ This box focuses on web application vulnerabilities, specifically Cross-Site Scr
 
     </style>
 </noscript><meta property="og:url" content="https://0xblivion.dev/posts/htb/linux/medium/hackthebox-cat-writeup/">
-  <meta name="author" content="0xblivion">
-  <meta property="article:author" content="0xblivion">
   <meta property="og:site_name" content="0xblivion.dev">
   <meta property="og:title" content="HackTheBox - Cat Writeup">
   <meta property="og:description" content="Overview This box focuses on web application vulnerabilities, specifically Cross-Site Scripting (XSS) and SQL Injection, leading to privilege escalation. We start with an Nmap scan to identify open ports and services. We then enumerate the web application, discovering an exposed Git repository and an XSS vulnerability in the cat registration feature. Exploiting the XSS allows us to capture an admin session cookie, granting access to an administrative panel. From there, we identify and exploit a SQL Injection vulnerability to dump user credentials, which leads to SSH access as a low-privileged user. Finally, we leverage another XSS vulnerability within a local Gitea instance, triggered by an internal mail service, to compromise a higher-privileged user and obtain the root flag.">
@@ -47,6 +45,20 @@ This box focuses on web application vulnerabilities, specifically Cross-Site Scr
     <meta property="article:tag" content="SQL Injection">
     <meta property="article:tag" content="Web Exploitation">
     <meta property="og:image" content="https://0xblivion.dev/img/cat/cat_badge.png">
+  
+  <meta name="author" content="0xblivion">
+  <meta property="article:author" content="0xblivion">
+  <meta property="og:article:author" content="0xblivion">
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "author": {
+        "@type": "Person",
+        "name": "0xblivion"
+      }
+    }
+  </script>
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://0xblivion.dev/img/cat/cat_badge.png">
 <meta name="twitter:title" content="HackTheBox - Cat Writeup">
@@ -222,7 +234,7 @@ This box focuses on web application vulnerabilities, specifically Cross-Site Scr
 
 
 
-<div id="flowchart-1751756438394700057" class="attack-path-flowchart">
+<div id="flowchart-1751756699058152427" class="attack-path-flowchart">
   <div class="flowchart-controls">
     <button class="zoom-btn" data-action="zoom-in" title="Zoom In">+</button>
     <button class="zoom-btn" data-action="zoom-out" title="Zoom Out">−</button>

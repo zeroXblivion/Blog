@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>SQL Injection on 0xblivion.dev</title>
+    <link>https://0xblivion.dev/tags/sql-injection/</link>
+    <description>Recent content in SQL Injection on 0xblivion.dev</description>
+    <image>
+      <title>0xblivion.dev</title>
+      <url>https://0xblivion.dev/img/favicon.png</url>
+      <link>https://0xblivion.dev/img/favicon.png</link>
+    </image>
+    <generator>Hugo -- 0.147.9</generator>
+    <language>en-us</language>
+    <lastBuildDate>Sat, 05 Jul 2025 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://0xblivion.dev/tags/sql-injection/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>HackTheBox - Cat Writeup</title>
+      <link>https://0xblivion.dev/posts/htb/linux/medium/hackthebox-cat-writeup/</link>
+      <pubDate>Sat, 05 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/posts/htb/linux/medium/hackthebox-cat-writeup/</guid>
+      <description>&lt;h1 id=&#34;overview&#34;&gt;Overview&lt;/h1&gt;
+&lt;img src=&#34;https://0xblivion.dev/img/cat/Cat.png&#34; alt=&#34;Cat&#34; class=&#34;img-responsive&#34; loading=&#34;lazy&#34; /&gt;
+&lt;p&gt;This box focuses on web application vulnerabilities, specifically Cross-Site Scripting (&lt;code&gt;XSS&lt;/code&gt;) and &lt;code&gt;SQL Injection&lt;/code&gt;, leading to privilege escalation. We start with an Nmap scan to identify open ports and services. We then enumerate the web application, discovering an exposed Git repository and an XSS vulnerability in the cat registration feature. Exploiting the XSS allows us to capture an admin session cookie, granting access to an administrative panel. From there, we identify and exploit a SQL Injection vulnerability to dump user credentials, which leads to SSH access as a low-privileged user. Finally, we leverage another XSS vulnerability within a local Gitea instance, triggered by an internal mail service, to compromise a higher-privileged user and obtain the root flag.&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

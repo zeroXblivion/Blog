@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Tags on 0xblivion.dev</title>
+    <link>https://0xblivion.dev/tags/</link>
+    <description>Recent content in Tags on 0xblivion.dev</description>
+    <image>
+      <title>0xblivion.dev</title>
+      <url>https://0xblivion.dev/img/favicon.png</url>
+      <link>https://0xblivion.dev/img/favicon.png</link>
+    </image>
+    <generator>Hugo -- 0.147.9</generator>
+    <language>en-us</language>
+    <lastBuildDate>Mon, 07 Jul 2025 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://0xblivion.dev/tags/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Account-Operators</title>
+      <link>https://0xblivion.dev/tags/account-operators/</link>
+      <pubDate>Mon, 07 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/account-operators/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Active-Directory</title>
+      <link>https://0xblivion.dev/tags/active-directory/</link>
+      <pubDate>Mon, 07 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/active-directory/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Command-Injection</title>
+      <link>https://0xblivion.dev/tags/command-injection/</link>
+      <pubDate>Mon, 07 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/command-injection/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Cve-2020-12772</title>
+      <link>https://0xblivion.dev/tags/cve-2020-12772/</link>
+      <pubDate>Mon, 07 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/cve-2020-12772/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Docker</title>
+      <link>https://0xblivion.dev/tags/docker/</link>
+      <pubDate>Mon, 07 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/docker/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Hash-Cracking</title>
+      <link>https://0xblivion.dev/tags/hash-cracking/</link>
+      <pubDate>Mon, 07 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/hash-cracking/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Kerberos</title>
+      <link>https://0xblivion.dev/tags/kerberos/</link>
+      <pubDate>Mon, 07 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/kerberos/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Nmap,</title>
+      <link>https://0xblivion.dev/tags/nmap/</link>
+      <pubDate>Mon, 07 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/nmap/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Ntlm</title>
+      <link>https://0xblivion.dev/tags/ntlm/</link>
+      <pubDate>Mon, 07 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/ntlm/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Password-Reset</title>
+      <link>https://0xblivion.dev/tags/password-reset/</link>
+      <pubDate>Mon, 07 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/password-reset/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Privilege-Escalation</title>
+      <link>https://0xblivion.dev/tags/privilege-escalation/</link>
+      <pubDate>Mon, 07 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/privilege-escalation/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Responder</title>
+      <link>https://0xblivion.dev/tags/responder/</link>
+      <pubDate>Mon, 07 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/responder/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Scheduled-Task</title>
+      <link>https://0xblivion.dev/tags/scheduled-task/</link>
+      <pubDate>Mon, 07 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/scheduled-task/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Spark</title>
+      <link>https://0xblivion.dev/tags/spark/</link>
+      <pubDate>Mon, 07 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/spark/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Tryhackme</title>
+      <link>https://0xblivion.dev/tags/tryhackme/</link>
+      <pubDate>Mon, 07 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/tryhackme/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Walkthrough</title>
+      <link>https://0xblivion.dev/tags/walkthrough/</link>
+      <pubDate>Mon, 07 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/walkthrough/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Windows</title>
+      <link>https://0xblivion.dev/tags/windows/</link>
+      <pubDate>Mon, 07 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/windows/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Writeup</title>
+      <link>https://0xblivion.dev/tags/writeup/</link>
+      <pubDate>Mon, 07 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/writeup/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Xmpp</title>
+      <link>https://0xblivion.dev/tags/xmpp/</link>
+      <pubDate>Mon, 07 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/xmpp/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Xss</title>
+      <link>https://0xblivion.dev/tags/xss/</link>
+      <pubDate>Mon, 07 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/xss/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Cat</title>
+      <link>https://0xblivion.dev/tags/cat/</link>
+      <pubDate>Sat, 05 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/cat/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Cookie Hijacking</title>
+      <link>https://0xblivion.dev/tags/cookie-hijacking/</link>
+      <pubDate>Sat, 05 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/cookie-hijacking/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Git Exploitation</title>
+      <link>https://0xblivion.dev/tags/git-exploitation/</link>
+      <pubDate>Sat, 05 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/git-exploitation/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Gitea</title>
+      <link>https://0xblivion.dev/tags/gitea/</link>
+      <pubDate>Sat, 05 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/gitea/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>HackTheBox</title>
+      <link>https://0xblivion.dev/tags/hackthebox/</link>
+      <pubDate>Sat, 05 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/hackthebox/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Htb-Cat</title>
+      <link>https://0xblivion.dev/tags/htb-cat/</link>
+      <pubDate>Sat, 05 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/htb-cat/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Linux</title>
+      <link>https://0xblivion.dev/tags/linux/</link>
+      <pubDate>Sat, 05 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/linux/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>SQL Injection</title>
+      <link>https://0xblivion.dev/tags/sql-injection/</link>
+      <pubDate>Sat, 05 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/sql-injection/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Web Exploitation</title>
+      <link>https://0xblivion.dev/tags/web-exploitation/</link>
+      <pubDate>Sat, 05 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/web-exploitation/</guid>
+      <description></description>
+    </item>
+  </channel>
+</rss>

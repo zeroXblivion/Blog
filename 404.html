@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - Page Not Found</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;600&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0079d6;
+            color: white;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 80px 120px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .error-face {
+            font-size: 120px;
+            font-weight: 300;
+            margin-bottom: 40px;
+            opacity: 1;
+        }
+
+        .error-message {
+            font-size: 24px;
+            font-weight: 300;
+            line-height: 1.4;
+            margin-bottom: 60px;
+            max-width: 600px;
+            opacity: 1;
+        }
+
+        .progress-container {
+            margin-bottom: 60px;
+            opacity: 1;
+        }
+
+        .progress-text {
+            font-size: 24px;
+            font-weight: 300;
+            margin-bottom: 20px;
+        }
+
+        .progress-bar {
+            width: 300px; 
+            height: 4px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: white;
+            width: 0; 
+            border-radius: 2px;
+            animation: fill-progress 10s linear forwards; 
+        }
+
+        .error-info {
+            font-size: 14px;
+            font-weight: 300;
+            line-height: 1.6;
+            opacity: 1;
+        }
+
+        .qr-and-text {
+            display: flex;
+            align-items: flex-start;
+            gap: 20px;
+        }
+
+        .qr-code-container {
+            flex-shrink: 0;
+        }
+
+        .qr-code {
+            display: block;
+        }
+
+        .error-text {
+            flex: 1;
+        }
+
+        .home-link {
+            position: absolute;
+            bottom: 40px;
+            right: 40px;
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            font-size: 14px;
+            padding: 12px 24px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+            opacity: 1;
+            transition: all 0.3s ease;
+        }
+
+        .home-link:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.6);
+            color: white;
+        }
+
+        
+        @keyframes fill-progress {
+            0% { width: 0; }
+            100% { width: 300px; } 
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 40px 40px;
+            }
+
+            .error-face {
+                font-size: 80px;
+            }
+
+            .error-message {
+                font-size: 20px;
+            }
+
+            .progress-text {
+                font-size: 20px;
+            }
+
+            .progress-bar {
+                width: 250px; 
+            }
+
+            .qr-and-text {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .home-link {
+                position: static;
+                margin-top: 40px;
+                display: inline-block;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="error-face">:(</div>
+
+    <div class="error-message">
+        Your browser ran into a problem and needs to find a new page. We're<br>
+        just collecting some error info, and then we'll redirect you to<br>
+        the home page.
+    </div>
+
+    <div class="progress-container">
+        <div class="progress-text">0% complete</div> 
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressBarFill"></div>
+        </div>
+    </div>
+
+    <div class="error-info">
+        <div class="qr-and-text">
+            <div class="qr-code-container">
+                
+                <img src="/img/rickroll-bsod.png" alt="QR Code" class="qr-code" width="120" height="120">
+            </div>
+            <div class="error-text">
+                For more information about this issue and possible fixes, check the URL bar.<br><br>
+
+                If you call a web developer, give them this info:<br>
+                <div class="error-code">
+                    Stop code: PAGE_NOT_FOUND<br>
+                    Error: 0x00000404
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <a href="/" class="home-link">
+        ← Click here to go home
+    </a>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const progressBarFill = document.getElementById('progressBarFill');
+            const progressText = document.querySelector('.progress-text');
+            const totalPhysicalWidth = 300; 
+            const targetPercentage = 404; 
+
+            function updateProgress() {
+                const currentWidth = progressBarFill.offsetWidth;
+                const physicalProgressRatio = currentWidth / totalPhysicalWidth;
+                const displayedPercentage = Math.min(targetPercentage, Math.round(physicalProgressRatio * targetPercentage));
+                progressText.textContent = `${displayedPercentage}% complete`;
+                if (displayedPercentage < targetPercentage) {
+                    requestAnimationFrame(updateProgress);
+                }
+            }
+
+            setTimeout(() => {
+                requestAnimationFrame(updateProgress);
+            }, 100); 
+        });
+    </script>
+</body>
+</html>

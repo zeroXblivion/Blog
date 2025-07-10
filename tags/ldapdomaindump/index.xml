@@ -1,0 +1,490 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Ldapdomaindump on 0xblivion.dev</title>
+    <link>https://0xblivion.dev/tags/ldapdomaindump/</link>
+    <description>Recent content in Ldapdomaindump on 0xblivion.dev</description>
+    <image>
+      <title>0xblivion.dev</title>
+      <url>https://0xblivion.dev/img/favicon.png</url>
+      <link>https://0xblivion.dev/img/favicon.png</link>
+    </image>
+    <generator>Hugo -- 0.147.9</generator>
+    <language>en-us</language>
+    <lastBuildDate>Thu, 10 Jul 2025 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://0xblivion.dev/tags/ldapdomaindump/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>TryHackMe - CroccCrew WriteUp</title>
+      <link>https://0xblivion.dev/posts/thm/windows/tryhackme/</link>
+      <pubDate>Thu, 10 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/posts/thm/windows/tryhackme/</guid>
+      <description>&lt;h1 id=&#34;overview&#34;&gt;Overview&lt;/h1&gt;
+&lt;img src=&#34;https://0xblivion.dev/img/croccCrew/crocc.png&#34; alt=&#34;&#34; class=&#34;img-responsive&#34; loading=&#34;lazy&#34; /&gt;
+&lt;p&gt;&lt;code&gt;Crocc Crew&lt;/code&gt; is an insane machine on &lt;a href=&#34;http://tryhackme.com/&#34;&gt;TryHackMe&lt;/a&gt;, but it&amp;rsquo;s kinda like a easy box. The path starts with some clever RDP reconnaissance to find initial credentials. From there, it involves kerberoasting a service account, diving into BloodHound to find a constrained delegation path, and wrestling with a very frustrating &lt;code&gt;secretsdump&lt;/code&gt; error that I almost rage quit and touched grass. Let’s walk through it.&lt;/p&gt;
+
+&lt;div class=&#34;target-info&#34;&gt;
+    &lt;div class=&#34;target-icon&#34;&gt;
+        &lt;svg viewBox=&#34;0 0 24 24&#34; fill=&#34;none&#34; stroke=&#34;currentColor&#34; stroke-width=&#34;2&#34;&gt;
+            &lt;circle cx=&#34;12&#34; cy=&#34;12&#34; r=&#34;10&#34;/&gt;
+            &lt;circle cx=&#34;12&#34; cy=&#34;12&#34; r=&#34;6&#34;/&gt;
+            &lt;circle cx=&#34;12&#34; cy=&#34;12&#34; r=&#34;2&#34;/&gt;
+        &lt;/svg&gt;
+    &lt;/div&gt;
+    &lt;div class=&#34;target-details&#34;&gt;
+        &lt;div class=&#34;target-item&#34;&gt;
+            &lt;span class=&#34;target-label&#34;&gt;Target IP&lt;/span&gt;
+            &lt;code class=&#34;ip-address&#34;&gt;10.10.208.147&lt;/code&gt;
+        &lt;/div&gt;
+        
+    &lt;/div&gt;
+&lt;/div&gt;
+
+&lt;style&gt;
+.target-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    margin: 16px 0;
+    background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+    border-left: 4px solid #9fef00;
+    border-radius: 8px;
+    font-family: system-ui, -apple-system, sans-serif;
+}
+
+.target-icon {
+    flex-shrink: 0;
+}
+
+.target-icon svg {
+    width: 20px;
+    height: 20px;
+    color: #9fef00;
+    display: block;
+}
+
+.target-details {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.target-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.creds-separator {
+    flex-shrink: 0;
+    opacity: 1;
+}
+
+.creds-separator svg {
+    width: 18px;
+    height: 18px;
+    color: #9fef00;
+    display: block;
+    stroke-width: 2.5;
+}
+
+.target-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #c9d1d9;
+    white-space: nowrap;
+}
+
+.ip-address, .credentials {
+    color: #9fef00;
+    font-family: &#39;Courier New&#39;, monospace;
+    font-size: 14px;
+    font-weight: bold;
+    background: none !important;
+    background-color: transparent !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+}
+&lt;/style&gt;
+
+
+
+
+
+&lt;div id=&#34;flowchart-1752165639910320086&#34; class=&#34;attack-path-flowchart&#34;&gt;
+  &lt;div class=&#34;flowchart-controls&#34;&gt;
+    &lt;button class=&#34;zoom-btn&#34; data-action=&#34;zoom-in&#34; title=&#34;Zoom In&#34;&gt;+&lt;/button&gt;
+    &lt;button class=&#34;zoom-btn&#34; data-action=&#34;zoom-out&#34; title=&#34;Zoom Out&#34;&gt;−&lt;/button&gt;
+    &lt;button class=&#34;zoom-btn&#34; data-action=&#34;reset&#34; title=&#34;Reset View&#34;&gt;⌂&lt;/button&gt;
+  &lt;/div&gt;
+  &lt;div class=&#34;flowchart-data&#34; style=&#34;display: none;&#34;&gt;
+[https://i.ibb.co/JjzkJ3NR/user-removebg-preview.png]Nmap Scan
+[https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Bypass RDP NLA → Spot Sticky Note → Visitor:GuestLogin!  
+[https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Enumerate SMB → Home Share → Get User Flag  
+[https://i.ibb.co/Gwv4v4g/shell-exploit-removebg-preview.png]Kerberoast password-reset → Crack with Hashcat  
+[https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Login as password-reset → Run BloodHound  
+[https://i.ibb.co/Gwv4v4g/shell-exploit-removebg-preview.png]Find Constrained Delegation to oakley/DC  
+[https://i.ibb.co/0ybfPw9J/password-removebg-preview.png]Use getST.py to impersonate Administrator  
+[https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Fix /etc/hosts → Run secretsdump  
+[https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Evil-WinRM as Administrator  
+[https://i.ibb.co/679DN5x7/rooted-removebg-preview.png]LDAPSearch → Identify Planted User: admCroccCrew  
+&lt;/div&gt;
+&lt;/div&gt;
+
+
+
+&lt;style&gt;
+.attack-path-flowchart {
+  width: 100%;
+  height: 500px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+  margin: 2rem 0;
+}
+
+.flowchart-controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1000;
+  display: flex;
+  gap: 5px;
+}
+
+.zoom-btn {
+  width: 32px;
+  height: 32px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.zoom-btn:hover {
+  background: rgba(0, 0, 0, 0.9);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.flowchart-svg {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  cursor: grab;
+}
+
+.flowchart-svg:active {
+  cursor: grabbing;
+}
+
+.flowchart-node {
+  cursor: pointer;
+}
+
+.flowchart-icon {
+  font-family: &#39;Font Awesome 6 Free&#39;, &#39;Font Awesome 6 Solid&#39;, sans-serif;
+  font-weight: 900;
+  font-size: 36px;
+  text-anchor: middle;
+  dominant-baseline: central;
+  transition: all 0.3s ease;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6));
+}
+
+.flowchart-image {
+  transition: all 0.3s ease;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6));
+}
+
+.flowchart-text {
+  font-family: &#39;Courier New&#39;, &#39;Monaco&#39;, &#39;Consolas&#39;, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  text-anchor: middle;
+  pointer-events: none;
+  user-select: none;
+  fill: #ddd;
+}
+
+.flowchart-arrow {
+  stroke: rgba(255, 255, 255, 0.4);
+  stroke-width: 1.5px;
+  transition: all 0.2s ease-in-out;
+}
+
+.flowchart-arrow.glow {
+  stroke: rgba(255, 255, 255, 1);
+  stroke-width: 2.5px;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.7));
+}
+
+.flowchart-arrow-marker {
+  fill: rgba(255, 255, 255, 0.6);
+}
+
+.flowchart-pin-icon {
+  font-family: &#39;Font Awesome 6 Free&#39;, &#39;Font Awesome 6 Solid&#39;, sans-serif;
+  font-weight: 900;
+  font-size: 16px;
+  fill: #DC143C;  
+  text-anchor: middle;
+  dominant-baseline: central;
+  display: none;  
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7));
+}
+
+
+ 
+.node-recon .flowchart-icon { color: #A0522D; }  
+.node-enum .flowchart-icon { color: #4169E1; }  
+.node-exploit .flowchart-icon { color: #DC143C; }  
+.node-access .flowchart-icon { color: #2E8B57; }  
+.node-privesc .flowchart-icon { color: #FF8C00; }  
+.node-root .flowchart-icon { color: #FFD700; }  
+.node-default .flowchart-icon { color: #A9A9A9; }  
+&lt;/style&gt;
+
+&lt;script&gt;
+(function() {
+  
+  &#34;use strict&#34;;
+
+  let flowchartInstances = {};
+
+  const iconMap = {
+    recon: &#39;\uf002&#39;, enum: &#39;\uf0ca&#39;, exploit: &#39;\uf1e2&#39;,
+    access: &#39;\uf084&#39;, privesc: &#39;\uf21b&#39;, root: &#39;\uf624&#39;, default: &#39;\uf059&#39;,
+    pin: &#39;\uf08d&#39;,
+  };
+
+  function initFlowcharts() {
+    const containers = document.querySelectorAll(&#39;.attack-path-flowchart&#39;);
+    containers.forEach(container =&gt; {
+      if (container.dataset.initialized) return;
+      container.dataset.initialized = &#39;true&#39;;
+
+      const id = container.id;
+      const dataDiv = container.querySelector(&#39;.flowchart-data&#39;);
+      if (dataDiv) {
+        const steps = parseSteps(dataDiv.textContent);
+        if (steps.length &gt; 0) {
+          flowchartInstances[id] = createInteractiveFlowchart(container, steps);
+          setupControls(container, id);
+        }
+      }
+    });
+  }
+
+  function setupControls(container, id) {
+    const instance = flowchartInstances[id];
+    if (!instance) return;
+    container.querySelectorAll(&#39;.zoom-btn&#39;).forEach(btn =&gt; {
+      btn.addEventListener(&#39;click&#39;, () =&gt; {
+        const action = btn.getAttribute(&#39;data-action&#39;);
+        if (action === &#39;zoom-in&#39;) {
+            instance.svg.transition().ease(d3.easeCubicOut).duration(500).call(instance.zoom.scaleBy, 1.2);
+        } else if (action === &#39;zoom-out&#39;) {
+            instance.svg.transition().ease(d3.easeCubicOut).duration(500).call(instance.zoom.scaleBy, 1 / 1.2);
+        } else if (action === &#39;reset&#39;) {
+          instance.svg.transition().ease(d3.easeCubicOut).duration(750).call(instance.zoom.transform, d3.zoomIdentity);
+        }
+      });
+    });
+  }
+
+  function parseSteps(content) {
+    return content.split(&#39;\n&#39;).map(l =&gt; l.trim()).filter(Boolean).map((line, idx) =&gt; {
+      line = line.replace(/^[-*]\s*/, &#39;&#39;);
+      const imgRe = /\[\s*([^\]]+?)\s*\]\s*(.*)/;
+      const match = line.match(imgRe);
+      const text = match ? match[2].trim() : line;
+      return { id: idx, text, type: getStepType(text), imageUrl: match ? match[1] : null, pinned: false };
+    });
+  }
+
+  function getStepType(text) {
+    const l = text.toLowerCase();
+    if (l.includes(&#39;nmap&#39;) || l.includes(&#39;scan&#39;) || l.includes(&#39;recon&#39;)) return &#39;recon&#39;;
+    if (l.includes(&#39;enum&#39;) || l.includes(&#39;directory&#39;) || l.includes(&#39;subdomain&#39;) || l.includes(&#39;git&#39;) || l.includes(&#39;dump&#39;) || l.includes(&#39;crawl&#39;)) return &#39;enum&#39;;
+    if (l.includes(&#39;exploit&#39;) || l.includes(&#39;rce&#39;) || l.includes(&#39;sqli&#39;) || l.includes(&#39;xss&#39;) || l.includes(&#39;lfi&#39;) || l.includes(&#39;upload&#39;) || l.includes(&#39;injection&#39;)) return &#39;exploit&#39;;
+    if (l.includes(&#39;shell&#39;) || l.includes(&#39;reverse&#39;) || l.includes(&#39;bind&#39;) || l.includes(&#39;webshell&#39;)) return &#39;access&#39;;
+    if (l.includes(&#39;privesc&#39;) || l.includes(&#39;privilege&#39;) || l.includes(&#39;escalation&#39;) || l.includes(&#39;sudo&#39;) || l.includes(&#39;suid&#39;) || l.includes(&#39;kernel&#39;) || l.includes(&#39;creds&#39;)) return &#39;privesc&#39;;
+    if (l.includes(&#39;root&#39;) || l.includes(&#39;administrator&#39;) || l.includes(&#39;system&#39;) || l.includes(&#39;sudo bee&#39;)) return &#39;root&#39;;
+    return &#39;default&#39;;
+  }
+
+  function createInteractiveFlowchart(container, nodesData) {
+    const W = container.clientWidth, H = container.clientHeight;
+    const svg = d3.select(container).append(&#39;svg&#39;)
+                  .attr(&#39;class&#39;,&#39;flowchart-svg&#39;).attr(&#39;width&#39;,W).attr(&#39;height&#39;,H);
+
+    const zoom = d3.zoom().duration(500).scaleExtent([0.1, 5]).on(&#39;zoom&#39;, e =&gt; g.attr(&#39;transform&#39;, e.transform));
+
+    svg.call(zoom);
+    const g = svg.append(&#39;g&#39;);
+
+    const defs = svg.append(&#39;defs&#39;);
+    defs.append(&#39;marker&#39;)
+        .attr(&#39;id&#39;,&#39;arrowhead&#39;).attr(&#39;viewBox&#39;,&#39;-0 -5 10 10&#39;)
+        .attr(&#39;refX&#39;, 25).attr(&#39;refY&#39;, 0)
+        .attr(&#39;orient&#39;,&#39;auto&#39;).attr(&#39;markerWidth&#39;, 5).attr(&#39;markerHeight&#39;, 5)
+      .append(&#39;path&#39;).attr(&#39;d&#39;, &#39;M0,-5L10,0L0,5&#39;).attr(&#39;class&#39;,&#39;flowchart-arrow-marker&#39;);
+
+    const links = nodesData.length &gt; 1 ? d3.range(nodesData.length - 1).map(i =&gt; ({ source: nodesData[i], target: nodesData[i+1] })) : [];
+
+    const arrows = g.append(&#34;g&#34;).selectAll(&#34;line&#34;)
+      .data(links).enter().append(&#34;line&#34;)
+      .attr(&#34;class&#34;, &#34;flowchart-arrow&#34;)
+      .attr(&#34;marker-end&#34;, &#34;url(#arrowhead)&#34;);
+
+    const nodeGroups = g.append(&#34;g&#34;).selectAll(&#34;.flowchart-node&#34;)
+      .data(nodesData, d =&gt; d.id).enter().append(&#34;g&#34;)
+      .attr(&#34;class&#34;, d =&gt; &#39;flowchart-node node-&#39; + d.type);
+
+    nodeGroups.each(function(d) {
+      const node = d3.select(this);
+      if (d.imageUrl) {
+        node.append(&#39;image&#39;)
+          .attr(&#39;href&#39;, d.imageUrl).attr(&#39;class&#39;, &#39;flowchart-image&#39;)
+          .attr(&#39;x&#39;, -20).attr(&#39;y&#39;, -25).attr(&#39;width&#39;, 40).attr(&#39;height&#39;, 40)
+          .on(&#39;error&#39;, function() {
+            d3.select(this.parentNode).append(&#39;text&#39;).attr(&#39;class&#39;, &#39;flowchart-icon&#39;).attr(&#39;y&#39;, -5).text(iconMap[&#39;default&#39;]);
+            d3.select(this).remove();
+          });
+      } else {
+        node.append(&#39;text&#39;).attr(&#39;class&#39;, &#39;flowchart-icon&#39;).attr(&#39;y&#39;, -5).text(iconMap[d.type] || iconMap[&#39;default&#39;]);
+      }
+    });
+
+    nodeGroups.append(&#39;text&#39;)
+      .attr(&#39;class&#39;, &#39;flowchart-pin-icon&#39;)
+      .attr(&#39;x&#39;, 20)
+      .attr(&#39;y&#39;, -20)
+      .text(iconMap.pin);
+
+    nodeGroups.append(&#39;text&#39;).attr(&#39;class&#39;, &#39;flowchart-text&#39;).attr(&#39;y&#39;, 35)
+      .each(function(d) { wrapText(d3.select(this), d.text, 100); });
+    nodeGroups.append(&#39;title&#39;).text(d =&gt; d.text);
+
+    const numNodes = nodesData.length;
+    const padding = 120;
+    const nodeRadius = 40;
+
+    const linkForce = d3.forceLink(links).id(d =&gt; d.id).distance(150).strength(0.2);
+
+    const simulation = d3.forceSimulation(nodesData)
+        .force(&#34;link&#34;, linkForce)
+        .force(&#34;charge&#34;, d3.forceManyBody().strength(-600))
+        .force(&#34;collide&#34;, d3.forceCollide().radius(nodeRadius).strength(1))
+        .force(&#34;x&#34;, d3.forceX(d =&gt; {
+            if (numNodes &lt;= 1) return W / 2;
+            return padding + (d.id / (numNodes - 1)) * (W - 2 * padding);
+        }).strength(0.4))
+        .force(&#34;y&#34;, d3.forceY(d =&gt; {
+            if (numNodes &lt;= 1) return H / 2;
+            const amplitude = H * 0.20;
+            const frequency = Math.PI;
+            const centerY = H / 2;
+            const phase = (d.id / (numNodes - 1)) * frequency;
+            return centerY - amplitude * Math.cos(phase);
+        }).strength(0.5))
+        .on(&#34;tick&#34;, () =&gt; {
+          arrows
+              .attr(&#34;x1&#34;, d =&gt; d.source.x)
+              .attr(&#34;y1&#34;, d =&gt; d.source.y)
+              .attr(&#34;x2&#34;, d =&gt; d.target.x)
+              .attr(&#34;y2&#34;, d =&gt; d.target.y);
+          nodeGroups
+              .attr(&#34;transform&#34;, d =&gt; `translate(${d.x},${d.y})`);
+        });
+
+    const dragHandler = d3.drag()
+        .on(&#34;start&#34;, function (event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+            
+            arrows.filter(link =&gt; link.source.id === d.id).classed(&#39;glow&#39;, true);
+            linkForce.strength(0); 
+        })
+        .on(&#34;drag&#34;, function (event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        })
+        .on(&#34;end&#34;, function (event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            
+            linkForce.strength(0.2); 
+            
+            arrows.filter(link =&gt; link.source.id === d.id).classed(&#39;glow&#39;, false);
+
+            d.pinned = true;
+            d3.select(this).select(&#39;.flowchart-pin-icon&#39;).style(&#39;display&#39;, &#39;block&#39;);
+        });
+
+    nodeGroups
+      .call(dragHandler)
+      .on(&#39;mouseover&#39;, (event, d) =&gt; {
+        
+        arrows.filter(link =&gt; link.source.id === d.id).classed(&#39;glow&#39;, true);
+      })
+      .on(&#39;mouseout&#39;, (event, d) =&gt; {
+        
+        arrows.filter(link =&gt; link.source.id === d.id).classed(&#39;glow&#39;, false);
+      })
+      .on(&#39;contextmenu&#39;, function(event, d) {
+        event.preventDefault();
+        
+        if (d.pinned) {
+          d.pinned = false;
+          d.fx = null; 
+          d.fy = null;
+          d3.select(this).select(&#39;.flowchart-pin-icon&#39;).style(&#39;display&#39;, &#39;none&#39;);
+          simulation.alpha(0.3).restart(); 
+        }
+      });
+
+    return { svg, zoom, g };
+  }
+
+  function wrapText(textElem, str, maxW) {
+    const words = str.split(/\s+/), lineHeight = 12, x = 0;
+    textElem.text(null);
+    let line = [], tspan = textElem.append(&#39;tspan&#39;).attr(&#39;x&#39;, x);
+    for (const word of words) {
+        line.push(word);
+        tspan.text(line.join(&#39; &#39;));
+        if (tspan.node().getComputedTextLength() &gt; maxW &amp;&amp; line.length &gt; 1) {
+            line.pop();
+            tspan.text(line.join(&#39; &#39;));
+            line = [word];
+            tspan = textElem.append(&#39;tspan&#39;).attr(&#39;x&#39;, x).attr(&#39;dy&#39;, `${lineHeight}px`).text(word);
+        }
+    }
+  }
+
+  if (document.readyState === &#39;loading&#39;) {
+    document.addEventListener(&#39;DOMContentLoaded&#39;, initFlowcharts);
+  } else {
+    initFlowcharts();
+  }
+})();
+&lt;/script&gt;
+
+&lt;h1 id=&#34;1-initial-access-ta0001&#34;&gt;1. Initial Access (TA0001)&lt;/h1&gt;
+&lt;p&gt;As always, the first step is a thorough &lt;code&gt;nmap&lt;/code&gt; scan to see what we&amp;rsquo;re working with.&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

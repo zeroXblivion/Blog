@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en" dir="auto">
 
-<head><meta charset="utf-8">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script><meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <meta name="robots" content="index, follow">
@@ -67,16 +67,16 @@ Crocc Crew is an insane machine on TryHackMe, but it&rsquo;s kinda like a easy b
 1. Initial Access (TA0001)
 As always, the first step is a thorough nmap scan to see what we&rsquo;re working with.">
 <meta name="author" content="0xblivion">
-<link rel="canonical" href="https://0xblivion.dev/posts/thm/windows/tryhackme/">
+<link rel="canonical" href="http://localhost:1313/posts/thm/windows/tryhackme/">
 <link crossorigin="anonymous" href="/assets/css/stylesheet.7bb9e509f32b776e3778b3ea8539776721782bd73f8019534361265046bfd155.css" integrity="sha256-e7nlCfMrd243eLPqhTl3ZyF4K9c/gBlTQ2EmUEa/0VU=" rel="preload stylesheet" as="style">
-<link rel="icon" href="https://0xblivion.dev/favicon.ico">
-<link rel="icon" type="image/png" sizes="16x16" href="https://0xblivion.dev/favicon-16x16.png">
-<link rel="icon" type="image/png" sizes="32x32" href="https://0xblivion.dev/favicon-32x32.png">
-<link rel="apple-touch-icon" href="https://0xblivion.dev/apple-touch-icon.png">
-<link rel="mask-icon" href="https://0xblivion.dev/safari-pinned-tab.svg">
+<link rel="icon" href="http://localhost:1313/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="http://localhost:1313/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="http://localhost:1313/favicon-32x32.png">
+<link rel="apple-touch-icon" href="http://localhost:1313/apple-touch-icon.png">
+<link rel="mask-icon" href="http://localhost:1313/safari-pinned-tab.svg">
 <meta name="theme-color" content="#2e2e33">
 <meta name="msapplication-TileColor" content="#2e2e33">
-<link rel="alternate" hreflang="en" href="https://0xblivion.dev/posts/thm/windows/tryhackme/">
+<link rel="alternate" hreflang="en" href="http://localhost:1313/posts/thm/windows/tryhackme/">
 <noscript>
     <style>
         #theme-toggle,
@@ -85,7 +85,7 @@ As always, the first step is a thorough nmap scan to see what we&rsquo;re workin
         }
 
     </style>
-</noscript><meta property="og:url" content="https://0xblivion.dev/posts/thm/windows/tryhackme/">
+</noscript><meta property="og:url" content="http://localhost:1313/posts/thm/windows/tryhackme/">
   <meta property="og:site_name" content="0xblivion.dev">
   <meta property="og:title" content="TryHackMe - CroccCrew WriteUp">
   <meta property="og:description" content="Overview Crocc Crew is an insane machine on TryHackMe, but it’s kinda like a easy box. The path starts with some clever RDP reconnaissance to find initial credentials. From there, it involves kerberoasting a service account, diving into BloodHound to find a constrained delegation path, and wrestling with a very frustrating secretsdump error that I almost rage quit and touched grass. Let’s walk through it.
@@ -101,7 +101,7 @@ Target IP 10.10.208.147 &#43; − ⌂ [https://i.ibb.co/JjzkJ3NR/user-removebg-p
     <meta property="article:tag" content="Windows">
     <meta property="article:tag" content="Active Directory">
     <meta property="article:tag" content="RDP Enumeration">
-    <meta property="og:image" content="https://0xblivion.dev/img/croccCrew/card.png">
+    <meta property="og:image" content="http://localhost:1313/img/croccCrew/card.png">
   
   <meta name="author" content="0xblivion">
   <meta property="article:author" content="0xblivion">
@@ -117,7 +117,7 @@ Target IP 10.10.208.147 &#43; − ⌂ [https://i.ibb.co/JjzkJ3NR/user-removebg-p
     }
   </script>
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://0xblivion.dev/img/croccCrew/card.png">
+<meta name="twitter:image" content="http://localhost:1313/img/croccCrew/card.png">
 <meta name="twitter:title" content="TryHackMe - CroccCrew WriteUp">
 <meta name="twitter:description" content="Overview
 
@@ -189,13 +189,13 @@ As always, the first step is a thorough nmap scan to see what we&rsquo;re workin
       "@type": "ListItem",
       "position":  1 ,
       "name": "Posts",
-      "item": "https://0xblivion.dev/posts/"
+      "item": "http://localhost:1313/posts/"
     }, 
     {
       "@type": "ListItem",
       "position":  2 ,
       "name": "TryHackMe - CroccCrew WriteUp",
-      "item": "https://0xblivion.dev/posts/thm/windows/tryhackme/"
+      "item": "http://localhost:1313/posts/thm/windows/tryhackme/"
     }
   ]
 }
@@ -213,7 +213,7 @@ As always, the first step is a thorough nmap scan to see what we&rsquo;re workin
   "articleBody": "Overview Crocc Crew is an insane machine on TryHackMe, but it’s kinda like a easy box. The path starts with some clever RDP reconnaissance to find initial credentials. From there, it involves kerberoasting a service account, diving into BloodHound to find a constrained delegation path, and wrestling with a very frustrating secretsdump error that I almost rage quit and touched grass. Let’s walk through it.\nTarget IP 10.10.208.147 + − ⌂ [https://i.ibb.co/JjzkJ3NR/user-removebg-preview.png]Nmap Scan [https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Bypass RDP NLA → Spot Sticky Note → Visitor:GuestLogin! [https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Enumerate SMB → Home Share → Get User Flag [https://i.ibb.co/Gwv4v4g/shell-exploit-removebg-preview.png]Kerberoast password-reset → Crack with Hashcat [https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Login as password-reset → Run BloodHound [https://i.ibb.co/Gwv4v4g/shell-exploit-removebg-preview.png]Find Constrained Delegation to oakley/DC [https://i.ibb.co/0ybfPw9J/password-removebg-preview.png]Use getST.py to impersonate Administrator [https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Fix /etc/hosts → Run secretsdump [https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Evil-WinRM as Administrator [https://i.ibb.co/679DN5x7/rooted-removebg-preview.png]LDAPSearch → Identify Planted User: admCroccCrew 1. Initial Access (TA0001) As always, the first step is a thorough nmap scan to see what we’re working with.\n0xblivion@crocccrew: ~ root@localhost:~# sudo nmap -sVC -oA nmap/crocccew.nmap -vv 10.10.208.147 # Nmap 7.95 scan initiated Tue Jul 8 22:57:20 2025 as: /usr/lib/nmap/nmap -sVC -oA nmap/crocccew -vv 10.10.208.147 Nmap scan report for 10.10.232.56 Host is up, received echo-reply ttl 125 (0.12s latency). Scanned at 2025-07-08 22:57:20 EDT for 66s Not shown: 989 filtered tcp ports (no-response) PORT STATE SERVICE REASON VERSION 53/tcp open domain syn-ack ttl 125 Simple DNS Plus 80/tcp open http syn-ack ttl 125 Microsoft IIS httpd 10.0 |_http-server-header: Microsoft-IIS/10.0 | http-methods: | Supported Methods: OPTIONS TRACE GET HEAD POST |_ Potentially risky methods: TRACE 88/tcp open kerberos-sec syn-ack ttl 125 Microsoft Windows Kerberos (server time: 2025-07-09 02:57:35Z) 135/tcp open msrpc syn-ack ttl 125 Microsoft Windows RPC 139/tcp open netbios-ssn syn-ack ttl 125 Microsoft Windows netbios-ssn 389/tcp open ldap syn-ack ttl 125 Microsoft Windows Active Directory LDAP (Domain: COOCTUS.CORP0., Site: Default-First-Site-Name) 445/tcp open microsoft-ds? syn-ack ttl 125 464/tcp open kpasswd5? syn-ack ttl 125 593/tcp open ncacn_http syn-ack ttl 125 Microsoft Windows RPC over HTTP 1.0 636/tcp open tcpwrapped syn-ack ttl 125 3389/tcp open ms-wbt-server syn-ack ttl 125 Microsoft Terminal Services | ssl-cert: Subject: commonName=DC.COOCTUS.CORP | Issuer: commonName=DC.COOCTUS.CORP | Public Key type: rsa | Public Key bits: 2048 | Signature Algorithm: sha256WithRSAEncryption | Not valid before: 2025-07-08T02:57:02 | Not valid after: 2026-01-07T02:57:02 | MD5: 78dc:192b:b5b8:8825:8fc8:694a:0347:7704 | SHA-1: a413:afa5:27c4:a5bf:4418:f49c:cf20:b0b6:e312:7561 | -----BEGIN CERTIFICATE----- | MIIC4jCCAcqgAwIBAgIQUedVsKPVb7FAziU1B3KpMzANBgkqhkiG9w0BAQsFADAa | MRgwFgYDVQQDEw9EQy5DT09DVFVTLkNPUlAwHhcNMjUwNzA4MDI1NzAyWhcNMjYw | MTA3MDI1NzAyWjAaMRgwFgYDVQQDEw9EQy5DT09DVFVTLkNPUlAwggEiMA0GCSqG | SIb3DQEBAQUAA4IBDwAwggEKAoIBAQCwriWZOi4e7FNBmyqXt4U3dZwT4AtJ0Nd7 | 4kBUyj6W9nolkMit/WmQfY5fdPm8hYYD7v9EuENfOaIUDuJ+58EBqHqVa1MEvKtK | N72oHiVGmIXfHpSFgkSbwktt1oye5J7SDPtlLqr+21RaTpvQE67VZnb78tqvflhy | eks7EieAsQ10CK2SRR1JDclJUns5ibJv6htsP6D0rmJ4sF+VLCdXIh2A7QvHk3qD | cWsIBUlUgct2wmxrPpiClt9lU0YnIUqL0MOGSt+TyK7JfNLEtdwD/PEuKYriY8Kf | x1KDfB9ZYZ7sv+u22csEcLu/337TrE5XRiwPM4xqo6DvEOZPgDe5AgMBAAGjJDAi | MBMGA1UdJQQMMAoGCCsGAQUFBwMBMAsGA1UdDwQEAwIEMDANBgkqhkiG9w0BAQsF | AAOCAQEANW4kPq2xALqBFsfbqAoeCph6qIwwpRr78Iy700Nx4m0UgLrHSFrZ9M2Q | KnMQfregVusen0Zkk9QdgNn/nTKgNqO/lQNrUpL2RE6jadnSrMEucXAaTY9m3ph7 | Ty5TwPWgX6EAlSfnFO1FQoVM+sNWEF68akQeGSUESsHW0DWmaNrbdTYd+sy2/CZr | EfVEVQMMNhHWVR4rHEvRf/B5P2VERAMdRTtgUUe6Ysw0r0osZ1fa+mfU+rPO0wjv | mfTwL7PKicvIvA4Ljlh9h6FizzWMIvr5lRK3Dxm66hHuyduQCfI/+vsn+KejlKLy | fM6uyRPAZQ8pf7KWGiddXmlm/7X5gw== |_-----END CERTIFICATE----- | rdp-ntlm-info: | Target_Name: COOCTUS | NetBIOS_Domain_Name: COOCTUS | NetBIOS_Computer_Name: DC | DNS_Domain_Name: COOCTUS.CORP | DNS_Computer_Name: DC.COOCTUS.CORP | Product_Version: 10.0.17763 |_ System_Time: 2025-07-09T02:57:43+00:00 |_ssl-date: 2025-07-09T02:58:22+00:00; -2s from scanner time. Service Info: Host: DC; OS: Windows; CPE: cpe:/o:microsoft:windows Host script results: | p2p-conficker: | Checking for Conficker.C or higher... | Check 1 (port 65000/tcp): CLEAN (Timeout) | Check 2 (port 48223/tcp): CLEAN (Timeout) | Check 3 (port 18913/udp): CLEAN (Timeout) | Check 4 (port 21237/udp): CLEAN (Timeout) |_ 0/4 checks are positive: Host is CLEAN or ports are blocked | smb2-security-mode: | 3:1:1: |_ Message signing enabled and required |_clock-skew: mean: -1s, deviation: 0s, median: -1s | smb2-time: | date: 2025-07-09T02:57:46 |_ start_date: N/A Read data files from: /usr/share/nmap Service detection performed. Please report any incorrect results at https://nmap.org/submit/ . # Nmap done at Tue Jul 8 22:58:26 2025 -- 1 IP address (1 host up) scanned in 65.91 seconds copy The scan results clearly point to a Windows Domain Controller for the COOCTUS.CORP domain. We have all the standard AD ports (Kerberos, LDAP, SMB) plus RDP on port 3389. I added the relevant hostnames to my /etc/hosts file to ensure proper name resolution.\n0xblivion@crocccrew: ~ root@localhost:~# echo '10.10.208.147 dc dc.cooctus.corp cooctus.corp' | sudo tee -a /etc/hosts copy Anonymous Enumeration (T1087) Without any credentials, I started with some unauthenticated enumeration to see what I could find. First, an anonymous SMB login to check for readable shares.\n0xblivion@crocccrew: ~ root@localhost:~# nxc smb $target -u '' -p '' --shares SMB 10.10.208.147 445 DC [*] Windows 10 / Server 2019 Build 17763 x64 (name:DC) (domain:COOCTUS.CORP) (signing:True) (SMBv1:False) SMB 10.10.208.147 445 DC [+] COOCTUS.CORP\\: SMB 10.10.208.147 445 DC [-] Error enumerating shares: STATUS_ACCESS_DENIED copy I could authenticate as an anonymous user, but didn’t have permissions to list the shares. Next, I tried an anonymous LDAP bind to see if I could dump any information about the domain structure.\n0xblivion@crocccrew: ~ root@localhost:~# ldapsearch -x -H ldap://$target -s base namingcontexts # extended LDIF # # LDAPv3 # base \u003c\u003e (default) with scope baseObject # filter: (objectclass=*) # requesting: namingcontexts # # dn: namingcontexts: DC=COOCTUS,DC=CORP namingcontexts: CN=Configuration,DC=COOCTUS,DC=CORP namingcontexts: CN=Schema,CN=Configuration,DC=COOCTUS,DC=CORP namingcontexts: DC=DomainDnsZones,DC=COOCTUS,DC=CORP namingcontexts: DC=ForestDnsZones,DC=COOCTUS,DC=CORP # search result search: 2 result: 0 Success # numResponses: 2 # numEntries: 1 root@localhost:~# ldapsearch -x -H ldap://$target -b 'DC=COOCTUS,DC=CORP' # extended LDIF # # LDAPv3 # base ",
   "wordCount" : "786",
   "inLanguage": "en",
-  "image":"https://0xblivion.dev/img/croccCrew/card.png","datePublished": "2025-07-10T00:00:00Z",
+  "image":"http://localhost:1313/img/croccCrew/card.png","datePublished": "2025-07-10T00:00:00Z",
   "dateModified": "2025-07-10T00:00:00Z",
   "author":{
     "@type": "Person",
@@ -221,14 +221,14 @@ As always, the first step is a thorough nmap scan to see what we&rsquo;re workin
   },
   "mainEntityOfPage": {
     "@type": "WebPage",
-    "@id": "https://0xblivion.dev/posts/thm/windows/tryhackme/"
+    "@id": "http://localhost:1313/posts/thm/windows/tryhackme/"
   },
   "publisher": {
     "@type": "Organization",
     "name": "0xblivion.dev",
     "logo": {
       "@type": "ImageObject",
-      "url": "https://0xblivion.dev/favicon.ico"
+      "url": "http://localhost:1313/favicon.ico"
     }
   }
 }
@@ -246,7 +246,7 @@ As always, the first step is a thorough nmap scan to see what we&rsquo;re workin
 <header class="header">
     <nav class="nav">
         <div class="logo">
-            <a href="https://0xblivion.dev/" accesskey="h" title="0xblivion.dev (Alt + H)">0xblivion.dev</a>
+            <a href="http://localhost:1313/" accesskey="h" title="0xblivion.dev (Alt + H)">0xblivion.dev</a>
             <div class="logo-switches">
                 <button id="theme-toggle" accesskey="t" title="(Alt + T)" aria-label="Toggle theme">
                     <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
@@ -272,17 +272,17 @@ As always, the first step is a thorough nmap scan to see what we&rsquo;re workin
         </div>
         <ul id="menu">
             <li>
-                <a href="https://0xblivion.dev/" title="Home">
+                <a href="http://localhost:1313/" title="Home">
                     <span>Home</span>
                 </a>
             </li>
             <li>
-                <a href="https://0xblivion.dev/about/" title="About">
+                <a href="http://localhost:1313/about/" title="About">
                     <span>About</span>
                 </a>
             </li>
             <li>
-                <a href="https://0xblivion.dev/search/" title="Search (Alt &#43; /)" accesskey=/>
+                <a href="http://localhost:1313/search/" title="Search (Alt &#43; /)" accesskey=/>
                     <span>Search</span>
                 </a>
             </li>
@@ -293,7 +293,7 @@ As always, the first step is a thorough nmap scan to see what we&rsquo;re workin
 
 <article class="post-single">
   <header class="post-header">
-    <div class="breadcrumbs"><a href="https://0xblivion.dev/">Home</a>&nbsp;»&nbsp;<a href="https://0xblivion.dev/posts/">Posts</a></div>
+    <div class="breadcrumbs"><a href="http://localhost:1313/">Home</a>&nbsp;»&nbsp;<a href="http://localhost:1313/posts/">Posts</a></div>
     <h1 class="post-title entry-hint-parent">
       TryHackMe - CroccCrew WriteUp
     </h1>
@@ -433,7 +433,7 @@ As always, the first step is a thorough nmap scan to see what we&rsquo;re workin
 
 
 
-<div id="flowchart-1752166044029343086" class="attack-path-flowchart">
+<div id="flowchart-1752166234853428274" class="attack-path-flowchart">
   <div class="flowchart-controls">
     <button class="zoom-btn" data-action="zoom-in" title="Zoom In">+</button>
     <button class="zoom-btn" data-action="zoom-out" title="Zoom Out">−</button>
@@ -1706,21 +1706,21 @@ admCroccCrew
 
   <footer class="post-footer">
     <ul class="post-tags">
-      <li><a href="https://0xblivion.dev/tags/walkthrough/">Walkthrough</a></li>
-      <li><a href="https://0xblivion.dev/tags/writeup/">Writeup</a></li>
-      <li><a href="https://0xblivion.dev/tags/tryhackme/">Tryhackme</a></li>
-      <li><a href="https://0xblivion.dev/tags/windows/">Windows</a></li>
-      <li><a href="https://0xblivion.dev/tags/active-directory/">Active Directory</a></li>
-      <li><a href="https://0xblivion.dev/tags/rdp-enumeration/">RDP Enumeration</a></li>
-      <li><a href="https://0xblivion.dev/tags/rdp-sec-nla/">RDP Sec Nla</a></li>
-      <li><a href="https://0xblivion.dev/tags/constrained-delegation/">Constrained Delegation</a></li>
-      <li><a href="https://0xblivion.dev/tags/keberoasting/">Keberoasting</a></li>
-      <li><a href="https://0xblivion.dev/tags/ldapsearch/">Ldapsearch</a></li>
-      <li><a href="https://0xblivion.dev/tags/ldapdomaindump/">Ldapdomaindump</a></li>
-      <li><a href="https://0xblivion.dev/tags/allowedtodelagate/">AllowedToDelagate</a></li>
+      <li><a href="http://localhost:1313/tags/walkthrough/">Walkthrough</a></li>
+      <li><a href="http://localhost:1313/tags/writeup/">Writeup</a></li>
+      <li><a href="http://localhost:1313/tags/tryhackme/">Tryhackme</a></li>
+      <li><a href="http://localhost:1313/tags/windows/">Windows</a></li>
+      <li><a href="http://localhost:1313/tags/active-directory/">Active Directory</a></li>
+      <li><a href="http://localhost:1313/tags/rdp-enumeration/">RDP Enumeration</a></li>
+      <li><a href="http://localhost:1313/tags/rdp-sec-nla/">RDP Sec Nla</a></li>
+      <li><a href="http://localhost:1313/tags/constrained-delegation/">Constrained Delegation</a></li>
+      <li><a href="http://localhost:1313/tags/keberoasting/">Keberoasting</a></li>
+      <li><a href="http://localhost:1313/tags/ldapsearch/">Ldapsearch</a></li>
+      <li><a href="http://localhost:1313/tags/ldapdomaindump/">Ldapdomaindump</a></li>
+      <li><a href="http://localhost:1313/tags/allowedtodelagate/">AllowedToDelagate</a></li>
     </ul>
 <nav class="paginav">
-  <a class="next" href="https://0xblivion.dev/posts/thm/hard/tryhackme-ra-writeup/">
+  <a class="next" href="http://localhost:1313/posts/thm/hard/tryhackme-ra-writeup/">
     <span class="title">Next »</span>
     <br>
     <span>TryHackMe - Ra WriteUp</span>
@@ -1732,7 +1732,7 @@ admCroccCrew
     </main>
     
 <footer class="footer">
-        <span>&copy; 2025 <a href="https://0xblivion.dev/">0xblivion.dev</a></span>
+        <span>&copy; 2025 <a href="http://localhost:1313/">0xblivion.dev</a></span>
 
 </footer>
 <a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">

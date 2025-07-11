@@ -11,13 +11,23 @@
     </image>
     <generator>Hugo -- 0.147.9</generator>
     <language>en-us</language>
-    <lastBuildDate>Thu, 10 Jul 2025 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Fri, 11 Jul 2025 00:00:00 +0000</lastBuildDate>
     <atom:link href="https://0xblivion.dev/tags/walkthrough/index.xml" rel="self" type="application/rss+xml" />
     <item>
-      <title>TryHackMe - CroccCrew WriteUp</title>
-      <link>https://0xblivion.dev/posts/thm/windows/tryhackme/</link>
+      <title>TryHackMe - Fusion Corp WriteUp</title>
+      <link>https://0xblivion.dev/posts/thm/windows/hard/tryhackme-fusion-corp-writeup/</link>
+      <pubDate>Fri, 11 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/posts/thm/windows/hard/tryhackme-fusion-corp-writeup/</guid>
+      <description>&lt;h1 id=&#34;overview&#34;&gt;Overview&lt;/h1&gt;
+&lt;p&gt;&lt;img src=&#34;https://0xblivion.dev/img/FusionCorp/Fusion.png&#34; alt=&#34;&#34; class=&#34;img-responsive&#34; loading=&#34;lazy&#34; /&gt;
+&lt;code&gt;Fusion corp&lt;/code&gt; is a hard rated box on tryhackme. After some basic enumeration fails, we find a backup file on the web server that contains a list of usernames. One of these users, &lt;code&gt;lparker&lt;/code&gt;, is vulnerable to AS-REP Roasting because they have Kerberos pre-authentication disabled. We get their hash, crack it, and get a shell on the box.&lt;/p&gt;
+&lt;p&gt;From there, post-exploitation enumeration reveals another user, &lt;code&gt;jmurphy&lt;/code&gt;, with their password stored in the user account&amp;rsquo;s comment field. This user is a member of the &lt;code&gt;Backup Operators&lt;/code&gt; group. We abuse this privilege to create a shadow copy of the C: drive and exfiltrate the &lt;code&gt;ntds.dit&lt;/code&gt; and &lt;code&gt;SYSTEM&lt;/code&gt; hives. Finally, we use &lt;code&gt;secretsdump.py&lt;/code&gt; to dump all the domain hashes, get the administrator&amp;rsquo;s hash, and use it to get the final flag.&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>TryHackMe - Crocc Crew WriteUp</title>
+      <link>https://0xblivion.dev/posts/thm/windows/insane/tryhackme-crocc-crew-writeup/</link>
       <pubDate>Thu, 10 Jul 2025 00:00:00 +0000</pubDate>
-      <guid>https://0xblivion.dev/posts/thm/windows/tryhackme/</guid>
+      <guid>https://0xblivion.dev/posts/thm/windows/insane/tryhackme-crocc-crew-writeup/</guid>
       <description>&lt;h1 id=&#34;overview&#34;&gt;Overview&lt;/h1&gt;
 &lt;img src=&#34;https://0xblivion.dev/img/croccCrew/crocc.png&#34; alt=&#34;&#34; class=&#34;img-responsive&#34; loading=&#34;lazy&#34; /&gt;
 &lt;p&gt;&lt;code&gt;Crocc Crew&lt;/code&gt; is an insane machine on &lt;a href=&#34;http://tryhackme.com/&#34;&gt;TryHackMe&lt;/a&gt;, but it&amp;rsquo;s kinda like a easy box. The path starts with some clever RDP reconnaissance to find initial credentials. From there, it involves kerberoasting a service account, diving into BloodHound to find a constrained delegation path, and wrestling with a very frustrating &lt;code&gt;secretsdump&lt;/code&gt; error that I almost rage quit and touched grass. Let’s walk through it.&lt;/p&gt;
@@ -113,7 +123,7 @@
 
 
 
-&lt;div id=&#34;flowchart-1752166044073667705&#34; class=&#34;attack-path-flowchart&#34;&gt;
+&lt;div id=&#34;flowchart-1752251679578164246&#34; class=&#34;attack-path-flowchart&#34;&gt;
   &lt;div class=&#34;flowchart-controls&#34;&gt;
     &lt;button class=&#34;zoom-btn&#34; data-action=&#34;zoom-in&#34; title=&#34;Zoom In&#34;&gt;+&lt;/button&gt;
     &lt;button class=&#34;zoom-btn&#34; data-action=&#34;zoom-out&#34; title=&#34;Zoom Out&#34;&gt;−&lt;/button&gt;
@@ -129,7 +139,7 @@
 [https://i.ibb.co/0ybfPw9J/password-removebg-preview.png]Use getST.py to impersonate Administrator  
 [https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Fix /etc/hosts → Run secretsdump  
 [https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Evil-WinRM as Administrator  
-[https://i.ibb.co/679DN5x7/rooted-removebg-preview.png]LDAPSearch → Identify Planted User: admCroccCrew  
+[https://i.ibb.co/679DN5x7/rooted-removebg-preview.png]LDAPSearch → Identify Planted
 &lt;/div&gt;
 &lt;/div&gt;
 

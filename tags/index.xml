@@ -11,8 +11,99 @@
     </image>
     <generator>Hugo -- 0.147.9</generator>
     <language>en-us</language>
-    <lastBuildDate>Thu, 10 Jul 2025 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Fri, 11 Jul 2025 00:00:00 +0000</lastBuildDate>
     <atom:link href="https://0xblivion.dev/tags/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>ActiveDirectory</title>
+      <link>https://0xblivion.dev/tags/activedirectory/</link>
+      <pubDate>Fri, 11 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/activedirectory/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>AS-REP Roasting</title>
+      <link>https://0xblivion.dev/tags/as-rep-roasting/</link>
+      <pubDate>Fri, 11 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/as-rep-roasting/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Backup Operators</title>
+      <link>https://0xblivion.dev/tags/backup-operators/</link>
+      <pubDate>Fri, 11 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/backup-operators/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Evil-WinRM</title>
+      <link>https://0xblivion.dev/tags/evil-winrm/</link>
+      <pubDate>Fri, 11 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/evil-winrm/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>FusionCorp</title>
+      <link>https://0xblivion.dev/tags/fusioncorp/</link>
+      <pubDate>Fri, 11 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/fusioncorp/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Kerberos</title>
+      <link>https://0xblivion.dev/tags/kerberos/</link>
+      <pubDate>Fri, 11 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/kerberos/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>NTDS.DIT</title>
+      <link>https://0xblivion.dev/tags/ntds.dit/</link>
+      <pubDate>Fri, 11 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/ntds.dit/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Secretsdump</title>
+      <link>https://0xblivion.dev/tags/secretsdump/</link>
+      <pubDate>Fri, 11 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/secretsdump/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>SYSTEM Hives</title>
+      <link>https://0xblivion.dev/tags/system-hives/</link>
+      <pubDate>Fri, 11 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/system-hives/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Tryhackme</title>
+      <link>https://0xblivion.dev/tags/tryhackme/</link>
+      <pubDate>Fri, 11 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/tryhackme/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Walkthrough</title>
+      <link>https://0xblivion.dev/tags/walkthrough/</link>
+      <pubDate>Fri, 11 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/walkthrough/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Windows</title>
+      <link>https://0xblivion.dev/tags/windows/</link>
+      <pubDate>Fri, 11 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/windows/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Writeup</title>
+      <link>https://0xblivion.dev/tags/writeup/</link>
+      <pubDate>Fri, 11 Jul 2025 00:00:00 +0000</pubDate>
+      <guid>https://0xblivion.dev/tags/writeup/</guid>
+      <description></description>
+    </item>
     <item>
       <title>Active Directory</title>
       <link>https://0xblivion.dev/tags/active-directory/</link>
@@ -70,34 +161,6 @@
       <description></description>
     </item>
     <item>
-      <title>Tryhackme</title>
-      <link>https://0xblivion.dev/tags/tryhackme/</link>
-      <pubDate>Thu, 10 Jul 2025 00:00:00 +0000</pubDate>
-      <guid>https://0xblivion.dev/tags/tryhackme/</guid>
-      <description></description>
-    </item>
-    <item>
-      <title>Walkthrough</title>
-      <link>https://0xblivion.dev/tags/walkthrough/</link>
-      <pubDate>Thu, 10 Jul 2025 00:00:00 +0000</pubDate>
-      <guid>https://0xblivion.dev/tags/walkthrough/</guid>
-      <description></description>
-    </item>
-    <item>
-      <title>Windows</title>
-      <link>https://0xblivion.dev/tags/windows/</link>
-      <pubDate>Thu, 10 Jul 2025 00:00:00 +0000</pubDate>
-      <guid>https://0xblivion.dev/tags/windows/</guid>
-      <description></description>
-    </item>
-    <item>
-      <title>Writeup</title>
-      <link>https://0xblivion.dev/tags/writeup/</link>
-      <pubDate>Thu, 10 Jul 2025 00:00:00 +0000</pubDate>
-      <guid>https://0xblivion.dev/tags/writeup/</guid>
-      <description></description>
-    </item>
-    <item>
       <title>Account-Operators</title>
       <link>https://0xblivion.dev/tags/account-operators/</link>
       <pubDate>Mon, 07 Jul 2025 00:00:00 +0000</pubDate>
@@ -130,13 +193,6 @@
       <link>https://0xblivion.dev/tags/hash-cracking/</link>
       <pubDate>Mon, 07 Jul 2025 00:00:00 +0000</pubDate>
       <guid>https://0xblivion.dev/tags/hash-cracking/</guid>
-      <description></description>
-    </item>
-    <item>
-      <title>Kerberos</title>
-      <link>https://0xblivion.dev/tags/kerberos/</link>
-      <pubDate>Mon, 07 Jul 2025 00:00:00 +0000</pubDate>
-      <guid>https://0xblivion.dev/tags/kerberos/</guid>
       <description></description>
     </item>
     <item>

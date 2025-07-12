@@ -3,7 +3,52 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://0xblivion.dev/</loc>
-    <lastmod>2025-07-11T00:00:00+00:00</lastmod>
+    <lastmod>2025-07-12T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://0xblivion.dev/tags/backdrop-cms/</loc>
+    <lastmod>2025-07-12T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://0xblivion.dev/tags/ctf/</loc>
+    <lastmod>2025-07-12T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://0xblivion.dev/tags/git-exposure/</loc>
+    <lastmod>2025-07-12T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://0xblivion.dev/tags/hack-the-box/</loc>
+    <lastmod>2025-07-12T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://0xblivion.dev/tags/hackthebox/</loc>
+    <lastmod>2025-07-12T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://0xblivion.dev/posts/htb/linux/easy/hackthebox---dog-writeup/</loc>
+    <lastmod>2025-07-12T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://0xblivion.dev/tags/hackthebox-dog-writeup/</loc>
+    <lastmod>2025-07-12T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://0xblivion.dev/tags/information-disclosure/</loc>
+    <lastmod>2025-07-12T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://0xblivion.dev/tags/linux/</loc>
+    <lastmod>2025-07-12T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://0xblivion.dev/tags/php-exploitation/</loc>
+    <lastmod>2025-07-12T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://0xblivion.dev/posts/</loc>
+    <lastmod>2025-07-12T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://0xblivion.dev/tags/privilege-escalation/</loc>
+    <lastmod>2025-07-12T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://0xblivion.dev/tags/remote-code-execution/</loc>
+    <lastmod>2025-07-12T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://0xblivion.dev/tags/</loc>
+    <lastmod>2025-07-12T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://0xblivion.dev/tags/web-exploitation/</loc>
+    <lastmod>2025-07-12T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://0xblivion.dev/tags/activedirectory/</loc>
     <lastmod>2025-07-11T00:00:00+00:00</lastmod>
@@ -12,9 +57,6 @@
     <lastmod>2025-07-11T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://0xblivion.dev/tags/backup-operators/</loc>
-    <lastmod>2025-07-11T00:00:00+00:00</lastmod>
-  </url><url>
-    <loc>https://0xblivion.dev/tags/evil-winrm/</loc>
     <lastmod>2025-07-11T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://0xblivion.dev/tags/fusioncorp/</loc>
@@ -26,22 +68,19 @@
     <loc>https://0xblivion.dev/tags/ntds.dit/</loc>
     <lastmod>2025-07-11T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>https://0xblivion.dev/posts/</loc>
-    <lastmod>2025-07-11T00:00:00+00:00</lastmod>
-  </url><url>
     <loc>https://0xblivion.dev/tags/secretsdump/</loc>
     <lastmod>2025-07-11T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://0xblivion.dev/tags/system-hives/</loc>
     <lastmod>2025-07-11T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>https://0xblivion.dev/tags/</loc>
-    <lastmod>2025-07-11T00:00:00+00:00</lastmod>
-  </url><url>
     <loc>https://0xblivion.dev/tags/tryhackme/</loc>
     <lastmod>2025-07-11T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://0xblivion.dev/posts/thm/windows/hard/tryhackme-fusion-corp-writeup/</loc>
+    <lastmod>2025-07-11T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://0xblivion.dev/tags/tryhackme-fusion-corp-writeup/</loc>
     <lastmod>2025-07-11T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://0xblivion.dev/tags/walkthrough/</loc>
@@ -80,6 +119,9 @@
     <loc>https://0xblivion.dev/posts/thm/windows/insane/tryhackme-crocc-crew-writeup/</loc>
     <lastmod>2025-07-10T00:00:00+00:00</lastmod>
   </url><url>
+    <loc>https://0xblivion.dev/tags/tryhackme-crocc-crew-writeup/</loc>
+    <lastmod>2025-07-10T00:00:00+00:00</lastmod>
+  </url><url>
     <loc>https://0xblivion.dev/tags/account-operators/</loc>
     <lastmod>2025-07-07T00:00:00+00:00</lastmod>
   </url><url>
@@ -92,22 +134,7 @@
     <loc>https://0xblivion.dev/tags/docker/</loc>
     <lastmod>2025-07-07T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>https://0xblivion.dev/tags/hash-cracking/</loc>
-    <lastmod>2025-07-07T00:00:00+00:00</lastmod>
-  </url><url>
-    <loc>https://0xblivion.dev/tags/nmap/</loc>
-    <lastmod>2025-07-07T00:00:00+00:00</lastmod>
-  </url><url>
     <loc>https://0xblivion.dev/tags/ntlm/</loc>
-    <lastmod>2025-07-07T00:00:00+00:00</lastmod>
-  </url><url>
-    <loc>https://0xblivion.dev/tags/password-reset/</loc>
-    <lastmod>2025-07-07T00:00:00+00:00</lastmod>
-  </url><url>
-    <loc>https://0xblivion.dev/tags/privilege-escalation/</loc>
-    <lastmod>2025-07-07T00:00:00+00:00</lastmod>
-  </url><url>
-    <loc>https://0xblivion.dev/tags/responder/</loc>
     <lastmod>2025-07-07T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://0xblivion.dev/tags/scheduled-task/</loc>
@@ -117,6 +144,9 @@
     <lastmod>2025-07-07T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://0xblivion.dev/posts/thm/hard/tryhackme-ra-writeup/</loc>
+    <lastmod>2025-07-07T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://0xblivion.dev/tags/tryhackme-ra-writeup/</loc>
     <lastmod>2025-07-07T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://0xblivion.dev/tags/xmpp/</loc>
@@ -137,22 +167,16 @@
     <loc>https://0xblivion.dev/tags/gitea/</loc>
     <lastmod>2025-07-05T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>https://0xblivion.dev/tags/hackthebox/</loc>
+    <loc>https://0xblivion.dev/posts/htb/linux/medium/hackthebox-cat-writeup/</loc>
     <lastmod>2025-07-05T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>https://0xblivion.dev/posts/htb/linux/medium/hackthebox-cat-writeup/</loc>
+    <loc>https://0xblivion.dev/tags/hackthebox-cat-writeup/</loc>
     <lastmod>2025-07-05T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://0xblivion.dev/tags/htb-cat/</loc>
     <lastmod>2025-07-05T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>https://0xblivion.dev/tags/linux/</loc>
-    <lastmod>2025-07-05T00:00:00+00:00</lastmod>
-  </url><url>
     <loc>https://0xblivion.dev/tags/sql-injection/</loc>
-    <lastmod>2025-07-05T00:00:00+00:00</lastmod>
-  </url><url>
-    <loc>https://0xblivion.dev/tags/web-exploitation/</loc>
     <lastmod>2025-07-05T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://0xblivion.dev/about/</loc>

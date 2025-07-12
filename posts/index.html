@@ -134,6 +134,19 @@
 
 <article class="post-entry"> 
   <header class="entry-header">
+    <h2 class="entry-hint-parent">HackTheBox - Dog Writeup
+    </h2>
+  </header>
+  <div class="entry-content">
+    <p>Overview Dog is an easy box from HackTheBox that focuses on web application vulnerabilities, specifically a misconfigured Git repository and a vulnerable Backdrop CMS. We start by discovering an exposed .git directory, which allows us to dump the repository and uncover database credentials. These credentials lead to an authenticated web panel, where we exploit a known Remote Code Execution (RCE) vulnerability in Backdrop CMS to gain an initial shell as www-data. For privilege escalation, we discover that a user (johncusack) can execute a PHP utility (bee) as root, which we then abuse to spawn a root shell.
+...</p>
+  </div>
+  <footer class="entry-footer"><span title='2025-07-12 00:00:00 +0000 UTC'>July 12, 2025</span>&nbsp;·&nbsp;14 min&nbsp;·&nbsp;0xblivion</footer>
+  <a class="entry-link" aria-label="post link to HackTheBox - Dog Writeup" href="https://0xblivion.dev/posts/htb/linux/easy/hackthebox---dog-writeup/"></a>
+</article>
+
+<article class="post-entry"> 
+  <header class="entry-header">
     <h2 class="entry-hint-parent">TryHackMe - Fusion Corp WriteUp
     </h2>
   </header>

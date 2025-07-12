@@ -15,9 +15,9 @@
     <atom:link href="https://0xblivion.dev/posts/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>HackTheBox - Dog Writeup</title>
-      <link>https://0xblivion.dev/posts/htb/linux/easy/hackthebox---dog-writeup/</link>
+      <link>https://0xblivion.dev/posts/htb/linux/easy/hackthebox-dog-writeup/</link>
       <pubDate>Sat, 12 Jul 2025 00:00:00 +0000</pubDate>
-      <guid>https://0xblivion.dev/posts/htb/linux/easy/hackthebox---dog-writeup/</guid>
+      <guid>https://0xblivion.dev/posts/htb/linux/easy/hackthebox-dog-writeup/</guid>
       <description>&lt;h1 id=&#34;overview&#34;&gt;Overview&lt;/h1&gt;
 &lt;img src=&#34;https://0xblivion.dev/img/dog/Dog.png&#34; alt=&#34;&#34; class=&#34;img-responsive&#34; loading=&#34;lazy&#34; /&gt;
 &lt;p&gt;&lt;code&gt;Dog&lt;/code&gt; is an easy box from &lt;a href=&#34;https://app.hackthebox.com/&#34;&gt;HackTheBox&lt;/a&gt; that focuses on web application vulnerabilities, specifically a misconfigured Git repository and a vulnerable Backdrop CMS. We start by discovering an exposed &lt;code&gt;.git&lt;/code&gt; directory, which allows us to dump the repository and uncover database credentials. These credentials lead to an authenticated web panel, where we exploit a known Remote Code Execution (RCE) vulnerability in Backdrop CMS to gain an initial shell as &lt;code&gt;www-data&lt;/code&gt;. For privilege escalation, we discover that a user (&lt;code&gt;johncusack&lt;/code&gt;) can execute a PHP utility (&lt;code&gt;bee&lt;/code&gt;) as root, which we then abuse to spawn a root shell.&lt;/p&gt;</description>
@@ -132,7 +132,7 @@
 
 
 
-&lt;div id=&#34;flowchart-1752344197991304349&#34; class=&#34;attack-path-flowchart&#34;&gt;
+&lt;div id=&#34;flowchart-1752344609357541244&#34; class=&#34;attack-path-flowchart&#34;&gt;
   &lt;div class=&#34;flowchart-controls&#34;&gt;
     &lt;button class=&#34;zoom-btn&#34; data-action=&#34;zoom-in&#34; title=&#34;Zoom In&#34;&gt;+&lt;/button&gt;
     &lt;button class=&#34;zoom-btn&#34; data-action=&#34;zoom-out&#34; title=&#34;Zoom Out&#34;&gt;−&lt;/button&gt;
